@@ -88,11 +88,11 @@
   }
   
   .payroll-button-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg font-medium transition-colors;
+    @apply bg-primary text-primary-foreground hover:opacity-90 px-4 py-2 rounded-lg font-medium transition-colors;
   }
   
   .payroll-button-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 px-4 py-2 rounded-lg font-medium transition-colors;
+    @apply bg-secondary text-secondary-foreground hover:opacity-90 px-4 py-2 rounded-lg font-medium transition-colors;
   }
   
   .payroll-input {
@@ -112,7 +112,7 @@
   }
   
   .payroll-table tr:hover {
-    @apply bg-muted/50;
+    @apply bg-muted;
   }
   
   .status-badge {
@@ -120,15 +120,15 @@
   }
   
   .status-complete {
-    @apply bg-secondary/10 text-secondary;
+    @apply bg-secondary bg-opacity-10 text-secondary;
   }
   
   .status-pending {
-    @apply bg-accent/10 text-accent-foreground;
+    @apply bg-accent bg-opacity-10 text-accent-foreground;
   }
   
   .status-missing {
-    @apply bg-destructive/10 text-destructive;
+    @apply bg-destructive bg-opacity-10 text-destructive;
   }
 }
 

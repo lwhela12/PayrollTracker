@@ -46,10 +46,7 @@ export default function Timecards() {
   // Create pay period mutation
   const createPayPeriodMutation = useMutation({
     mutationFn: async (payPeriodData: any) => {
-      return apiRequest("/api/pay-periods", {
-        method: "POST",
-        body: JSON.stringify(payPeriodData),
-      });
+      return apiRequest("POST", "/api/pay-periods", payPeriodData);
     },
     onSuccess: () => {
       toast({

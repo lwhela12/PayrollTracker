@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTimecard, setSelectedTimecard] = useState<any>(null);
   const [showTimecardModal, setShowTimecardModal] = useState(false);
+  const [employerDialogOpen, setEmployerDialogOpen] = useState(false);
 
   // Fetch employers
   const { data: employers, isLoading: employersLoading } = useQuery({
@@ -105,7 +106,10 @@ export default function Dashboard() {
             <p className="text-muted-foreground mb-4">
               You need to set up your company profile first.
             </p>
-            <Button className="payroll-button-primary w-full">
+            <Button 
+              className="payroll-button-primary w-full"
+              onClick={() => setEmployerDialogOpen(true)}
+            >
               Create Company Profile
             </Button>
           </CardContent>
@@ -373,6 +377,19 @@ export default function Dashboard() {
           payPeriod={selectedTimecard.payPeriod}
         />
       )}
+
+      {/* Employer Creation Dialog */}
+      <Dialog open={employerDialogOpen} onOpenChange={setEmployerDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create Company Profile</DialogTitle>
+          </DialogHeader>
+          <EmployerForm
+            onSuccess={() => setEmployerDialogOpen(false)}
+            onCancel={() => setEmployerDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

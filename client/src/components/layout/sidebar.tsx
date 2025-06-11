@@ -55,17 +55,15 @@ export function Sidebar({ selectedEmployer, currentPayPeriod }: SidebarProps) {
           const active = isActive(item.href);
           
           return (
-            <Link key={item.name} href={item.href}>
-              <a className={`
-                flex items-center px-4 py-3 text-sm font-medium transition-colors
-                ${active 
-                  ? "text-sidebar-primary bg-sidebar-accent border-r-2 border-sidebar-primary" 
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                }
-              `}>
-                <Icon className="mr-3 h-5 w-5" />
-                {item.name}
-              </a>
+            <Link key={item.name} href={item.href} className={`
+              flex items-center px-4 py-3 text-sm font-medium transition-colors
+              ${active 
+                ? "text-sidebar-primary bg-sidebar-accent border-r-2 border-sidebar-primary" 
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              }
+            `}>
+              <Icon className="mr-3 h-5 w-5" />
+              {item.name}
             </Link>
           );
         })}

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -109,6 +110,11 @@ export default function Dashboard() {
             <p className="text-xs text-red-500 mb-2">
               Debug: Dialog state = {employerDialogOpen ? 'true' : 'false'}
             </p>
+            {employerDialogOpen && (
+              <p className="text-xs text-green-600 mb-2">
+                Modal should be visible now!
+              </p>
+            )}
             <Button 
               className="payroll-button-primary w-full"
               onClick={() => {
@@ -386,10 +392,54 @@ export default function Dashboard() {
       )}
 
       {/* Employer Creation Dialog */}
-      {employerDialogOpen && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h2 className="text-xl font-semibold mb-4">Create Company Profile</h2>
+      {employerDialogOpen && createPortal(
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
+            zIndex: 999999,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              console.log("Backdrop clicked, closing modal");
+              setEmployerDialogOpen(false);
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-2xl"
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '500px',
+              margin: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Create Company Profile</h2>
+              <button
+                onClick={() => {
+                  console.log("X button clicked, closing modal");
+                  setEmployerDialogOpen(false);
+                }}
+                className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+                style={{ fontSize: '24px', lineHeight: '1', padding: '4px' }}
+              >
+                ×
+              </button>
+            </div>
             <EmployerForm
               onSuccess={() => {
                 console.log("Employer form success");
@@ -401,32 +451,9 @@ export default function Dashboard() {
               }}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-      
-      <Dialog 
-        open={employerDialogOpen} 
-        onOpenChange={(open) => {
-          console.log("Dialog open state changed to:", open);
-          setEmployerDialogOpen(open);
-        }}
-      >
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Create Company Profile</DialogTitle>
-          </DialogHeader>
-          <EmployerForm
-            onSuccess={() => {
-              console.log("Employer form success");
-              setEmployerDialogOpen(false);
-            }}
-            onCancel={() => {
-              console.log("Employer form cancelled");
-              setEmployerDialogOpen(false);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -106,9 +106,16 @@ export default function Dashboard() {
             <p className="text-muted-foreground mb-4">
               You need to set up your company profile first.
             </p>
+            <p className="text-xs text-red-500 mb-2">
+              Debug: Dialog state = {employerDialogOpen ? 'true' : 'false'}
+            </p>
             <Button 
               className="payroll-button-primary w-full"
-              onClick={() => setEmployerDialogOpen(true)}
+              onClick={() => {
+                console.log("Create Company Profile button clicked");
+                setEmployerDialogOpen(true);
+                console.log("Dialog state set to true");
+              }}
             >
               Create Company Profile
             </Button>
@@ -379,14 +386,26 @@ export default function Dashboard() {
       )}
 
       {/* Employer Creation Dialog */}
-      <Dialog open={employerDialogOpen} onOpenChange={setEmployerDialogOpen}>
+      <Dialog 
+        open={employerDialogOpen} 
+        onOpenChange={(open) => {
+          console.log("Dialog open state changed to:", open);
+          setEmployerDialogOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Create Company Profile</DialogTitle>
           </DialogHeader>
           <EmployerForm
-            onSuccess={() => setEmployerDialogOpen(false)}
-            onCancel={() => setEmployerDialogOpen(false)}
+            onSuccess={() => {
+              console.log("Employer form success");
+              setEmployerDialogOpen(false);
+            }}
+            onCancel={() => {
+              console.log("Employer form cancelled");
+              setEmployerDialogOpen(false);
+            }}
           />
         </DialogContent>
       </Dialog>

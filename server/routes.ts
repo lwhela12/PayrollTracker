@@ -78,7 +78,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Employee routes
   app.post('/api/employees', isAuthenticated, async (req: any, res) => {
     try {
+      console.log("Raw employee data received:", JSON.stringify(req.body, null, 2));
+      
       const employeeData = insertEmployeeSchema.parse(req.body);
+      console.log("Parsed employee data:", JSON.stringify(employeeData, null, 2));
       
       // Verify employer ownership
       const employer = await storage.getEmployer(employeeData.employerId);
@@ -89,10 +92,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employee = await storage.createEmployee(employeeData);
       res.json(employee);
     } catch (error: any) {
+      console.error("Full error creating employee:", error);
       if (error.name === 'ZodError') {
-        return res.status(400).json({ message: fromZodError(error).toString() });
+        console.log("Zod validation error details:", JSON.stringify(error.errors, null, 2));
+        return res.status(400).json({ 
+          message: fromZodError(error).toString(),
+          details: error.errors
+        });
       }
-      console.error("Error creating employee:", error);
       res.status(500).json({ message: "Failed to create employee" });
     }
   });
@@ -220,6 +227,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching current pay period:", error);
       res.status(500).json({ message: "Failed to fetch current pay period" });
+    }
+  });
+
+  // Create pay period route
+  app.post('/api/pay-periods', isAuthenticated, async (req: any, res) => {
+    try {
+      console.log("Raw pay period data received:", JSON.stringify(req.body, null, 2));
+      
+      const payPeriodData = insertPayPeriodSchema.parse(req.body);
+      console.log("Parsed pay period data:", JSON.stringify(payPeriodData, null, 2));
+      
+      // Verify employer ownership
+      const employer = await storage.getEmployer(payPeriodData.employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const payPeriod = await storage.createPayPeriod(payPeriodData);
+      res.json(payPeriod);
+    } catch (error: any) {
+      console.error("Full error creating pay period:", error);
+      if (error.name === 'ZodError') {
+        console.log("Zod validation error details:", JSON.stringify(error.errors, null, 2));
+        return res.status(400).json({ 
+          message: fromZodError(error).toString(),
+          details: error.errors
+        });
+      }
+      res.status(500).json({ message: "Failed to create pay period" });
     }
   });
 

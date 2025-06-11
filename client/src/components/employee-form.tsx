@@ -44,8 +44,10 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
 
   const createEmployeeMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/employees", data);
-      return response;
+      return apiRequest("/api/employees", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });

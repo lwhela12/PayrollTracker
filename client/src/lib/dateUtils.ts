@@ -75,9 +75,11 @@ export function getNextWednesday(date: Date = new Date()): Date {
 
 export function createBiWeeklyPayPeriod(startDate: Date) {
   const endDate = addDays(startDate, 13); // 14 days total (bi-weekly)
+  const payDate = addDays(endDate, 7); // Pay date is one week after period ends
   return {
     startDate: format(startDate, 'yyyy-MM-dd'),
-    endDate: format(endDate, 'yyyy-MM-dd')
+    endDate: format(endDate, 'yyyy-MM-dd'),
+    payDate: format(payDate, 'yyyy-MM-dd')
   };
 }
 

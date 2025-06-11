@@ -52,15 +52,11 @@ export const employers = pgTable("employers", {
 // Employees table
 export const employees = pgTable("employees", {
   id: serial("id").primaryKey(),
-  employeeId: varchar("employee_id", { length: 50 }).notNull(),
   firstName: varchar("first_name", { length: 100 }).notNull(),
   lastName: varchar("last_name", { length: 100 }).notNull(),
   email: varchar("email", { length: 255 }),
   phone: varchar("phone", { length: 20 }),
-  department: varchar("department", { length: 100 }),
   position: varchar("position", { length: 100 }),
-  hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }),
-  overtimeRate: decimal("overtime_rate", { precision: 10, scale: 2 }),
   mileageRate: decimal("mileage_rate", { precision: 10, scale: 4 }).default("0.655"), // IRS standard rate
   isActive: boolean("is_active").default(true),
   employerId: integer("employer_id").notNull().references(() => employers.id, { onDelete: "cascade" }),

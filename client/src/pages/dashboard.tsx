@@ -386,6 +386,24 @@ export default function Dashboard() {
       )}
 
       {/* Employer Creation Dialog */}
+      {employerDialogOpen && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h2 className="text-xl font-semibold mb-4">Create Company Profile</h2>
+            <EmployerForm
+              onSuccess={() => {
+                console.log("Employer form success");
+                setEmployerDialogOpen(false);
+              }}
+              onCancel={() => {
+                console.log("Employer form cancelled");
+                setEmployerDialogOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
+      
       <Dialog 
         open={employerDialogOpen} 
         onOpenChange={(open) => {

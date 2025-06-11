@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import Employees from "@/pages/employees";
 import Timecards from "@/pages/timecards";
 import Reports from "@/pages/reports";
+import CreateCompany from "@/pages/create-company";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -29,6 +30,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Dashboard} />
+          <Route path="/create-company" component={CreateCompany} />
           <Route path="/employees" component={Employees} />
           <Route path="/timecards" component={Timecards} />
           <Route path="/reports" component={Reports} />

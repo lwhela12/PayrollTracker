@@ -1,0 +1,139 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(220, 13%, 16%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(220, 13%, 16%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(220, 13%, 16%);
+  --primary: hsl(213, 89%, 46%);
+  --primary-foreground: hsl(216, 100%, 99%);
+  --secondary: hsl(132, 61%, 47%);
+  --secondary-foreground: hsl(0, 0%, 100%);
+  --muted: hsl(208, 5%, 97%);
+  --muted-foreground: hsl(220, 7%, 45%);
+  --accent: hsl(45, 100%, 52%);
+  --accent-foreground: hsl(0, 0%, 0%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(60, 9%, 98%);
+  --border: hsl(220, 13%, 91%);
+  --input: hsl(220, 13%, 91%);
+  --ring: hsl(213, 89%, 46%);
+  --radius: 0.5rem;
+  --chart-1: hsl(213, 89%, 46%);
+  --chart-2: hsl(132, 61%, 47%);
+  --chart-3: hsl(45, 100%, 52%);
+  --chart-4: hsl(0, 84%, 60%);
+  --chart-5: hsl(287, 80%, 60%);
+  --sidebar-background: hsl(0, 0%, 100%);
+  --sidebar-foreground: hsl(220, 13%, 16%);
+  --sidebar-primary: hsl(213, 89%, 46%);
+  --sidebar-primary-foreground: hsl(216, 100%, 99%);
+  --sidebar-accent: hsl(208, 5%, 97%);
+  --sidebar-accent-foreground: hsl(220, 13%, 16%);
+  --sidebar-border: hsl(220, 13%, 91%);
+  --sidebar-ring: hsl(213, 89%, 46%);
+}
+
+.dark {
+  --background: hsl(240, 10%, 4%);
+  --foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 4%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --popover: hsl(240, 10%, 4%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --primary: hsl(213, 89%, 46%);
+  --primary-foreground: hsl(216, 100%, 99%);
+  --secondary: hsl(132, 61%, 47%);
+  --secondary-foreground: hsl(0, 0%, 100%);
+  --muted: hsl(240, 4%, 16%);
+  --muted-foreground: hsl(240, 5%, 65%);
+  --accent: hsl(45, 100%, 52%);
+  --accent-foreground: hsl(0, 0%, 0%);
+  --destructive: hsl(0, 62%, 31%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 4%, 16%);
+  --input: hsl(240, 4%, 16%);
+  --ring: hsl(213, 89%, 46%);
+  --sidebar-background: hsl(240, 10%, 4%);
+  --sidebar-foreground: hsl(0, 0%, 98%);
+  --sidebar-primary: hsl(213, 89%, 46%);
+  --sidebar-primary-foreground: hsl(216, 100%, 99%);
+  --sidebar-accent: hsl(240, 4%, 16%);
+  --sidebar-accent-foreground: hsl(0, 0%, 98%);
+  --sidebar-border: hsl(240, 4%, 16%);
+  --sidebar-ring: hsl(213, 89%, 46%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Source Sans Pro', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+}
+
+@layer components {
+  .payroll-card {
+    @apply bg-card border border-border rounded-lg shadow-sm;
+  }
+  
+  .payroll-button-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+  
+  .payroll-button-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+  
+  .payroll-input {
+    @apply border border-input bg-background px-3 py-2 rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent;
+  }
+  
+  .payroll-table {
+    @apply w-full border-collapse;
+  }
+  
+  .payroll-table th {
+    @apply px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted;
+  }
+  
+  .payroll-table td {
+    @apply px-6 py-4 whitespace-nowrap text-sm;
+  }
+  
+  .payroll-table tr:hover {
+    @apply bg-muted/50;
+  }
+  
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .status-complete {
+    @apply bg-secondary/10 text-secondary;
+  }
+  
+  .status-pending {
+    @apply bg-accent/10 text-accent-foreground;
+  }
+  
+  .status-missing {
+    @apply bg-destructive/10 text-destructive;
+  }
+}
+
+@layer utilities {
+  .spacing-16 {
+    @apply space-y-4;
+  }
+}

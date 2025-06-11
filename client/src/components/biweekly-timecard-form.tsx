@@ -317,7 +317,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod }: BiweeklyTi
                               type="time"
                               value={entry.timeOut || ''}
                               onChange={(e) => updateTimecardEntry(date, 'timeOut', e.target.value)}
-                              className="className="w-24"
+                              className="w-24"
                             />
                           </td>
                           <td className="border p-2">

@@ -6,6 +6,8 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { TimecardForm } from "@/components/timecard-form";
 import { TimecardModal } from "@/components/timecard-modal";
+import { EmployerForm } from "@/components/employer-form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Users, Clock, Timer, CheckCircle, FileText, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";

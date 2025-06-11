@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,15 +29,16 @@ export default function Employees() {
   });
 
   // Set first employer as default
-  useState(() => {
+  useEffect(() => {
     if (employers && employers.length > 0 && !selectedEmployerId) {
       setSelectedEmployerId(employers[0].id);
     }
-  });
+  }, [employers, selectedEmployerId]);
 
   // Fetch employees
   const { data: employees, isLoading: employeesLoading } = useQuery({
     queryKey: ["/api/employees", selectedEmployerId],
+    queryFn: () => selectedEmployerId ? fetch(`/api/employees/${selectedEmployerId}`).then(res => res.json()) : Promise.resolve([]),
     enabled: !!selectedEmployerId,
   });
 
@@ -65,8 +66,8 @@ export default function Employees() {
   // Filter employees
   const filteredEmployees = employees?.filter((emp: any) =>
     `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (emp.department || "").toLowerCase().includes(searchTerm.toLowerCase())
+    (emp.position || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (emp.email || "").toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
   const handleEdit = (employee: any) => {

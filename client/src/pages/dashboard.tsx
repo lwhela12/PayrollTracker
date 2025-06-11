@@ -28,7 +28,7 @@ export default function Dashboard() {
   const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
 
   // Fetch employers
-  const { data: employers = [] } = useQuery({
+  const { data: employers = [] } = useQuery<any[]>({
     queryKey: ["/api/employers"],
     enabled: !!user,
   });
@@ -48,13 +48,13 @@ export default function Dashboard() {
   });
 
   // Fetch dashboard stats
-  const { data: dashboardStats = {} } = useQuery({
+  const { data: dashboardStats = {} } = useQuery<any>({
     queryKey: ["/api/dashboard/stats", selectedEmployerId],
     enabled: !!selectedEmployerId,
   });
 
   // Fetch timecards for current pay period
-  const { data: timecards = [] } = useQuery({
+  const { data: timecards = [] } = useQuery<any[]>({
     queryKey: ["/api/timecards", dashboardStats?.currentPayPeriod?.id],
     queryFn: () => dashboardStats?.currentPayPeriod?.id ? 
       fetch(`/api/timecards/pay-period/${dashboardStats.currentPayPeriod.id}`, { credentials: 'include' }).then(res => res.json()) : 
@@ -63,7 +63,7 @@ export default function Dashboard() {
   });
 
   const selectedEmployer = employers.find((emp: any) => emp.id === selectedEmployerId);
-  const currentPayPeriod = dashboardStats.currentPayPeriod;
+  const currentPayPeriod = dashboardStats?.currentPayPeriod;
 
   // Calculate timecard status for each employee
   const getEmployeeTimecardStatus = (employeeId: number) => {
@@ -100,13 +100,13 @@ export default function Dashboard() {
     },
     {
       title: "Total Hours",
-      value: dashboardStats.totalHours || 0,
+      value: dashboardStats?.totalHours || 0,
       icon: Clock,
       color: "bg-green-500",
     },
     {
       title: "Payroll Ready",
-      value: dashboardStats.payrollReady ? "Yes" : "No",
+      value: dashboardStats?.payrollReady ? "Yes" : "No",
       icon: DollarSign,
       color: "bg-purple-500",
     },

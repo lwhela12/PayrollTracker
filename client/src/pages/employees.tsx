@@ -23,7 +23,7 @@ export default function Employees() {
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
 
   // Fetch employers
-  const { data: employers } = useQuery({
+  const { data: employers = [] } = useQuery<any[]>({
     queryKey: ["/api/employers"],
     enabled: !!user,
   });
@@ -36,7 +36,7 @@ export default function Employees() {
   }, [employers, selectedEmployerId]);
 
   // Fetch employees
-  const { data: employees, isLoading: employeesLoading } = useQuery({
+  const { data: employees = [], isLoading: employeesLoading } = useQuery<any[]>({
     queryKey: ["/api/employees", selectedEmployerId],
     queryFn: () => selectedEmployerId ? fetch(`/api/employees/${selectedEmployerId}`).then(res => res.json()) : Promise.resolve([]),
     enabled: !!selectedEmployerId,

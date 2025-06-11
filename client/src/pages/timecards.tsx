@@ -18,7 +18,7 @@ export default function Timecards() {
   const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
 
   // Fetch employers
-  const { data: employers } = useQuery({
+  const { data: employers = [] } = useQuery<any[]>({
     queryKey: ["/api/employers"],
     enabled: !!user,
   });
@@ -31,14 +31,14 @@ export default function Timecards() {
   }, [employers, selectedEmployerId]);
 
   // Fetch employees for selected employer
-  const { data: employees } = useQuery({
+  const { data: employees = [] } = useQuery<any[]>({
     queryKey: ["/api/employees", selectedEmployerId],
     queryFn: () => selectedEmployerId ? fetch(`/api/employees/${selectedEmployerId}`).then(res => res.json()) : Promise.resolve([]),
     enabled: !!selectedEmployerId,
   });
 
   // Fetch dashboard stats to get current pay period
-  const { data: dashboardStats } = useQuery({
+  const { data: dashboardStats = {} } = useQuery<any>({
     queryKey: ["/api/dashboard/stats", selectedEmployerId],
     enabled: !!selectedEmployerId,
   });

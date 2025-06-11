@@ -1,12 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { insertEmployerSchema } from "@shared/schema";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +15,14 @@ interface EmployerFormProps {
   onCancel: () => void;
 }
 
-const employerFormSchema = insertEmployerSchema;
+const employerFormSchema = z.object({
+  name: z.string().min(1, "Company name is required"),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
+  taxId: z.string().optional(),
+});
+
 type EmployerFormData = z.infer<typeof employerFormSchema>;
 
 export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProps) {
@@ -33,12 +38,11 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
       phone: employer?.phone || "",
       email: employer?.email || "",
       taxId: employer?.taxId || "",
-      ownerId: employer?.ownerId || "",
     },
   });
 
   const createEmployerMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: EmployerFormData) => {
       const response = await apiRequest("POST", "/api/employers", data);
       return response.json();
     },
@@ -60,7 +64,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
   });
 
   const updateEmployerMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: EmployerFormData) => {
       const response = await apiRequest("PUT", `/api/employers/${employer.id}`, data);
       return response.json();
     },
@@ -99,7 +103,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Company Name</FormLabel>
+              <FormLabel>Company Name *</FormLabel>
               <FormControl>
                 <Input {...field} placeholder="ABC Company Inc." />
               </FormControl>
@@ -135,7 +139,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
               <FormItem>
                 <FormLabel>Phone Number</FormLabel>
                 <FormControl>
-                  <Input {...field} value={field.value || ""} placeholder="(555) 123-4567" />
+                  <Input {...field} placeholder="(555) 123-4567" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -149,7 +153,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input {...field} value={field.value || ""} type="email" placeholder="contact@company.com" />
+                  <Input {...field} type="email" placeholder="contact@company.com" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -164,7 +168,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
             <FormItem>
               <FormLabel>Tax ID / EIN</FormLabel>
               <FormControl>
-                <Input {...field} value={field.value || ""} placeholder="12-3456789" />
+                <Input {...field} placeholder="12-3456789" />
               </FormControl>
               <FormMessage />
             </FormItem>

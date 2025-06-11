@@ -117,7 +117,11 @@ export class DatabaseStorage implements IStorage {
 
   // Employee operations
   async createEmployee(employee: InsertEmployee): Promise<Employee> {
-    const [newEmployee] = await db.insert(employees).values(employee).returning();
+    const employeeData = {
+      ...employee,
+      mileageRate: employee.mileageRate?.toString() || "0.655"
+    };
+    const [newEmployee] = await db.insert(employees).values(employeeData).returning();
     return newEmployee;
   }
 
@@ -135,9 +139,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee> {
+    const updateData = {
+      ...employee,
+      ...(employee.mileageRate && { mileageRate: employee.mileageRate.toString() })
+    };
     const [updated] = await db
       .update(employees)
-      .set(employee)
+      .set(updateData)
       .where(eq(employees.id, id))
       .returning();
     return updated;

@@ -29,6 +29,8 @@ interface TimecardEntry {
 }
 
 export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedEmployeeId }: BiweeklyTimecardFormProps) {
+  console.log('BIWEEKLY FORM - Component render with preSelectedEmployeeId:', preSelectedEmployeeId);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -36,9 +38,14 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
   const [timecardData, setTimecardData] = useState<Record<string, TimecardEntry>>({});
   const [showEmployeeSelector, setShowEmployeeSelector] = useState(!preSelectedEmployeeId);
 
+  console.log('BIWEEKLY FORM - State initialized - selectedEmployeeId:', selectedEmployeeId);
+  console.log('BIWEEKLY FORM - State initialized - showEmployeeSelector:', showEmployeeSelector);
+
   // Update selected employee when preSelectedEmployeeId changes
   useEffect(() => {
+    console.log('BIWEEKLY FORM - useEffect triggered with preSelectedEmployeeId:', preSelectedEmployeeId, 'selectedEmployeeId:', selectedEmployeeId);
     if (preSelectedEmployeeId && preSelectedEmployeeId !== selectedEmployeeId) {
+      console.log('BIWEEKLY FORM - Updating state: selectedEmployeeId to:', preSelectedEmployeeId);
       setSelectedEmployeeId(preSelectedEmployeeId);
       setShowEmployeeSelector(false);
     }

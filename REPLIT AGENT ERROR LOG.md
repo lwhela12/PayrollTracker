@@ -232,7 +232,34 @@ Starting with dashboard component removal and navigation enhancement...
 ✓ Maintained existing functionality for direct /timecards access
 
 ### Results:
-[To be filled in after testing]
+**FAILED** - Employee navigation still shows dropdown and no pre-selection
 
-### Next Steps (if any):
-[To be filled in if additional work needed]
+### Root Cause of Repeated Failures:
+**React State Initialization Race Condition**
+- URL parameter extraction happens AFTER component initial render
+- useState initializes with null before preSelectedEmployeeId is available
+- useEffect dependencies don't trigger state updates reliably
+- Treated as UI problem instead of async state synchronization issue
+
+### Systematic Fix Required:
+1. **Add debug logging** to trace actual state values and timing
+2. **Fix async state initialization** with proper lifecycle handling
+3. **Verify state transitions** with console output before assuming success
+4. **Test actual navigation flow** rather than assume implementation works
+
+### Self-Reminder for Future Issues:
+**ALWAYS** start complex debugging with:
+1. Add console.log statements to verify actual data flow
+2. Map out component lifecycle timing issues first
+3. Test assumptions with evidence, not mental models
+4. If first fix fails, completely re-analyze root cause
+5. Never layer solutions on unverified foundations
+
+---
+
+## Final Fix Attempt
+**Date:** June 12, 2025
+**Status:** IN PROGRESS
+
+### Diagnostic Approach:
+Adding comprehensive logging to trace state initialization and prop passing timing

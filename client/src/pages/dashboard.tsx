@@ -84,7 +84,10 @@ export default function Dashboard() {
   };
 
   const handleNavigateToTimecard = (employeeId: number) => {
-    navigate(`/timecards?employee=${employeeId}`);
+    console.log('DASHBOARD - handleNavigateToTimecard called with employeeId:', employeeId);
+    const targetUrl = `/timecards?employee=${employeeId}`;
+    console.log('DASHBOARD - Navigating to:', targetUrl);
+    navigate(targetUrl);
   };
 
   const stats = [
@@ -217,11 +220,15 @@ export default function Dashboard() {
                     <div className="space-y-3">
                       {employees.map((employee: any) => {
                         const status = getEmployeeTimecardStatus(employee.id);
+                        console.log('DASHBOARD - Rendering employee:', employee.firstName, employee.lastName, 'with ID:', employee.id);
                         return (
                           <div
                             key={employee.id}
                             className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                            onClick={() => handleNavigateToTimecard(employee.id)}
+                            onClick={() => {
+                              console.log('DASHBOARD - Employee clicked:', employee.id);
+                              handleNavigateToTimecard(employee.id);
+                            }}
                           >
                             <div className="flex items-center space-x-3">
                               <div className="flex-1">

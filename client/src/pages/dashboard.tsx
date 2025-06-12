@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,6 @@ import { formatCurrency } from "@/lib/payrollUtils";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
 
@@ -84,7 +83,7 @@ export default function Dashboard() {
   };
 
   const handleNavigateToTimecard = (employeeId: number) => {
-    navigate(`/timecards?employee=${employeeId}`);
+    window.location.href = `/timecards?employee=${employeeId}`;
   };
 
   const stats = [

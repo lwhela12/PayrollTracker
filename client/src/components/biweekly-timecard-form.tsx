@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +30,6 @@ interface TimecardEntry {
 export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedEmployeeId }: BiweeklyTimecardFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [, navigate] = useLocation();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(preSelectedEmployeeId);
   const [timecardData, setTimecardData] = useState<Record<string, TimecardEntry>>({});
   const [showEmployeeSelector, setShowEmployeeSelector] = useState(preSelectedEmployeeId == null);
@@ -40,9 +38,9 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
   const handleEmployeeChange = (employeeId: number | null) => {
     setSelectedEmployeeId(employeeId);
     if (employeeId) {
-      navigate(`/timecards?employee=${employeeId}`);
+      window.location.href = `/timecards?employee=${employeeId}`;
     } else {
-      navigate('/timecards');
+      window.location.href = '/timecards';
     }
   };
 

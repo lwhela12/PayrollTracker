@@ -4,7 +4,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { X, Edit, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { X, Edit, CheckCircle, Clock, AlertTriangle, Save, XCircle } from "lucide-react";
 import { formatDate, getShortDayOfWeek, formatTime } from "@/lib/dateUtils";
 import { calculateWeeklyHours, formatHours } from "@/lib/payrollUtils";
 import { apiRequest } from "@/lib/queryClient";
@@ -22,6 +24,8 @@ export function TimecardModal({ isOpen, onClose, employee, timecards, payPeriod 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isApproving, setIsApproving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingTimecard, setEditingTimecard] = useState<any>(null);
 
   const weeklyTotals = calculateWeeklyHours(timecards);
 
@@ -50,6 +54,54 @@ export function TimecardModal({ isOpen, onClose, employee, timecards, payPeriod 
       });
     },
   });
+
+  const saveTimecardMutation = useMutation({
+    mutationFn: async (updatedTimecard: any) => {
+      return apiRequest("PUT", `/api/timecards/${updatedTimecard.id}`, updatedTimecard);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Timecard updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/timecards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setIsEditing(false);
+      setEditingTimecard(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditClick = () => {
+    if (timecards.length > 0) {
+      setEditingTimecard({ ...timecards[0] });
+      setIsEditing(true);
+    }
+  };
+
+  const handleSaveClick = () => {
+    if (editingTimecard) {
+      saveTimecardMutation.mutate(editingTimecard);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingTimecard(null);
+  };
+
+  const handleFieldChange = (field: string, value: any) => {
+    setEditingTimecard((prev: any) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   const getTimecardStatus = (timecard: any) => {
     if (timecard.isApproved) {
@@ -186,22 +238,92 @@ export function TimecardModal({ isOpen, onClose, employee, timecards, payPeriod 
                           const status = getTimecardStatus(timecard);
                           const StatusIcon = status.icon;
                           
+                          const isCurrentlyEditing = isEditing && editingTimecard?.id === timecard.id;
+                          
                           return (
                             <tr key={timecard.id} className="hover:bg-muted/30">
                               <td className="font-medium">
                                 {formatDate(timecard.workDate)}
                               </td>
                               <td>{getShortDayOfWeek(timecard.workDate)}</td>
-                              <td>{timecard.timeIn ? formatTime(timecard.timeIn) : "-"}</td>
-                              <td>{timecard.timeOut ? formatTime(timecard.timeOut) : "-"}</td>
-                              <td>{timecard.lunchMinutes || 0} min</td>
+                              <td>
+                                {isCurrentlyEditing ? (
+                                  <Input
+                                    type="time"
+                                    value={editingTimecard.timeIn || ""}
+                                    onChange={(e) => handleFieldChange("timeIn", e.target.value)}
+                                    className="w-24 h-8"
+                                  />
+                                ) : (
+                                  timecard.timeIn ? formatTime(timecard.timeIn) : "-"
+                                )}
+                              </td>
+                              <td>
+                                {isCurrentlyEditing ? (
+                                  <Input
+                                    type="time"
+                                    value={editingTimecard.timeOut || ""}
+                                    onChange={(e) => handleFieldChange("timeOut", e.target.value)}
+                                    className="w-24 h-8"
+                                  />
+                                ) : (
+                                  timecard.timeOut ? formatTime(timecard.timeOut) : "-"
+                                )}
+                              </td>
+                              <td>
+                                {isCurrentlyEditing ? (
+                                  <Input
+                                    type="number"
+                                    value={editingTimecard.lunchMinutes || 0}
+                                    onChange={(e) => handleFieldChange("lunchMinutes", parseInt(e.target.value) || 0)}
+                                    className="w-16 h-8"
+                                    min="0"
+                                  />
+                                ) : (
+                                  `${timecard.lunchMinutes || 0} min`
+                                )}
+                              </td>
                               <td className="font-medium">
-                                {formatHours(parseFloat(timecard.regularHours || '0'))}
+                                {isCurrentlyEditing ? (
+                                  <Input
+                                    type="number"
+                                    step="0.25"
+                                    value={editingTimecard.regularHours || "0.00"}
+                                    onChange={(e) => handleFieldChange("regularHours", e.target.value)}
+                                    className="w-20 h-8"
+                                    min="0"
+                                  />
+                                ) : (
+                                  formatHours(parseFloat(timecard.regularHours || '0'))
+                                )}
                               </td>
                               <td className="font-medium text-accent">
-                                {formatHours(parseFloat(timecard.overtimeHours || '0'))}
+                                {isCurrentlyEditing ? (
+                                  <Input
+                                    type="number"
+                                    step="0.25"
+                                    value={editingTimecard.overtimeHours || "0.00"}
+                                    onChange={(e) => handleFieldChange("overtimeHours", e.target.value)}
+                                    className="w-20 h-8"
+                                    min="0"
+                                  />
+                                ) : (
+                                  formatHours(parseFloat(timecard.overtimeHours || '0'))
+                                )}
                               </td>
-                              <td>{timecard.totalMiles || 0}</td>
+                              <td>
+                                {isCurrentlyEditing ? (
+                                  <Input
+                                    type="number"
+                                    value={editingTimecard.totalMiles || 0}
+                                    onChange={(e) => handleFieldChange("totalMiles", parseInt(e.target.value) || 0)}
+                                    className="w-16 h-8"
+                                    min="0"
+                                  />
+                                ) : (
+                                  timecard.totalMiles || 0
+                                )}
+                              </td>
                               <td>
                                 <Badge variant={status.variant} className={`status-badge ${status.className}`}>
                                   <StatusIcon className="h-3 w-3 mr-1" />
@@ -234,14 +356,48 @@ export function TimecardModal({ isOpen, onClose, employee, timecards, payPeriod 
             <Button variant="outline" onClick={onClose}>
               Close
             </Button>
-            <Button 
-              variant="outline"
-              className="text-primary hover:text-primary/80 border-primary hover:border-primary/80"
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Timecard
-            </Button>
-            {hasUnapprovedTimecards && (
+            
+            {isEditing ? (
+              <>
+                <Button 
+                  variant="outline"
+                  onClick={handleCancelEdit}
+                  disabled={saveTimecardMutation.isPending}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button 
+                  variant="default"
+                  onClick={handleSaveClick}
+                  disabled={saveTimecardMutation.isPending}
+                >
+                  {saveTimecardMutation.isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant="outline"
+                className="text-primary hover:text-primary/80 border-primary hover:border-primary/80"
+                onClick={handleEditClick}
+                disabled={timecards.length === 0}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Timecard
+              </Button>
+            )}
+            
+            {hasUnapprovedTimecards && !isEditing && (
               <Button 
                 className="payroll-button-secondary"
                 onClick={() => approveTimecardsMutation.mutate()}

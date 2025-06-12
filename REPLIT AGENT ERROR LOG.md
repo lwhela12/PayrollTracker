@@ -58,3 +58,55 @@ Ready for testing - timecard creation should now pass validation and modal shoul
 
 ### Next Steps (if any):
 Test complete workflow by clicking employee to verify modal opens with editable timecard entry.
+
+---
+
+## Error: Timecard Modal Pre-populated and Edit Button Non-functional
+**Date:** June 12, 2025
+**Status:** IN PROGRESS
+
+### Problem Description
+After fixing timecard creation validation, two new issues emerged:
+
+1. **Pre-populated Timecard Issue:**
+   - Newly created timecards show default values (09:00-17:00, 30min lunch) instead of blank fields
+   - Users expect empty form fields for new timecard entry
+   - Current behavior suggests existing timecard rather than new entry
+
+2. **Edit Button Functionality Missing:**
+   - "Edit Time Card" button in modal does nothing when clicked
+   - Modal appears to be in view-only mode with no edit capability
+   - No form fields or input elements visible for data entry
+
+### Root Cause Analysis
+1. **Pre-populated Data:** Timecard creation sets default working hours instead of null/empty values
+2. **Missing Edit Mode:** TimecardModal component likely lacks edit state management or form implementation
+3. **Button Handler Missing:** Edit button may not have proper click handler or state transition logic
+
+### Evidence from Logs
+- Server shows successful timecard creation: `POST /api/timecards 200`
+- Timecard data being returned with preset values rather than blanks
+- No additional API calls when Edit button clicked (suggesting no handler)
+
+### Solution Plan
+**Phase 1:** Create truly blank timecards (null/empty default values)
+**Phase 2:** Investigate TimecardModal component structure and edit functionality
+**Phase 3:** Implement proper edit mode with form fields and save/cancel actions
+**Phase 4:** Add proper state management and user experience enhancements
+
+### Implementation Notes
+Starting with examining TimecardModal component and fixing default timecard values...
+
+---
+
+## Solution Implementation
+**Status:** [To be updated after implementation]
+
+### What Was Done:
+[To be filled in after completing the fix]
+
+### Results:
+[To be filled in after testing]
+
+### Next Steps (if any):
+[To be filled in if additional work needed]

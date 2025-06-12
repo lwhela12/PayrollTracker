@@ -249,7 +249,10 @@ export class DatabaseStorage implements IStorage {
     }
 
     if (payPeriodsToCreate.length > 0) {
+      console.log(`Creating ${payPeriodsToCreate.length} pay periods for employer ${employerId}:`, payPeriodsToCreate);
       await db.insert(payPeriods).values(payPeriodsToCreate);
+    } else {
+      console.log(`No pay periods to create for employer ${employerId}. Start: ${currentStart.toISOString()}, Future: ${futureDate.toISOString()}`);
     }
   }
 

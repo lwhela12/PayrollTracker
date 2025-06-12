@@ -18,12 +18,8 @@ export default function Timecards() {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.split('?')[1] || '');
     const employeeParam = searchParams.get('employee');
-    console.log('TIMECARDS PAGE - URL location:', location);
-    console.log('TIMECARDS PAGE - Employee param from URL:', employeeParam);
     if (employeeParam) {
-      const employeeId = parseInt(employeeParam, 10);
-      console.log('TIMECARDS PAGE - Setting preSelectedEmployeeId to:', employeeId);
-      setPreSelectedEmployeeId(employeeId);
+      setPreSelectedEmployeeId(parseInt(employeeParam, 10));
     }
   }, [location]);
 

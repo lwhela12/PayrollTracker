@@ -271,4 +271,28 @@ Adding comprehensive logging to trace state initialization and prop passing timi
 - Dashboard click handler is not actually being called
 
 ### Actual Fix Required:
-Dashboard employee click navigation is not working - need to verify click handler connection
+**WOUTER ROUTER ISSUE** - Navigation strips query parameters during route transition
+- Dashboard navigation works perfectly (logs confirm correct URL generation)
+- wouter's navigate() function loses query parameters: `/timecards?employee=1` → `/timecards`
+- Need to replace wouter navigate with browser-native navigation or fix parameter handling
+
+### Fix Strategy:
+1. Replace `navigate()` with `window.location.href` to preserve parameters
+2. Or use wouter-compatible query parameter syntax
+3. Verify URL parameter extraction works with wouter router
+
+### Final Implementation:
+**Changed dashboard navigation method:**
+```javascript
+const handleNavigateToTimecard = (employeeId: number) => {
+  window.location.href = `/timecards?employee=${employeeId}`;
+};
+```
+
+**Root cause confirmed:** wouter's navigate() function strips query parameters during client-side routing. Browser-native navigation preserves full URL with parameters.
+
+### Complete Solution Applied:
+✓ Replaced wouter navigate with window.location.href in dashboard
+✓ Maintained existing URL parameter extraction in timecards page  
+✓ Preserved conditional UI rendering in BiweeklyTimecardForm
+✓ Removed all debug logging for clean production code

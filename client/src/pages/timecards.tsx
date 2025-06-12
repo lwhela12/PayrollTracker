@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { BiweeklyTimecardForm } from "@/components/biweekly-timecard-form";
@@ -9,7 +10,18 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function Timecards() {
   const { user } = useAuth();
+  const [location] = useLocation();
   const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
+  const [preSelectedEmployeeId, setPreSelectedEmployeeId] = useState<number | null>(null);
+
+  // Extract employee ID from URL parameters
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.split('?')[1] || '');
+    const employeeParam = searchParams.get('employee');
+    if (employeeParam) {
+      setPreSelectedEmployeeId(parseInt(employeeParam, 10));
+    }
+  }, [location]);
 
   // Fetch employers
   const { data: employers = [] } = useQuery<any[]>({

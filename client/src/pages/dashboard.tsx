@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
-import { EmployeeTimecardStatus } from "@/components/employee-timecard-status";
+
 import { 
   Users, 
   Clock, 
@@ -150,11 +150,6 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Employee Timecard Status */}
-              <EmployeeTimecardStatus 
-                employees={employees || []}
-                currentPayPeriod={currentPayPeriod}
-              />
               {/* Current Pay Period */}
               <Card>
                 <CardHeader>

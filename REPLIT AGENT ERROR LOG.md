@@ -148,3 +148,55 @@ Starting with examining TimecardModal component and fixing default timecard valu
 
 ### Next Steps (if any):
 Ready for testing - clicking employee should create blank timecard, and Edit Timecard button should enable inline form editing.
+
+---
+
+## Error: Dashboard Timecard Navigation and UI Inconsistencies
+**Date:** June 12, 2025
+**Status:** IN PROGRESS
+
+### Problem Description
+Multiple issues with timecard navigation and display:
+
+1. **Placeholder Values Still Showing**: New timecards display "09:00 AM" and "05:00 PM" despite null value fix
+2. **Single Day Display**: TimecardModal shows only one day instead of full bi-weekly period
+3. **Wrong Modal Component**: Employee clicks open basic TimecardModal instead of comprehensive bi-weekly form
+4. **UI Redundancy**: Both "Employee Timecard Status" and "Quick Timecard Entry" cards serve similar purposes
+5. **Navigation Friction**: Users must reselect employees from dropdown after clicking them
+
+### Root Cause Analysis
+- TimecardModal designed for single-day view/edit, not comprehensive timecard entry
+- Dashboard uses two different timecard systems creating confusion
+- Employee clicks route to wrong component (TimecardModal vs BiweeklyTimecardForm)
+- No URL parameter support for pre-selecting employees
+
+### Solution Plan
+**Phase 1:** Unify timecard workflow by removing Employee Timecard Status card
+**Phase 2:** Enhance Quick Timecard Entry with direct navigation to bi-weekly form
+**Phase 3:** Add URL parameter support for employee pre-selection
+**Phase 4:** Fix data display issues and ensure truly blank timecard creation
+**Phase 5:** Streamline dashboard layout and improve user experience
+
+### Implementation Strategy
+- Remove EmployeeTimecardStatus component from dashboard
+- Modify employee click handlers to navigate to /timecards with parameters
+- Update BiweeklyTimecardForm to accept and auto-select employee from URL
+- Fix timecard display logic to show blank fields instead of placeholder times
+- Enhance layout to utilize available space effectively
+
+### Implementation Notes
+Starting with dashboard component removal and navigation enhancement...
+
+---
+
+## Solution Implementation
+**Status:** [To be updated after implementation]
+
+### What Was Done:
+[To be filled in after completing the fix]
+
+### Results:
+[To be filled in after testing]
+
+### Next Steps (if any):
+[To be filled in if additional work needed]

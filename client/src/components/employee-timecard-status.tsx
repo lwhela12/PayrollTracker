@@ -69,11 +69,7 @@ export function EmployeeTimecardStatus({ employees, currentPayPeriod }: Employee
   // Mutation to create a new timecard
   const createTimecardMutation = useMutation({
     mutationFn: async (timecardData: any) => {
-      return apiRequest({
-        method: "POST",
-        url: "/api/timecards",
-        body: timecardData,
-      });
+      return apiRequest("POST", "/api/timecards", timecardData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/timecards"] });

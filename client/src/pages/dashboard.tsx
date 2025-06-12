@@ -51,6 +51,7 @@ export default function Dashboard() {
   // Fetch dashboard stats
   const { data: dashboardStats = {} } = useQuery<any>({
     queryKey: ["/api/dashboard/stats", selectedEmployerId],
+    queryFn: () => selectedEmployerId ? fetch(`/api/dashboard/stats/${selectedEmployerId}`, { credentials: 'include' }).then(res => res.json()) : Promise.resolve({}),
     enabled: !!selectedEmployerId,
   });
 

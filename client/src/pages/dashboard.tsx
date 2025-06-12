@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { EmployeeTimecardStatus } from "@/components/employee-timecard-status";
 import { 
   Users, 
   Clock, 
@@ -128,8 +129,8 @@ export default function Dashboard() {
         
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Summary Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               {stats.map((stat, index) => (
                 <Card key={index}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -148,6 +149,11 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Employee Timecard Status */}
+              <EmployeeTimecardStatus 
+                employees={employees || []}
+                currentPayPeriod={currentPayPeriod}
+              />
               {/* Current Pay Period */}
               <Card>
                 <CardHeader>

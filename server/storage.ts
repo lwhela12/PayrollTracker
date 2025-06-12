@@ -178,12 +178,73 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined> {
+    // First ensure pay periods exist for the current date
+    await this.ensurePayPeriodsExist(employerId);
+    
+    const today = new Date().toISOString().split('T')[0];
     const [current] = await db
       .select()
       .from(payPeriods)
-      .where(and(eq(payPeriods.employerId, employerId), eq(payPeriods.isActive, true)))
+      .where(
+        and(
+          eq(payPeriods.employerId, employerId),
+          lte(payPeriods.startDate, today),
+          gte(payPeriods.endDate, today)
+        )
+      )
       .limit(1);
     return current;
+  }
+
+  async ensurePayPeriodsExist(employerId: number): Promise<void> {
+    const employer = await this.getEmployer(employerId);
+    if (!employer?.payPeriodStartDate) return;
+
+    const startDate = new Date(employer.payPeriodStartDate);
+    const today = new Date();
+    
+    // Get the latest pay period for this employer
+    const [latestPayPeriod] = await db
+      .select()
+      .from(payPeriods)
+      .where(eq(payPeriods.employerId, employerId))
+      .orderBy(desc(payPeriods.endDate))
+      .limit(1);
+
+    let currentStart: Date;
+    if (latestPayPeriod) {
+      // Start from the day after the latest pay period ends
+      currentStart = new Date(latestPayPeriod.endDate);
+      currentStart.setDate(currentStart.getDate() + 1);
+    } else {
+      // No pay periods exist, start from the configured start date
+      currentStart = new Date(startDate);
+    }
+
+    // Generate pay periods up to a few weeks into the future
+    const futureDate = new Date(today);
+    futureDate.setDate(futureDate.getDate() + 21); // 3 weeks ahead
+
+    const payPeriodsToCreate = [];
+    while (currentStart <= futureDate) {
+      const endDate = new Date(currentStart);
+      endDate.setDate(endDate.getDate() + 13); // 14 days total (0-13 = 14 days)
+
+      payPeriodsToCreate.push({
+        employerId,
+        startDate: currentStart.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        isActive: false
+      });
+
+      // Move to next pay period
+      currentStart = new Date(endDate);
+      currentStart.setDate(currentStart.getDate() + 1);
+    }
+
+    if (payPeriodsToCreate.length > 0) {
+      await db.insert(payPeriods).values(payPeriodsToCreate);
+    }
   }
 
   async getPayPeriod(id: number): Promise<PayPeriod | undefined> {

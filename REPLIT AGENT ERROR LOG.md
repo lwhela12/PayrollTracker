@@ -296,3 +296,27 @@ const handleNavigateToTimecard = (employeeId: number) => {
 ✓ Maintained existing URL parameter extraction in timecards page  
 ✓ Preserved conditional UI rendering in BiweeklyTimecardForm
 ✓ Removed all debug logging for clean production code
+
+---
+
+## Final Refactoring & Guidance
+**Date:** June 12, 2025
+**Status:** COMPLETED
+
+### Summary of Changes:
+- Restored client-side routing with Wouter `navigate()`, preserving single-page navigation and query parameters.
+- Refactored Dashboard click handler to use `navigate('/timecards?employee=…')` instead of full-page reload.
+- Synchronized URL parameter extraction in Timecards page by initializing state from `location.search` before render, removing initialization race.
+- Simplified BiweeklyTimecardForm by deriving initial selected employee and selector visibility directly from props, removing effect-based updates.
+- Tightened React Query cache invalidation keys to match query signatures (`['/api/timecards', payPeriodId]` and prefix-based invalidation for dashboard stats).
+
+### Best Practices & Preventative Guidelines:
+- **Consistent Routing:** Use a single routing approach (Wouter `navigate`) for all client-side transitions to avoid mixing browser reloads and client navigation.
+- **Predictable State Initialization:** Derive initial component state synchronously when possible (e.g. parse URL params before mount) to eliminate flicker and race conditions.
+- **Proper Query Key Management:** Keep React Query keys and invalidation calls aligned; use exact or prefix-based invalidation matching your query signatures to avoid stale data.
+- **Unify Similar UIs:** Consolidate overlapping workflows (e.g. quick entry modal vs biweekly form) to reduce duplication and user confusion.
+- **Early Parsing of URL Params:** Parse search params outside effects so dependent UI is rendered correctly on first load.
+- **Testing Core Logic:** Add unit tests for date utilities, time calculations, and URL parsing to catch edge cases and guard against regressions.
+- **Use Prefix Matching for Cache Invalidation:** Invalidate React Query caches by passing array keys (not deep objects) so that prefix matches clear all relevant entries.
+
+---

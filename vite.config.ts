@@ -34,4 +34,14 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: 'src/setupTests.ts',
+    alias: {
+      '@': path.resolve(import.meta.dirname, 'client', 'src'),
+      '@shared': path.resolve(import.meta.dirname, 'shared'),
+      '@assets': path.resolve(import.meta.dirname, 'attached_assets'),
+    },
+  },
 });

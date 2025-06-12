@@ -64,8 +64,8 @@ export function TimecardForm({ employees, currentPayPeriod }: TimecardFormProps)
         description: "Timecard entry saved successfully",
       });
       form.reset();
-      queryClient.invalidateQueries({ queryKey: ["/api/timecards"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries(["/api/timecards", currentPayPeriod?.id]);
+      queryClient.invalidateQueries(["/api/dashboard/stats"]);
     },
     onError: (error: Error) => {
       toast({

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -32,17 +32,9 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(preSelectedEmployeeId || null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(preSelectedEmployeeId);
   const [timecardData, setTimecardData] = useState<Record<string, TimecardEntry>>({});
-  const [showEmployeeSelector, setShowEmployeeSelector] = useState(!preSelectedEmployeeId);
-
-  // Update selected employee when preSelectedEmployeeId changes
-  useEffect(() => {
-    if (preSelectedEmployeeId && preSelectedEmployeeId !== selectedEmployeeId) {
-      setSelectedEmployeeId(preSelectedEmployeeId);
-      setShowEmployeeSelector(false);
-    }
-  }, [preSelectedEmployeeId, selectedEmployeeId]);
+  const [showEmployeeSelector, setShowEmployeeSelector] = useState(preSelectedEmployeeId == null);
 
   // Handle employee selection change
   const handleEmployeeChange = (employeeId: number | null) => {
@@ -133,7 +125,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/timecards"] });
+      queryClient.invalidateQueries(["/api/timecards", currentPayPeriod?.id]);
       toast({
         title: "Success",
         description: "Timecard submitted successfully",

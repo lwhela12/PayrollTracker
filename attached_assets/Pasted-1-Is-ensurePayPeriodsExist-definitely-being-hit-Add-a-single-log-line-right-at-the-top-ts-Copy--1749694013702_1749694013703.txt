@@ -1,0 +1,83 @@
+1 Is ensurePayPeriodsExist() definitely being hit?
+Add a single log line right at the top:
+
+ts
+Copy
+Edit
+console.info(
+  '[ensurePayPeriodsExist] employer %d  •  start=%s  •  today=%s',
+  employerId,
+  employer?.payPeriodStartDate,
+  new Date().toISOString()
+);
+Refresh the dashboard.
+-- If you don’t see the log, the function isn’t wired to any request path that the UI calls.
+-> Hook it in getDashboardStats, getCurrentPayPeriod and anywhere a timecard is fetched.
+-- If you do see the log, move on.
+
+2 Does the loop ever execute?
+Right under the log, dump the loop variables once per iteration:
+
+ts
+Copy
+Edit
+while (cursor <= targetDate) {
+  console.info('[period] inserting start=%s', cursor.toISOString());
+  …
+  cursor.setDate(cursor.getDate() + 14);
+}
+Nothing prints?
+
+Check the if (!employer?.payPeriodStartDate) return; guard again and verify the field is coming back as a real Date, not a string or null.
+
+Logs show periods being “inserted” but the table stays empty?
+
+Make sure you await the insert call inside the loop.
+
+Confirm the DB client isn’t in a transaction that later rolls back.
+
+Verify the INSERT has ON CONFLICT DO NOTHING, and that you’re not tripping that conflict logic unexpectedly.
+
+3 Off-by-something? Re-create today’s period by hand once
+Run exactly what the loop should run and see if the UI wakes up:
+
+sql
+Copy
+Edit
+INSERT INTO pay_periods
+       (employer_id, start_date, end_date)
+VALUES (1, '2025-06-11', '2025-06-24');
+UI flips to “Current pay period: 6/11 – 6/24”?
+-> Your getCurrentPayPeriod() date-math is fine; generation math is off (most often: using diffInDays / 14 but forgetting to floor, or adding 15 instead of 14 in the loop).
+
+4 Typical math bugs to look for
+Symptom	Root cause
+First auto-period starts 6/18 instead of 6/11	Cursor begins at startDate + 21 because the first cursor.setDate(cursor.getDate() + 14) happens before the insert; move the increment after the insert
+No periods generated unless you set the seed date to exactly midnight UTC	Mixing DATE (midnight) from Postgres with a new Date() (local TZ); when you compare > / <, -07:00 throws you over the boundary; strip times with startOfDay() or always compare in UTC
+Still shows “system initializing” even though periods exist	currentPayPeriod query uses BETWEEN start AND end inclusive on both ends; when end_date is 2025-06-10 00:00:00, the 6/11 date fails the test; change the check to today >= start AND today < end + 1 day
+
+5 Exact instructions I’d hand the agent next
+Task:
+
+In ensurePayPeriodsExist, move the cursor.setDate(+14) after the insert and log each iteration.
+
+Cast employer.payPeriodStartDate to startOfDayUTC and compare everything in UTC.
+
+Make getCurrentPayPeriod() use today >= start AND today < end (end exclusive).
+
+Write a DB seed that inserts the period covering today if the table is empty (safety net).
+
+Remove the “system initializing” copy and instead show “No current pay period – contact admin” if the API still returns null.
+
+When those five steps are green, run:
+
+bash
+Copy
+Edit
+# wipe and seed
+psql -c "TRUNCATE pay_periods;"
+npm run db:seed
+# hit the dashboard
+You should see the correct 6/11 – 6/24 card, no “initializing,” and logging that confirms a period was created.
+
+Let me know which of the checks above fails and we can drill deeper.

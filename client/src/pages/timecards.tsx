@@ -41,6 +41,9 @@ export default function Timecards() {
   // Fetch dashboard stats to get current pay period
   const { data: dashboardStats = {} } = useQuery<any>({
     queryKey: ["/api/dashboard/stats", selectedEmployerId],
+    queryFn: () => selectedEmployerId
+      ? fetch(`/api/dashboard/stats/${selectedEmployerId}`, { credentials: 'include' }).then(res => res.json())
+      : Promise.resolve({}),
     enabled: !!selectedEmployerId,
   });
 

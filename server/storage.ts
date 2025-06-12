@@ -198,9 +198,15 @@ export class DatabaseStorage implements IStorage {
 
   async ensurePayPeriodsExist(employerId: number): Promise<void> {
     const employer = await this.getEmployer(employerId);
-    if (!employer?.payPeriodStartDate) return;
+    let startDate: Date;
+    
+    if (!employer?.payPeriodStartDate) {
+      console.warn(`Employer ${employerId} missing pay_period_start_date, defaulting to today`);
+      startDate = new Date();
+    } else {
+      startDate = new Date(employer.payPeriodStartDate);
+    }
 
-    const startDate = new Date(employer.payPeriodStartDate);
     const today = new Date();
     
     // Get the latest pay period for this employer

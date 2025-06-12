@@ -187,19 +187,16 @@ export default function Dashboard() {
                           className="h-2" 
                         />
                       </div>
-                      <Badge variant={currentPayPeriod.status === 'active' ? 'default' : 'secondary'}>
-                        {currentPayPeriod.status}
+                      <Badge variant="default">
+                        Active
                       </Badge>
                     </div>
                   ) : (
                     <div className="text-center py-4">
-                      <p className="text-muted-foreground mb-4">No active pay period found</p>
-                      <Link href="/timecards">
-                        <Button size="sm">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Create Pay Period
-                        </Button>
-                      </Link>
+                      <p className="text-muted-foreground mb-4">Pay periods are being generated automatically</p>
+                      <Badge variant="outline" className="text-xs">
+                        System initializing...
+                      </Badge>
                     </div>
                   )}
                 </CardContent>

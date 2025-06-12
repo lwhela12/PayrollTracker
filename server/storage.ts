@@ -182,6 +182,8 @@ export class DatabaseStorage implements IStorage {
     await this.ensurePayPeriodsExist(employerId);
     
     const today = new Date().toISOString().split('T')[0];
+    console.info('[getCurrentPayPeriod] looking for period covering %s for employer %d', today, employerId);
+    
     const [current] = await db
       .select()
       .from(payPeriods)
@@ -193,6 +195,8 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .limit(1);
+    
+    console.info('[getCurrentPayPeriod] found period:', current);
     return current;
   }
 

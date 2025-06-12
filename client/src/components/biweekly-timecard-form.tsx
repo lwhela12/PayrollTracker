@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { formatDate, getDayOfWeek } from "@/lib/dateUtils";
 interface BiweeklyTimecardFormProps {
   employees: any[];
   currentPayPeriod?: any;
+  preSelectedEmployeeId?: number | null;
 }
 
 interface TimecardEntry {
@@ -26,11 +27,18 @@ interface TimecardEntry {
   notes: string;
 }
 
-export function BiweeklyTimecardForm({ employees, currentPayPeriod }: BiweeklyTimecardFormProps) {
+export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedEmployeeId }: BiweeklyTimecardFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(preSelectedEmployeeId || null);
   const [timecardData, setTimecardData] = useState<Record<string, TimecardEntry>>({});
+
+  // Update selected employee when preSelectedEmployeeId changes
+  useEffect(() => {
+    if (preSelectedEmployeeId && preSelectedEmployeeId !== selectedEmployeeId) {
+      setSelectedEmployeeId(preSelectedEmployeeId);
+    }
+  }, [preSelectedEmployeeId, selectedEmployeeId]);
 
   // Generate 14 days for the pay period
   const generatePayPeriodDays = () => {

@@ -74,6 +74,7 @@ export default function Timecards() {
               <BiweeklyTimecardForm
                 employees={employees || []}
                 currentPayPeriod={currentPayPeriod}
+                preSelectedEmployeeId={preSelectedEmployeeId}
               />
             ) : (
               <Card className="max-w-md mx-auto mt-8">

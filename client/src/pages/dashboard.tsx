@@ -149,7 +149,7 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Current Pay Period */}
               <Card>
                 <CardHeader>
@@ -199,7 +199,7 @@ export default function Dashboard() {
               </Card>
 
               {/* Quick Timecard Entry */}
-              <Card>
+              <Card className="lg:col-span-2">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="h-5 w-5" />

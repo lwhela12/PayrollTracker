@@ -72,7 +72,12 @@ export function EmployeeTimecardStatus({ employees, currentPayPeriod }: Employee
       return apiRequest("POST", "/api/timecards", timecardData);
     },
     onSuccess: () => {
+      // Invalidate all timecard-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/timecards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+    },
+    onError: (error) => {
+      console.error("Timecard creation failed:", error);
     },
   });
 
@@ -92,20 +97,24 @@ export function EmployeeTimecardStatus({ employees, currentPayPeriod }: Employee
         timeIn: "09:00",
         timeOut: "17:00",
         lunchMinutes: 30,
-        regularHours: 0,
-        overtimeHours: 0,
-        ptoHours: 0,
-        holidayHours: 0,
+        regularHours: "0.00",
+        overtimeHours: "0.00",
+        ptoHours: "0.00",
+        holidayHours: "0.00",
         startOdometer: null,
         endOdometer: null,
+        totalMiles: 0,
         notes: "",
         isApproved: false
       };
       
       try {
         await createTimecardMutation.mutateAsync(newTimecard);
+        // Wait a moment for cache invalidation to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         console.error("Failed to create timecard:", error);
+        // Still open modal even if creation fails, so user can see the error state
       }
     }
     

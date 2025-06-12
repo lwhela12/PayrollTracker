@@ -83,7 +83,12 @@ export default function Dashboard() {
   };
 
   const handleNavigateToTimecard = (employeeId: number) => {
-    window.location.href = `/timecards?employee=${employeeId}`;
+    if (selectedEmployerId) {
+      window.location.href =
+        `/timecards?employer=${selectedEmployerId}&employee=${employeeId}`;
+    } else {
+      window.location.href = `/timecards?employee=${employeeId}`;
+    }
   };
 
   const stats = [

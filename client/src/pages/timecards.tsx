@@ -11,12 +11,14 @@ import { useAuth } from "@/hooks/useAuth";
 export default function Timecards() {
   const { user } = useAuth();
   const [location] = useLocation();
-  const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
-  // Extract employee ID from URL parameters synchronously to avoid initialization race
+  // Extract employer and employee IDs from URL parameters synchronously
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const employerParam = searchParams.get('employer');
+  const initialEmployerId = employerParam ? parseInt(employerParam, 10) : null;
   const employeeParam = searchParams.get('employee');
   const initialPreSelectedEmployeeId = employeeParam ? parseInt(employeeParam, 10) : null;
   const [preSelectedEmployeeId] = useState<number | null>(initialPreSelectedEmployeeId);
+  const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(initialEmployerId);
 
   // Fetch employers
   const { data: employers = [] } = useQuery<any[]>({
@@ -24,9 +26,9 @@ export default function Timecards() {
     enabled: !!user,
   });
 
-  // Set first employer as default
+  // If no employer in URL, default to the first employer once loaded
   useEffect(() => {
-    if (employers && employers.length > 0 && !selectedEmployerId) {
+    if (selectedEmployerId == null && employers.length > 0) {
       setSelectedEmployerId(employers[0].id);
     }
   }, [employers, selectedEmployerId]);

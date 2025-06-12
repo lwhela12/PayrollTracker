@@ -1,20 +1,14 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { BiweeklyTimecardForm } from "@/components/biweekly-timecard-form";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Plus } from "lucide-react";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
-import { getNextWednesday, createBiWeeklyPayPeriod } from "@/lib/dateUtils";
-import { useToast } from "@/hooks/use-toast";
 
 export default function Timecards() {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
 
   // Fetch employers
@@ -43,43 +37,7 @@ export default function Timecards() {
     enabled: !!selectedEmployerId,
   });
 
-  // Create pay period mutation
-  const createPayPeriodMutation = useMutation({
-    mutationFn: async (payPeriodData: any) => {
-      return apiRequest("POST", "/api/pay-periods", payPeriodData);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Pay period created successfully",
-      });
-      // Invalidate all related queries to refresh the UI
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pay-periods"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/timecards"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create pay period",
-        variant: "destructive",
-      });
-    },
-  });
 
-  const handleCreatePayPeriod = () => {
-    if (!selectedEmployerId) return;
-    
-    const nextWednesday = getNextWednesday();
-    const payPeriod = createBiWeeklyPayPeriod(nextWednesday);
-    
-    createPayPeriodMutation.mutate({
-      employerId: selectedEmployerId,
-      startDate: payPeriod.startDate,
-      endDate: payPeriod.endDate,
-      isActive: true
-    });
-  };
 
   const selectedEmployer = employers?.find((emp: any) => emp.id === selectedEmployerId);
   const currentPayPeriod = dashboardStats?.currentPayPeriod;
@@ -111,21 +69,11 @@ export default function Timecards() {
                   <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                     <Calendar className="w-6 h-6 text-blue-600" />
                   </div>
-                  <CardTitle>No Active Pay Period</CardTitle>
+                  <CardTitle>Setting Up Pay Periods</CardTitle>
                   <p className="text-muted-foreground">
-                    No active pay period found. Please create a pay period first.
+                    Pay periods are being generated automatically. Please refresh the page if this message persists.
                   </p>
                 </CardHeader>
-                <CardContent>
-                  <Button 
-                    onClick={handleCreatePayPeriod}
-                    disabled={createPayPeriodMutation.isPending}
-                    className="w-full"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    {createPayPeriodMutation.isPending ? "Creating..." : "Create Pay Period"}
-                  </Button>
-                </CardContent>
               </Card>
             )
           ) : (

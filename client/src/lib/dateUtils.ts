@@ -1,7 +1,9 @@
 import { format, differenceInDays, isAfter, isBefore, addDays, startOfDay } from "date-fns";
 
 export function formatDate(date: string | Date): string {
+  if (!date) return '';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(dateObj.getTime())) return '';
   return format(dateObj, 'MMM dd, yyyy');
 }
 

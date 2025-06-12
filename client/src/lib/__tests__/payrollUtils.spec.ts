@@ -3,6 +3,8 @@ import {
   calculateHoursFromTimecard,
   parseTime,
   calculateMileage,
+  calculateGrossPay,
+  formatCurrency,
 } from '../payrollUtils';
 
 describe('payrollUtils', () => {
@@ -30,5 +32,17 @@ describe('payrollUtils', () => {
     expect(calculateMileage(100, 150)).toBe(50);
     expect(calculateMileage(200, 150)).toBe(0);
     expect(calculateMileage(0, 0)).toBe(0);
+  });
+
+  it('calculateGrossPay computes pay correctly', () => {
+    const result = calculateGrossPay(30, 10, 8, 0, 20);
+    expect(result.regularPay).toBeCloseTo(600);
+    expect(result.overtimePay).toBeCloseTo(300);
+    expect(result.ptoPay).toBeCloseTo(160);
+    expect(result.totalGrossPay).toBeCloseTo(1060);
+  });
+
+  it('formatCurrency formats USD amounts', () => {
+    expect(formatCurrency(25)).toBe('$25.00');
   });
 });

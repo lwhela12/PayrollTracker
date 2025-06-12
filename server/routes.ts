@@ -78,10 +78,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Employee routes
   app.post('/api/employees', isAuthenticated, async (req: any, res) => {
     try {
-      console.log("Raw employee data received:", JSON.stringify(req.body, null, 2));
-      
       const employeeData = insertEmployeeSchema.parse(req.body);
-      console.log("Parsed employee data:", JSON.stringify(employeeData, null, 2));
       
       // Verify employer ownership
       const employer = await storage.getEmployer(employeeData.employerId);
@@ -94,8 +91,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Full error creating employee:", error);
       if (error.name === 'ZodError') {
-        console.log("Zod validation error details:", JSON.stringify(error.errors, null, 2));
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: fromZodError(error).toString(),
           details: error.errors
         });
@@ -233,10 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create pay period route
   app.post('/api/pay-periods', isAuthenticated, async (req: any, res) => {
     try {
-      console.log("Raw pay period data received:", JSON.stringify(req.body, null, 2));
-      
       const payPeriodData = insertPayPeriodSchema.parse(req.body);
-      console.log("Parsed pay period data:", JSON.stringify(payPeriodData, null, 2));
       
       // Verify employer ownership
       const employer = await storage.getEmployer(payPeriodData.employerId);
@@ -249,8 +242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Full error creating pay period:", error);
       if (error.name === 'ZodError') {
-        console.log("Zod validation error details:", JSON.stringify(error.errors, null, 2));
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: fromZodError(error).toString(),
           details: error.errors
         });
@@ -401,50 +393,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const employees = await storage.getEmployeesByEmployer(employerId);
       const currentPayPeriod = await storage.getCurrentPayPeriod(employerId);
-      
-      let timecards: any[] = [];
+
+      let employeeStats: any[] = [];
       let totalHours = 0;
       let pendingTimecards = 0;
       let payrollReady = 0;
-      
+
       if (currentPayPeriod) {
-        timecards = await storage.getTimecardsByPayPeriod(currentPayPeriod.id);
-        
-        // Calculate stats
-        const employeeTimecardStatus = new Map();
-        
-        timecards.forEach(tc => {
-          const hours = parseFloat(tc.regularHours || '0') + parseFloat(tc.overtimeHours || '0');
-          totalHours += hours;
-          
-          if (!employeeTimecardStatus.has(tc.employeeId)) {
-            employeeTimecardStatus.set(tc.employeeId, { hasTimecards: false, isApproved: true });
-          }
-          
-          employeeTimecardStatus.get(tc.employeeId).hasTimecards = true;
-          if (!tc.isApproved) {
-            employeeTimecardStatus.get(tc.employeeId).isApproved = false;
-          }
-        });
-        
-        employees.forEach(emp => {
-          const status = employeeTimecardStatus.get(emp.id);
-          if (!status || !status.hasTimecards) {
+        const timecards = await storage.getTimecardsByPayPeriod(currentPayPeriod.id);
+        const reimbursements = await storage.getReimbursementsByPayPeriod(currentPayPeriod.id);
+
+        for (const emp of employees) {
+          const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
+          const empReimbs = reimbursements.filter(r => r.employeeId === emp.id);
+
+          const empTotalHours = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.regularHours || '0') + parseFloat(tc.overtimeHours || '0'), 0);
+          const empPto = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.ptoHours || '0'), 0);
+          const empMiles = empTimecards.reduce((sum, tc) => sum + (tc.totalMiles || 0), 0);
+          const empReimbAmt = empReimbs.reduce((sum, r) => sum + parseFloat(r.amount || '0'), 0);
+
+          totalHours += empTotalHours;
+
+          if (empTimecards.length === 0) {
             pendingTimecards++;
-          } else if (status.isApproved) {
+          } else if (empTimecards.every(tc => tc.isApproved)) {
             payrollReady++;
           }
-        });
+
+          employeeStats.push({
+            employeeId: emp.id,
+            totalHours: Number(empTotalHours.toFixed(2)),
+            ptoHours: Number(empPto.toFixed(2)),
+            mileage: empMiles,
+            reimbursements: Number(empReimbAmt.toFixed(2))
+          });
+        }
       }
-      
+
       const stats = {
         totalEmployees: employees.length,
         pendingTimecards,
-        totalHours: totalHours.toFixed(1),
+        totalHours: Number(totalHours.toFixed(1)),
         payrollReady,
         currentPayPeriod,
+        employeeStats,
       };
-      
+
       res.json(stats);
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);

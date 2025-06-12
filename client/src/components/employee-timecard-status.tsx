@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ interface EmployeeTimecardStatusProps {
 export function EmployeeTimecardStatus({ employees, currentPayPeriod }: EmployeeTimecardStatusProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [showTimecardModal, setShowTimecardModal] = useState(false);
+  const queryClient = useQueryClient();
 
   // Fetch timecards for current pay period
   const { data: timecards = [] } = useQuery<any[]>({
@@ -64,8 +66,53 @@ export function EmployeeTimecardStatus({ employees, currentPayPeriod }: Employee
     }
   };
 
-  const handleEmployeeClick = (employee: any) => {
+  // Mutation to create a new timecard
+  const createTimecardMutation = useMutation({
+    mutationFn: async (timecardData: any) => {
+      return apiRequest({
+        method: "POST",
+        url: "/api/timecards",
+        body: timecardData,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/timecards"] });
+    },
+  });
+
+  const handleEmployeeClick = async (employee: any) => {
     setSelectedEmployee(employee);
+    
+    // Check if employee has any timecards for current pay period
+    const employeeTimecards = timecards.filter((tc: any) => tc.employeeId === employee.id);
+    
+    if (employeeTimecards.length === 0 && currentPayPeriod) {
+      // Create a blank timecard for today's date
+      const today = new Date().toISOString().split('T')[0];
+      const newTimecard = {
+        employeeId: employee.id,
+        payPeriodId: currentPayPeriod.id,
+        workDate: today,
+        timeIn: "09:00",
+        timeOut: "17:00",
+        lunchMinutes: 30,
+        regularHours: 0,
+        overtimeHours: 0,
+        ptoHours: 0,
+        holidayHours: 0,
+        startOdometer: null,
+        endOdometer: null,
+        notes: "",
+        isApproved: false
+      };
+      
+      try {
+        await createTimecardMutation.mutateAsync(newTimecard);
+      } catch (error) {
+        console.error("Failed to create timecard:", error);
+      }
+    }
+    
     setShowTimecardModal(true);
   };
 

@@ -182,7 +182,6 @@ export class DatabaseStorage implements IStorage {
     await this.ensurePayPeriodsExist(employerId);
     
     const today = new Date().toISOString().split('T')[0];
-    console.info('[getCurrentPayPeriod] looking for period covering %s for employer %d', today, employerId);
     
     const [current] = await db
       .select()
@@ -196,19 +195,11 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(1);
     
-    console.info('[getCurrentPayPeriod] found period:', current);
     return current;
   }
 
   async ensurePayPeriodsExist(employerId: number): Promise<void> {
     const employer = await this.getEmployer(employerId);
-    
-    console.info(
-      '[ensurePayPeriodsExist] employer %d  •  start=%s  •  today=%s',
-      employerId,
-      employer?.payPeriodStartDate,
-      new Date().toISOString()
-    );
     
     let startDate: Date;
     
@@ -245,8 +236,6 @@ export class DatabaseStorage implements IStorage {
 
     const payPeriodsToCreate = [];
     while (currentStart <= futureDate) {
-      console.info('[period] inserting start=%s', currentStart.toISOString());
-      
       const endDate = new Date(currentStart);
       endDate.setDate(endDate.getDate() + 13); // 14 days total (0-13 = 14 days)
 
@@ -262,10 +251,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     if (payPeriodsToCreate.length > 0) {
-      console.log(`Creating ${payPeriodsToCreate.length} pay periods for employer ${employerId}:`, payPeriodsToCreate);
       await db.insert(payPeriods).values(payPeriodsToCreate);
-    } else {
-      console.log(`No pay periods to create for employer ${employerId}. Start: ${currentStart.toISOString()}, Future: ${futureDate.toISOString()}`);
     }
   }
 

@@ -1,30 +1,24 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 
-import { 
-  Users, 
-  Clock, 
-  DollarSign, 
-  FileText, 
+import {
+  Users,
+  Clock,
+  DollarSign,
   Plus,
-  Calendar,
-  CheckCircle,
-  AlertCircle
+  
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { formatDate, getPayPeriodProgress } from "@/lib/dateUtils";
+import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency } from "@/lib/payrollUtils";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
 
   // Fetch employers
@@ -54,40 +48,16 @@ export default function Dashboard() {
     enabled: !!selectedEmployerId,
   });
 
-  // Fetch timecards for current pay period
-  const { data: timecards = [] } = useQuery<any[]>({
-    queryKey: ["/api/timecards", dashboardStats?.currentPayPeriod?.id],
-    queryFn: () => dashboardStats?.currentPayPeriod?.id ? 
-      fetch(`/api/timecards/pay-period/${dashboardStats.currentPayPeriod.id}`, { credentials: 'include' }).then(res => res.json()) : 
-      Promise.resolve([]),
-    enabled: !!dashboardStats?.currentPayPeriod?.id,
-  });
-
   const selectedEmployer = employers.find((emp: any) => emp.id === selectedEmployerId);
   const currentPayPeriod = dashboardStats?.currentPayPeriod;
 
-  // Calculate timecard status for each employee
-  const getEmployeeTimecardStatus = (employeeId: number) => {
-    const employeeTimecards = timecards.filter((tc: any) => tc.employeeId === employeeId);
-    if (employeeTimecards.length === 0) return "missing";
-    
-    // Check if employee has timecards for current pay period
-    const hasRecentTimecard = employeeTimecards.some((tc: any) => {
-      const timecardDate = new Date(tc.workDate);
-      const payPeriodStart = new Date(currentPayPeriod?.startDate);
-      const payPeriodEnd = new Date(currentPayPeriod?.endDate);
-      return timecardDate >= payPeriodStart && timecardDate <= payPeriodEnd;
-    });
-    
-    return hasRecentTimecard ? "complete" : "partial";
-  };
+  const [, setLocation] = useLocation();
 
   const handleNavigateToTimecard = (employeeId: number) => {
     if (selectedEmployerId) {
-      window.location.href =
-        `/timecards?employer=${selectedEmployerId}&employee=${employeeId}`;
+      setLocation(`/timecards?employer=${selectedEmployerId}&employee=${employeeId}`);
     } else {
-      window.location.href = `/timecards?employee=${employeeId}`;
+      setLocation(`/timecards?employee=${employeeId}`);
     }
   };
 
@@ -100,7 +70,7 @@ export default function Dashboard() {
     },
     {
       title: "Pending Timecards",
-      value: employees.filter((emp: any) => getEmployeeTimecardStatus(emp.id) !== "complete").length || 0,
+      value: dashboardStats?.pendingTimecards || 0,
       icon: Clock,
       color: "bg-orange-500",
     },
@@ -112,7 +82,7 @@ export default function Dashboard() {
     },
     {
       title: "Payroll Ready",
-      value: dashboardStats?.payrollReady ? "Yes" : "No",
+      value: dashboardStats?.payrollReady || 0,
       icon: DollarSign,
       color: "bg-purple-500",
     },
@@ -153,61 +123,13 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Current Pay Period */}
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+              {/* Pay Period Summary */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Current Pay Period
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {currentPayPeriod ? (
-                    <div className="space-y-4">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Period:</span>
-                        <span className="font-medium">
-                          {formatDate(currentPayPeriod.startDate)} - {formatDate(currentPayPeriod.endDate)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Pay Date:</span>
-                        <span className="font-medium">{formatDate(currentPayPeriod.payDate)}</span>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Progress:</span>
-                          <span className="font-medium">
-                            {getPayPeriodProgress(currentPayPeriod.startDate, currentPayPeriod.endDate).percentage}%
-                          </span>
-                        </div>
-                        <Progress 
-                          value={getPayPeriodProgress(currentPayPeriod.startDate, currentPayPeriod.endDate).percentage} 
-                          className="h-2" 
-                        />
-                      </div>
-                      <Badge variant="default">
-                        Active
-                      </Badge>
-                    </div>
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-muted-foreground mb-4">Pay periods are being generated automatically</p>
-                      <Badge variant="outline" className="text-xs">
-                        System initializing...
-                      </Badge>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Quick Timecard Entry */}
-              <Card className="lg:col-span-2">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="h-5 w-5" />
-                    Quick Timecard Entry
+                    Pay Period Summary
                   </CardTitle>
                   <Link href="/employees">
                     <Button size="sm" variant="outline">
@@ -218,46 +140,39 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   {employees.length > 0 ? (
-                    <div className="space-y-3">
-                      {employees.map((employee: any) => {
-                        const status = getEmployeeTimecardStatus(employee.id);
-                        return (
-                          <div
-                            key={employee.id}
-                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                            onClick={() => handleNavigateToTimecard(employee.id)}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className="flex-1">
-                                <p className="font-medium">
-                                  {employee.firstName} {employee.lastName}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {employee.position}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              {status === "complete" ? (
-                                <Badge variant="default" className="bg-green-100 text-green-800">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Complete
-                                </Badge>
-                              ) : status === "partial" ? (
-                                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                                  <AlertCircle className="h-3 w-3 mr-1" />
-                                  Partial
-                                </Badge>
-                              ) : (
-                                <Badge variant="destructive" className="bg-red-100 text-red-800">
-                                  <AlertCircle className="h-3 w-3 mr-1" />
-                                  Missing
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="p-2 text-left">Employee</th>
+                            <th className="p-2 text-right">Total Hours</th>
+                            <th className="p-2 text-right">PTO</th>
+                            <th className="p-2 text-right">Mileage</th>
+                            <th className="p-2 text-right">Reimbursements</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {employees.map((employee: any) => {
+                            const stats = dashboardStats.employeeStats?.find((s: any) => s.employeeId === employee.id) || {};
+                            return (
+                              <tr
+                                key={employee.id}
+                                className="hover:bg-gray-50 cursor-pointer"
+                                onClick={() => handleNavigateToTimecard(employee.id)}
+                              >
+                                <td className="p-2">
+                                  <div className="font-medium">{employee.firstName} {employee.lastName}</div>
+                                  <div className="text-xs text-muted-foreground">{employee.position}</div>
+                                </td>
+                                <td className="p-2 text-right">{stats.totalHours?.toFixed?.(2) ?? '0.00'}</td>
+                                <td className="p-2 text-right">{stats.ptoHours?.toFixed?.(2) ?? '0.00'}h</td>
+                                <td className="p-2 text-right">{stats.mileage ?? 0} mi</td>
+                                <td className="p-2 text-right">{formatCurrency(stats.reimbursements || 0)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   ) : (
                     <div className="text-center py-8">
@@ -274,46 +189,6 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </div>
-
-            {/* Recent Activity */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Recent Activity
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {timecards.slice(0, 5).map((timecard: any, index: number) => {
-                    const employee = employees.find((emp: any) => emp.id === timecard.employeeId);
-                    return (
-                      <div key={index} className="flex items-center justify-between py-2 border-b last:border-b-0">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                          <div>
-                            <p className="font-medium">
-                              {employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee'}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Submitted timecard for {formatDate(timecard.workDate)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {timecard.regularHours + timecard.overtimeHours}h
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {timecards.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">
-                      No recent timecard activity
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </main>
       </div>

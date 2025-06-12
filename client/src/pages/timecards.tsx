@@ -53,7 +53,10 @@ export default function Timecards() {
         title: "Success",
         description: "Pay period created successfully",
       });
+      // Invalidate all related queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pay-periods"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/timecards"] });
     },
     onError: (error: Error) => {
       toast({
@@ -74,8 +77,7 @@ export default function Timecards() {
       employerId: selectedEmployerId,
       startDate: payPeriod.startDate,
       endDate: payPeriod.endDate,
-      payDate: payPeriod.payDate,
-      status: 'active'
+      isActive: true
     });
   };
 

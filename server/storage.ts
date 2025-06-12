@@ -157,6 +157,14 @@ export class DatabaseStorage implements IStorage {
 
   // Pay period operations
   async createPayPeriod(payPeriod: InsertPayPeriod): Promise<PayPeriod> {
+    // If creating an active pay period, deactivate all existing ones for this employer
+    if (payPeriod.isActive) {
+      await db
+        .update(payPeriods)
+        .set({ isActive: false })
+        .where(eq(payPeriods.employerId, payPeriod.employerId));
+    }
+    
     const [newPayPeriod] = await db.insert(payPeriods).values(payPeriod).returning();
     return newPayPeriod;
   }

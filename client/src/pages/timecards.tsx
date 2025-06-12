@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { BiweeklyTimecardForm } from "@/components/biweekly-timecard-form";
@@ -10,9 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function Timecards() {
   const { user } = useAuth();
-  const [location] = useLocation();
-  // Extract employer and employee IDs from URL parameters synchronously
-  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  // Extract employer and employee IDs directly from the browser URL search params
+  const searchParams = new URLSearchParams(window.location.search);
   const employerParam = searchParams.get('employer');
   const initialEmployerId = employerParam ? parseInt(employerParam, 10) : null;
   const employeeParam = searchParams.get('employee');

@@ -1,3 +1,21 @@
+## Fix: Correct URL query parsing to auto-select employer & employee
+**Date:** June 13, 2025
+**Status:** COMPLETED
+
+### Root Cause
+Wouter's `useLocation()` hook only returns the pathname (no query string), so our code that split on its return value never saw the `?employer` and `?employee` parameters.
+
+### Solution
+Replaced the `useLocation()`-based parsing in **client/src/pages/timecards.tsx** with a direct call to `window.location.search`:
+
+```ts
+// Instead of parsing the Wouter path
+const searchParams = new URLSearchParams(window.location.search);
+```
+This ensures both employer and employee query parameters are read correctly on first render.
+
+### Outcome
+Clicking an employee card on the dashboard now navigates to `/timecards?employer=<id>&employee=<id>` and immediately renders the BiweeklyTimecardForm for that employee—no extra dropdown selection needed.
 # REPLIT AGENT ERROR LOG
 
 ## Error: Timecard Creation Validation Failure

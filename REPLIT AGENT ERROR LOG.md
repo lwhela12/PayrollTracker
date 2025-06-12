@@ -190,10 +190,28 @@ Starting with dashboard component removal and navigation enhancement...
 ---
 
 ## Solution Implementation
-**Status:** [To be updated after implementation]
+**Status:** IN PROGRESS
+
+### Proposed Solution:
+**Phase 1:** Hide employee dropdown when preSelectedEmployeeId is provided
+- Replace dropdown with read-only employee name display
+- Immediately show timecard entry grid without user interaction
+- Add "Change Employee" button for switching employees
+
+**Phase 2:** Enhance user experience with clear navigation context
+- Show breadcrumb indicating navigation source (Dashboard > Employee Name)
+- Maintain URL state synchronization when employee changes
+- Preserve existing functionality for direct /timecards access
+
+**Phase 3:** Visual and accessibility improvements
+- Clear visual distinction between pre-selected vs manual selection
+- Proper keyboard navigation and screen reader support
+
+### Implementation Details:
+[To be filled during coding...]
 
 ### What Was Done:
-[To be filled in after completing the fix]
+[To be filled after completing the fix]
 
 ### Results:
 [To be filled in after testing]

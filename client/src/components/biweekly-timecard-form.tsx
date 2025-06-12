@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,15 +31,28 @@ interface TimecardEntry {
 export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedEmployeeId }: BiweeklyTimecardFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(preSelectedEmployeeId || null);
   const [timecardData, setTimecardData] = useState<Record<string, TimecardEntry>>({});
+  const [showEmployeeSelector, setShowEmployeeSelector] = useState(!preSelectedEmployeeId);
 
   // Update selected employee when preSelectedEmployeeId changes
   useEffect(() => {
     if (preSelectedEmployeeId && preSelectedEmployeeId !== selectedEmployeeId) {
       setSelectedEmployeeId(preSelectedEmployeeId);
+      setShowEmployeeSelector(false);
     }
   }, [preSelectedEmployeeId, selectedEmployeeId]);
+
+  // Handle employee selection change
+  const handleEmployeeChange = (employeeId: number | null) => {
+    setSelectedEmployeeId(employeeId);
+    if (employeeId) {
+      navigate(`/timecards?employee=${employeeId}`);
+    } else {
+      navigate('/timecards');
+    }
+  };
 
   // Generate 14 days for the pay period
   const generatePayPeriodDays = () => {
@@ -150,6 +164,11 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
     <Card>
       <CardHeader>
         <CardTitle>Bi-Weekly Timecard Entry</CardTitle>
+        {preSelectedEmployeeId && (
+          <div className="text-sm text-blue-600 mb-1">
+            Dashboard → {employees.find(emp => emp.id === selectedEmployeeId)?.firstName} {employees.find(emp => emp.id === selectedEmployeeId)?.lastName} Timecard
+          </div>
+        )}
         <p className="text-sm text-muted-foreground">
           Pay Period: {formatDate(currentPayPeriod.startDate)} - {formatDate(currentPayPeriod.endDate)}
         </p>
@@ -157,19 +176,41 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
       <CardContent className="space-y-6">
         {/* Employee Selection */}
         <div>
-          <label className="block text-sm font-medium mb-2">Select Employee</label>
-          <select
-            value={selectedEmployeeId || ''}
-            onChange={(e) => setSelectedEmployeeId(Number(e.target.value) || null)}
-            className="w-full p-2 border rounded-md"
-          >
-            <option value="">Choose an employee...</option>
-            {employees.map(emp => (
-              <option key={emp.id} value={emp.id}>
-                {emp.firstName} {emp.lastName}
-              </option>
-            ))}
-          </select>
+          {showEmployeeSelector ? (
+            <>
+              <label className="block text-sm font-medium mb-2">Select Employee</label>
+              <select
+                value={selectedEmployeeId || ''}
+                onChange={(e) => handleEmployeeChange(Number(e.target.value) || null)}
+                className="w-full p-2 border rounded-md"
+              >
+                <option value="">Choose an employee...</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.firstName} {emp.lastName}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <div>
+                <p className="text-sm font-medium text-blue-900">Selected Employee</p>
+                <p className="text-lg font-semibold text-blue-800">
+                  {employees.find(emp => emp.id === selectedEmployeeId)?.firstName}{' '}
+                  {employees.find(emp => emp.id === selectedEmployeeId)?.lastName}
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowEmployeeSelector(true)}
+                className="text-blue-700 border-blue-300 hover:bg-blue-100"
+              >
+                Change Employee
+              </Button>
+            </div>
+          )}
         </div>
 
         {selectedEmployeeId && (

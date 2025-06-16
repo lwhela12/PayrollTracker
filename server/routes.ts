@@ -8,6 +8,7 @@ import {
   insertPayPeriodSchema,
   insertTimecardSchema,
   insertReimbursementSchema,
+  payPeriods
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -15,6 +16,8 @@ import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -266,6 +269,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching current pay period:", error);
       res.status(500).json({ message: "Failed to fetch current pay period" });
+    }
+  });
+
+  // Reset pay periods (for debugging Wednesday alignment)
+  app.post('/api/pay-periods/:employerId/reset', isAuthenticated, async (req: any, res) => {
+    try {
+      const employerId = parseInt(req.params.employerId);
+      
+      // Verify employer ownership
+      const employer = await storage.getEmployer(employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Delete existing pay periods for this employer through storage
+      const existingPayPeriods = await storage.getPayPeriodsByEmployer(employerId);
+      for (const pp of existingPayPeriods) {
+        await db.delete(payPeriods).where(eq(payPeriods.id, pp.id));
+      }
+      
+      // Regenerate pay periods with proper Wednesday alignment
+      await storage.ensurePayPeriodsExist(employerId);
+      
+      // Get the current pay period
+      const currentPayPeriod = await storage.getCurrentPayPeriod(employerId);
+      res.json({ message: "Pay periods reset successfully", currentPayPeriod });
+    } catch (error) {
+      console.error("Error resetting pay periods:", error);
+      res.status(500).json({ message: "Failed to reset pay periods" });
     }
   });
 

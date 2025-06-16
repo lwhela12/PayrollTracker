@@ -192,7 +192,10 @@ export class DatabaseStorage implements IStorage {
     // First ensure pay periods exist for the current date
     await this.ensurePayPeriodsExist(employerId);
     
-    const today = new Date().toISOString().split('T')[0];
+    // Use UTC date to ensure consistent timezone handling
+    const today = new Date();
+    const utcToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+    const todayStr = utcToday.toISOString().split('T')[0];
     
     const [current] = await db
       .select()
@@ -200,8 +203,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(payPeriods.employerId, employerId),
-          lte(payPeriods.startDate, today),
-          gte(payPeriods.endDate, today)
+          lte(payPeriods.startDate, todayStr),
+          gte(payPeriods.endDate, todayStr)
         )
       )
       .limit(1);
@@ -247,14 +250,15 @@ export class DatabaseStorage implements IStorage {
       currentStart = new Date(startDate);
     }
 
-    // Generate pay periods up to a few weeks into the future
+    // Generate pay periods up to a few weeks into the future using UTC dates
     const futureDate = new Date(today);
-    futureDate.setDate(futureDate.getDate() + 21); // 3 weeks ahead
+    futureDate.setUTCDate(futureDate.getUTCDate() + 21); // 3 weeks ahead
 
     const payPeriodsToCreate = [];
     while (currentStart <= futureDate) {
+      // Ensure we're using UTC dates for end date calculation
       const endDate = new Date(currentStart);
-      endDate.setDate(endDate.getDate() + 13); // 14 days total (0-13 = 14 days)
+      endDate.setUTCDate(endDate.getUTCDate() + 13); // 14 days total (0-13 = 14 days)
 
       payPeriodsToCreate.push({
         employerId,
@@ -263,8 +267,8 @@ export class DatabaseStorage implements IStorage {
         isActive: false
       });
 
-      // Move to next pay period - increment by 14 days
-      currentStart.setDate(currentStart.getDate() + 14);
+      // Move to next pay period - increment by 14 days using UTC
+      currentStart.setUTCDate(currentStart.getUTCDate() + 14);
     }
 
     if (payPeriodsToCreate.length > 0) {

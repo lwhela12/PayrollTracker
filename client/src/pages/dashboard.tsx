@@ -146,6 +146,7 @@ export default function Dashboard() {
                           <tr>
                             <th className="p-2 text-left">Employee</th>
                             <th className="p-2 text-right">Total Hours</th>
+                            <th className="p-2 text-right">OT Hours</th>
                             <th className="p-2 text-right">PTO</th>
                             <th className="p-2 text-right">Mileage</th>
                             <th className="p-2 text-right">Reimbursements</th>
@@ -165,6 +166,7 @@ export default function Dashboard() {
                                   <div className="text-xs text-muted-foreground">{employee.position}</div>
                                 </td>
                                 <td className="p-2 text-right">{stats.totalHours?.toFixed?.(2) ?? '0.00'}</td>
+                                <td className="p-2 text-right text-orange-600 font-medium">{stats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}</td>
                                 <td className="p-2 text-right">{stats.ptoHours?.toFixed?.(2) ?? '0.00'}h</td>
                                 <td className="p-2 text-right">{stats.mileage ?? 0} mi</td>
                                 <td className="p-2 text-right">{formatCurrency(stats.reimbursements || 0)}</td>

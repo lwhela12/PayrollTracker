@@ -54,10 +54,13 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
 
   const handleNavigateToTimecard = (employeeId: number) => {
+    const payPeriodQuery = currentPayPeriod ? `&payPeriod=${currentPayPeriod.id}` : "";
     if (selectedEmployerId) {
-      setLocation(`/timecards?employer=${selectedEmployerId}&employee=${employeeId}`);
+      setLocation(
+        `/timecards?employer=${selectedEmployerId}&employee=${employeeId}${payPeriodQuery}`
+      );
     } else {
-      setLocation(`/timecards?employee=${employeeId}`);
+      setLocation(`/timecards?employee=${employeeId}${payPeriodQuery}`);
     }
   };
 

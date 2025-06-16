@@ -19,13 +19,16 @@ export default function Timecards() {
   const { user } = useAuth();
   // Extract employer and employee IDs directly from the browser URL search params
   const searchParams = new URLSearchParams(window.location.search);
-  const employerParam = searchParams.get('employer');
+  const employerParam = searchParams.get("employer");
   const initialEmployerId = employerParam ? parseInt(employerParam, 10) : null;
-  const employeeParam = searchParams.get('employee');
-  const initialPreSelectedEmployeeId = employeeParam ? parseInt(employeeParam, 10) : null;
+  const employeeParam = searchParams.get("employee");
+  const initialPreSelectedEmployeeId = employeeParam
+    ? parseInt(employeeParam, 10)
+    : null;
+  const payPeriodParam = searchParams.get("payPeriod") || "";
   const [preSelectedEmployeeId] = useState<number | null>(initialPreSelectedEmployeeId);
   const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(initialEmployerId);
-  const [selectedPayPeriodId, setSelectedPayPeriodId] = useState<string>("");
+  const [selectedPayPeriodId, setSelectedPayPeriodId] = useState<string>(payPeriodParam);
 
   // Fetch employers
   const { data: employers = [] } = useQuery<any[]>({
@@ -57,13 +60,13 @@ export default function Timecards() {
     enabled: !!selectedEmployerId,
   });
 
-  // Set default selected pay period
+  // Set default selected pay period only when no payPeriod parameter was provided
   useEffect(() => {
-    if (payPeriods.length > 0 && !selectedPayPeriodId) {
+    if (!payPeriodParam && payPeriods.length > 0 && !selectedPayPeriodId) {
       const current = payPeriods.find((p: any) => p.isActive) || payPeriods[0];
       setSelectedPayPeriodId(current.id.toString());
     }
-  }, [payPeriods, selectedPayPeriodId]);
+  }, [payPeriods, selectedPayPeriodId, payPeriodParam]);
 
 
 

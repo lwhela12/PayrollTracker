@@ -37,6 +37,7 @@ export interface IStorage {
   
   // Employee operations
   createEmployee(employee: InsertEmployee): Promise<Employee>;
+  createMultipleEmployees(employees: InsertEmployee[]): Promise<{ success: number; failed: number }>;
   getEmployeesByEmployer(employerId: number): Promise<Employee[]>;
   getEmployee(id: number): Promise<Employee | undefined>;
   updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee>;
@@ -123,6 +124,16 @@ export class DatabaseStorage implements IStorage {
     };
     const [newEmployee] = await db.insert(employees).values(employeeData).returning();
     return newEmployee;
+  }
+
+  async createMultipleEmployees(employeeList: InsertEmployee[]): Promise<{ success: number; failed: number }> {
+    if (employeeList.length === 0) return { success: 0, failed: 0 };
+    const values = employeeList.map(emp => ({
+      ...emp,
+      mileageRate: emp.mileageRate?.toString() || "0.655"
+    }));
+    const inserted = await db.insert(employees).values(values).returning();
+    return { success: inserted.length, failed: employeeList.length - inserted.length };
   }
 
   async getEmployeesByEmployer(employerId: number): Promise<Employee[]> {

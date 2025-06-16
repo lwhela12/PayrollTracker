@@ -1,10 +1,11 @@
 import { format, differenceInDays, isAfter, isBefore, addDays, startOfDay } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 
 export function formatDate(date: string | Date): string {
   if (!date) return '';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(dateObj.getTime())) return '';
-  return format(dateObj, 'MMM dd, yyyy');
+  return formatInTimeZone(dateObj, 'UTC', 'MMM dd, yyyy');
 }
 
 export function formatTime(time: string): string {

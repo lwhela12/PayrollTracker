@@ -220,19 +220,11 @@ export class DatabaseStorage implements IStorage {
       );
       // Find the most recent Wednesday (including today if it's Wednesday)
       const today = new Date();
-      const utcToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
-      const dayOfWeek = utcToday.getUTCDay(); // Sunday = 0, Wednesday = 3
-      const daysToSubtract = dayOfWeek >= 3 ? dayOfWeek - 3 : dayOfWeek + 4; // Days back to most recent Wednesday
-      startDate = new Date(utcToday);
-      startDate.setUTCDate(utcToday.getUTCDate() - daysToSubtract);
+      startDate = this.getMostRecentWednesday(today);
     } else {
       // Find the most recent Wednesday from the configured start date
       const configuredDate = new Date(employer.payPeriodStartDate);
-      const utcConfigured = new Date(Date.UTC(configuredDate.getFullYear(), configuredDate.getMonth(), configuredDate.getDate()));
-      const dayOfWeek = utcConfigured.getUTCDay();
-      const daysToSubtract = dayOfWeek >= 3 ? dayOfWeek - 3 : dayOfWeek + 4;
-      startDate = new Date(utcConfigured);
-      startDate.setUTCDate(utcConfigured.getUTCDate() - daysToSubtract);
+      startDate = this.getMostRecentWednesday(configuredDate);
     }
 
     const today = new Date();
@@ -278,6 +270,28 @@ export class DatabaseStorage implements IStorage {
     if (payPeriodsToCreate.length > 0) {
       await db.insert(payPeriods).values(payPeriodsToCreate);
     }
+  }
+
+  private getMostRecentWednesday(date: Date): Date {
+    // Create UTC date to avoid timezone issues
+    const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayOfWeek = utcDate.getUTCDay(); // Sunday = 0, Wednesday = 3
+    
+    let daysToSubtract: number;
+    if (dayOfWeek === 3) {
+      // It's Wednesday, use this date
+      daysToSubtract = 0;
+    } else if (dayOfWeek > 3) {
+      // It's after Wednesday (Thu, Fri, Sat), go back to this week's Wednesday
+      daysToSubtract = dayOfWeek - 3;
+    } else {
+      // It's before Wednesday (Sun, Mon, Tue), go back to last week's Wednesday
+      daysToSubtract = dayOfWeek + 4; // (7 - 3) + dayOfWeek
+    }
+    
+    const wednesdayDate = new Date(utcDate);
+    wednesdayDate.setUTCDate(utcDate.getUTCDate() - daysToSubtract);
+    return wednesdayDate;
   }
 
   async getPayPeriod(id: number): Promise<PayPeriod | undefined> {

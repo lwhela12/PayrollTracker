@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
   });
 
   // Populate form with existing timecard data
-  useEffect(() => {
+  const populateTimecardData = useCallback(() => {
     if (existingTimecards.length > 0) {
       const timecardMap: Record<string, TimecardEntry> = {};
       existingTimecards.forEach((timecard: any) => {
@@ -63,11 +63,15 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
         };
       });
       setTimecardData(timecardMap);
-    } else if (selectedEmployeeId) {
+    } else if (selectedEmployeeId && existingTimecards.length === 0) {
       // Clear form when employee changes but has no existing data
       setTimecardData({});
     }
   }, [existingTimecards, selectedEmployeeId]);
+
+  useEffect(() => {
+    populateTimecardData();
+  }, [populateTimecardData]);
 
   // Handle employee selection change
   const handleEmployeeChange = (employeeId: number | null) => {

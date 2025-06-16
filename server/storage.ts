@@ -215,10 +215,19 @@ export class DatabaseStorage implements IStorage {
     let startDate: Date;
     
     if (!employer?.payPeriodStartDate) {
-      console.warn(`Employer ${employerId} missing pay_period_start_date, defaulting to today`);
-      startDate = new Date();
+      console.warn(
+        `Employer ${employerId} missing pay_period_start_date, defaulting to the previous Wednesday.`
+      );
+      const today = new Date();
+      const dayOfWeek = today.getUTCDay(); // Sunday = 0, Wednesday = 3
+      const daysToSubtract = (dayOfWeek + 4) % 7; // distance from previous Wednesday
+      startDate = new Date(today);
+      startDate.setUTCDate(today.getUTCDate() - daysToSubtract);
     } else {
       startDate = new Date(employer.payPeriodStartDate);
+      const dayOfWeek = startDate.getUTCDay();
+      const daysToSubtract = (dayOfWeek + 4) % 7;
+      startDate.setUTCDate(startDate.getUTCDate() - daysToSubtract);
     }
 
     const today = new Date();

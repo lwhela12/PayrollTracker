@@ -45,7 +45,7 @@ export const employers = pgTable("employers", {
   phone: varchar("phone", { length: 20 }),
   email: varchar("email", { length: 255 }),
   taxId: varchar("tax_id", { length: 50 }),
-  payPeriodStartDate: date("pay_period_start_date").default("2025-05-28"), // First pay period start date
+  payPeriodStartDate: date("pay_period_start_date"),
   ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
 });

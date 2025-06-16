@@ -450,7 +450,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
           const empReimbs = reimbursements.filter(r => r.employeeId === emp.id);
 
-          const empTotalHours = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.regularHours || '0') + parseFloat(tc.overtimeHours || '0'), 0);
+          const empTotalHours = empTimecards.reduce((sum, tc) =>
+            sum + parseFloat(tc.regularHours || '0') + parseFloat(tc.overtimeHours || '0'),
+          0);
+          const empOvertimeHours = empTimecards.reduce(
+            (sum, tc) => sum + parseFloat(tc.overtimeHours || '0'),
+            0
+          );
           const empPto = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.ptoHours || '0'), 0);
           const empMiles = empTimecards.reduce((sum, tc) => sum + (tc.totalMiles || 0), 0);
           const empReimbAmt = empReimbs.reduce((sum, r) => sum + parseFloat(r.amount || '0'), 0);
@@ -466,6 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           employeeStats.push({
             employeeId: emp.id,
             totalHours: Number(empTotalHours.toFixed(2)),
+            totalOvertimeHours: Number(empOvertimeHours.toFixed(2)),
             ptoHours: Number(empPto.toFixed(2)),
             mileage: empMiles,
             reimbursements: Number(empReimbAmt.toFixed(2))

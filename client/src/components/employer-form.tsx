@@ -182,9 +182,13 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
           name="payPeriodStartDate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Pay Period Start Date</FormLabel>
+              <FormLabel>Pay Period Start Day</FormLabel>
               <FormControl>
-                <Input type="date" {...field} />
+                <Input
+                  type="date"
+                  {...field}
+                  value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

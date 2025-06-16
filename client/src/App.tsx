@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import Employees from "@/pages/employees";
 import Timecards from "@/pages/timecards";
 import Reports from "@/pages/reports";
+import Settings from "@/pages/settings";
 import CreateCompany from "@/pages/create-company";
 
 function Router() {
@@ -34,6 +35,7 @@ function Router() {
           <Route path="/employees" component={Employees} />
           <Route path="/timecards" component={Timecards} />
           <Route path="/reports" component={Reports} />
+          <Route path="/settings" component={Settings} />
         </>
       )}
       <Route component={NotFound} />

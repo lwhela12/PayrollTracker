@@ -109,12 +109,20 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
         throw new Error("Please select an employee and ensure a pay period is active");
       }
 
-      const timecardEntries = Object.values(timecardData).filter(entry => 
-        entry.timeIn || entry.timeOut || entry.regularHours > 0 || entry.overtimeHours > 0 || 
+      const timecardEntries = Object.values(timecardData).filter(entry =>
+        entry.timeIn || entry.timeOut || entry.regularHours > 0 || entry.overtimeHours > 0 ||
         entry.ptoHours > 0 || entry.holidayHours > 0
       );
 
-      for (const entry of timecardEntries) {
+      const formattedEntries = timecardEntries.map(entry => ({
+        ...entry,
+        regularHours: (entry.regularHours || 0).toFixed(2),
+        overtimeHours: (entry.overtimeHours || 0).toFixed(2),
+        ptoHours: (entry.ptoHours || 0).toFixed(2),
+        holidayHours: (entry.holidayHours || 0).toFixed(2),
+      }));
+
+      for (const entry of formattedEntries) {
         await apiRequest("POST", "/api/timecards", {
           employeeId: selectedEmployeeId,
           payPeriodId: currentPayPeriod.id,

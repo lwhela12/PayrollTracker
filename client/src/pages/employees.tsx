@@ -21,6 +21,8 @@ export default function Employees() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
 
   // Fetch employers
   const { data: employers = [] } = useQuery<any[]>({
@@ -63,6 +65,22 @@ export default function Employees() {
     },
   });
 
+  const importEmployeesMutation = useMutation({
+    mutationFn: async (data: any[]) => {
+      const response = await apiRequest("POST", "/api/employees/import", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      toast({ title: "Success", description: "Employees imported successfully" });
+      setShowImport(false);
+      setImportFile(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Filter employees
   const filteredEmployees = employees?.filter((emp: any) =>
     `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -84,6 +102,25 @@ export default function Employees() {
   const handleCloseForm = () => {
     setShowEmployeeForm(false);
     setEditingEmployee(null);
+  };
+
+  const handleImport = () => {
+    if (!importFile || !selectedEmployerId) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result as string;
+      const lines = text.trim().split(/\r?\n/);
+      const rows = lines.slice(1).map(line => line.split(',').map(item => item.trim()));
+      const payload = rows.map(cols => ({
+        firstName: cols[0],
+        lastName: cols[1],
+        email: cols[2] || undefined,
+        position: cols[3] || undefined,
+        employerId: selectedEmployerId,
+      }));
+      importEmployeesMutation.mutate(payload);
+    };
+    reader.readAsText(importFile);
   };
 
   if (!employers || employers.length === 0) {
@@ -134,12 +171,15 @@ export default function Employees() {
                     />
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   </div>
-                  <Button 
+                  <Button
                     className="payroll-button-primary"
                     onClick={() => setShowEmployeeForm(true)}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Employee
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowImport(true)}>
+                    Import from CSV
                   </Button>
                 </div>
               </div>
@@ -249,6 +289,28 @@ export default function Employees() {
             onSuccess={handleCloseForm}
             onCancel={handleCloseForm}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showImport} onOpenChange={setShowImport}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Import Employees from CSV</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              The CSV file must have the following columns in this order: firstName, lastName, email, position.
+            </p>
+            <Input type="file" accept=".csv" onChange={e => setImportFile(e.target.files?.[0] || null)} />
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowImport(false)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleImport} disabled={!importFile || importEmployeesMutation.isPending} className="payroll-button-primary">
+                {importEmployeesMutation.isPending ? 'Importing...' : 'Import'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

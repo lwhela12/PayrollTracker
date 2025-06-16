@@ -21,6 +21,7 @@ const employerFormSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
   taxId: z.string().optional(),
+  payPeriodStartDate: z.string().optional(),
 });
 
 type EmployerFormData = z.infer<typeof employerFormSchema>;
@@ -38,6 +39,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
       phone: employer?.phone || "",
       email: employer?.email || "",
       taxId: employer?.taxId || "",
+      payPeriodStartDate: employer?.payPeriodStartDate || "",
     },
   });
 
@@ -169,6 +171,20 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
               <FormLabel>Tax ID / EIN</FormLabel>
               <FormControl>
                 <Input {...field} placeholder="12-3456789" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="payPeriodStartDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Pay Period Start Date</FormLabel>
+              <FormControl>
+                <Input type="date" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

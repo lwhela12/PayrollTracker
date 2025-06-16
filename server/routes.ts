@@ -368,6 +368,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get timecards for a specific employee
+  app.get('/api/timecards/employee/:employeeId', isAuthenticated, async (req: any, res) => {
+    try {
+      const employeeId = parseInt(req.params.employeeId);
+      const payPeriodId = req.query.payPeriodId ? parseInt(req.query.payPeriodId) : undefined;
+      
+      // Verify employee belongs to user's employer
+      const employee = await storage.getEmployee(employeeId);
+      if (!employee) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      
+      const employer = await storage.getEmployer(employee.employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const timecards = await storage.getTimecardsByEmployee(employeeId, payPeriodId);
+      res.json(timecards);
+    } catch (error) {
+      console.error("Error fetching employee timecards:", error);
+      res.status(500).json({ message: "Failed to fetch employee timecards" });
+    }
+  });
+
   app.put('/api/timecards/:id', isAuthenticated, async (req: any, res) => {
     try {
       const timecardId = parseInt(req.params.id);

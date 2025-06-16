@@ -70,16 +70,22 @@ export function isCurrentPayPeriod(startDate: string, endDate: string): boolean 
 }
 
 export function getNextWednesday(date: Date = new Date()): Date {
-  const dayOfWeek = date.getDay();
+  // Create a new date in UTC to avoid timezone issues
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayOfWeek = utcDate.getUTCDay();
   const daysUntilWednesday = (3 + 7 - dayOfWeek) % 7;
-  return addDays(date, daysUntilWednesday === 0 ? 7 : daysUntilWednesday);
+  const targetDate = new Date(utcDate);
+  targetDate.setUTCDate(utcDate.getUTCDate() + (daysUntilWednesday === 0 ? 7 : daysUntilWednesday));
+  return targetDate;
 }
 
 export function createBiWeeklyPayPeriod(startDate: Date) {
-  const endDate = addDays(startDate, 13); // 14 days total (bi-weekly)
+  // Ensure we're working with UTC dates to avoid timezone shifts
+  const utcStartDate = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()));
+  const endDate = addDays(utcStartDate, 13); // 14 days total (bi-weekly)
   const payDate = addDays(endDate, 7); // Pay date is one week after period ends
   return {
-    startDate: format(startDate, 'yyyy-MM-dd'),
+    startDate: format(utcStartDate, 'yyyy-MM-dd'),
     endDate: format(endDate, 'yyyy-MM-dd'),
     payDate: format(payDate, 'yyyy-MM-dd')
   };

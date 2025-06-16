@@ -216,18 +216,23 @@ export class DatabaseStorage implements IStorage {
     
     if (!employer?.payPeriodStartDate) {
       console.warn(
-        `Employer ${employerId} missing pay_period_start_date, defaulting to the previous Wednesday.`
+        `Employer ${employerId} missing pay_period_start_date, defaulting to the most recent Wednesday.`
       );
+      // Find the most recent Wednesday (including today if it's Wednesday)
       const today = new Date();
-      const dayOfWeek = today.getUTCDay(); // Sunday = 0, Wednesday = 3
-      const daysToSubtract = (dayOfWeek + 4) % 7; // distance from previous Wednesday
-      startDate = new Date(today);
-      startDate.setUTCDate(today.getUTCDate() - daysToSubtract);
+      const utcToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+      const dayOfWeek = utcToday.getUTCDay(); // Sunday = 0, Wednesday = 3
+      const daysToSubtract = dayOfWeek >= 3 ? dayOfWeek - 3 : dayOfWeek + 4; // Days back to most recent Wednesday
+      startDate = new Date(utcToday);
+      startDate.setUTCDate(utcToday.getUTCDate() - daysToSubtract);
     } else {
-      startDate = new Date(employer.payPeriodStartDate);
-      const dayOfWeek = startDate.getUTCDay();
-      const daysToSubtract = (dayOfWeek + 4) % 7;
-      startDate.setUTCDate(startDate.getUTCDate() - daysToSubtract);
+      // Find the most recent Wednesday from the configured start date
+      const configuredDate = new Date(employer.payPeriodStartDate);
+      const utcConfigured = new Date(Date.UTC(configuredDate.getFullYear(), configuredDate.getMonth(), configuredDate.getDate()));
+      const dayOfWeek = utcConfigured.getUTCDay();
+      const daysToSubtract = dayOfWeek >= 3 ? dayOfWeek - 3 : dayOfWeek + 4;
+      startDate = new Date(utcConfigured);
+      startDate.setUTCDate(utcConfigured.getUTCDate() - daysToSubtract);
     }
 
     const today = new Date();

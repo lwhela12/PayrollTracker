@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,9 +30,44 @@ interface TimecardEntry {
 export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedEmployeeId }: BiweeklyTimecardFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(preSelectedEmployeeId);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(preSelectedEmployeeId || null);
   const [timecardData, setTimecardData] = useState<Record<string, TimecardEntry>>({});
   const [showEmployeeSelector, setShowEmployeeSelector] = useState(preSelectedEmployeeId == null);
+
+  // Fetch existing timecards for the selected employee and pay period
+  const { data: existingTimecards = [] } = useQuery<any[]>({
+    queryKey: ["/api/timecards/employee", selectedEmployeeId, currentPayPeriod?.id],
+    queryFn: () => selectedEmployeeId && currentPayPeriod?.id ? 
+      fetch(`/api/timecards/employee/${selectedEmployeeId}?payPeriodId=${currentPayPeriod.id}`, { credentials: 'include' }).then(res => res.json()) : 
+      Promise.resolve([]),
+    enabled: !!selectedEmployeeId && !!currentPayPeriod?.id,
+  });
+
+  // Populate form with existing timecard data
+  useEffect(() => {
+    if (existingTimecards.length > 0) {
+      const timecardMap: Record<string, TimecardEntry> = {};
+      existingTimecards.forEach((timecard: any) => {
+        timecardMap[timecard.workDate] = {
+          workDate: timecard.workDate,
+          timeIn: timecard.timeIn || '',
+          timeOut: timecard.timeOut || '',
+          lunchMinutes: timecard.lunchMinutes || 0,
+          regularHours: parseFloat(timecard.regularHours) || 0,
+          overtimeHours: parseFloat(timecard.overtimeHours) || 0,
+          ptoHours: parseFloat(timecard.ptoHours) || 0,
+          holidayHours: parseFloat(timecard.holidayHours) || 0,
+          startOdometer: timecard.startOdometer,
+          endOdometer: timecard.endOdometer,
+          notes: timecard.notes || ''
+        };
+      });
+      setTimecardData(timecardMap);
+    } else if (selectedEmployeeId) {
+      // Clear form when employee changes but has no existing data
+      setTimecardData({});
+    }
+  }, [existingTimecards, selectedEmployeeId]);
 
   // Handle employee selection change
   const handleEmployeeChange = (employeeId: number | null) => {
@@ -131,7 +166,8 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["/api/timecards", currentPayPeriod?.id]);
+      queryClient.invalidateQueries({ queryKey: ["/api/timecards", currentPayPeriod?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/timecards/employee", selectedEmployeeId, currentPayPeriod?.id] });
       toast({
         title: "Success",
         description: "Timecard submitted successfully",

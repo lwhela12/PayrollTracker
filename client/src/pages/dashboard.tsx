@@ -108,11 +108,11 @@ export default function Dashboard() {
         <main className="p-4 md:p-6 pt-16 md:pt-6">
           <div className="max-w-7xl mx-auto">
             {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
               {stats.map((stat, index) => (
                 <Card key={index}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                    <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
                       {stat.title}
                     </CardTitle>
                     <div className={`p-2 rounded-md ${stat.color}`}>
@@ -120,7 +120,7 @@ export default function Dashboard() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <div className="text-xl md:text-2xl font-bold">{stat.value}</div>
                   </CardContent>
                 </Card>
               ))}
@@ -143,42 +143,90 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   {employees.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="p-2 text-left">Employee</th>
-                            <th className="p-2 text-right">Total Hours</th>
-                            <th className="p-2 text-right">OT Hours</th>
-                            <th className="p-2 text-right">PTO</th>
-                            <th className="p-2 text-right">Mileage</th>
-                            <th className="p-2 text-right">Reimbursements</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {employees.map((employee: any) => {
-                            const stats = dashboardStats.employeeStats?.find((s: any) => s.employeeId === employee.id) || {};
-                            return (
-                              <tr
-                                key={employee.id}
-                                className="hover:bg-gray-50 cursor-pointer"
-                                onClick={() => handleNavigateToTimecard(employee.id)}
-                              >
-                                <td className="p-2">
-                                  <div className="font-medium">{employee.firstName} {employee.lastName}</div>
-                                  <div className="text-xs text-muted-foreground">{employee.position}</div>
-                                </td>
-                                <td className="p-2 text-right">{stats.totalHours?.toFixed?.(2) ?? '0.00'}</td>
-                                <td className="p-2 text-right text-orange-600 font-medium">{stats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}</td>
-                                <td className="p-2 text-right">{stats.ptoHours?.toFixed?.(2) ?? '0.00'}h</td>
-                                <td className="p-2 text-right">{stats.mileage ?? 0} mi</td>
-                                <td className="p-2 text-right">{formatCurrency(stats.reimbursements || 0)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                    <>
+                      {/* Desktop Table */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="p-2 text-left">Employee</th>
+                              <th className="p-2 text-right">Total Hours</th>
+                              <th className="p-2 text-right">OT Hours</th>
+                              <th className="p-2 text-right">PTO</th>
+                              <th className="p-2 text-right">Mileage</th>
+                              <th className="p-2 text-right">Reimbursements</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {employees.map((employee: any) => {
+                              const stats = dashboardStats.employeeStats?.find((s: any) => s.employeeId === employee.id) || {};
+                              return (
+                                <tr
+                                  key={employee.id}
+                                  className="hover:bg-gray-50 cursor-pointer"
+                                  onClick={() => handleNavigateToTimecard(employee.id)}
+                                >
+                                  <td className="p-2">
+                                    <div className="font-medium">{employee.firstName} {employee.lastName}</div>
+                                    <div className="text-xs text-muted-foreground">{employee.position}</div>
+                                  </td>
+                                  <td className="p-2 text-right">{stats.totalHours?.toFixed?.(2) ?? '0.00'}</td>
+                                  <td className="p-2 text-right text-orange-600 font-medium">{stats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}</td>
+                                  <td className="p-2 text-right">{stats.ptoHours?.toFixed?.(2) ?? '0.00'}h</td>
+                                  <td className="p-2 text-right">{stats.mileage ?? 0} mi</td>
+                                  <td className="p-2 text-right">{formatCurrency(stats.reimbursements || 0)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Mobile Cards */}
+                      <div className="md:hidden space-y-3">
+                        {employees.map((employee: any) => {
+                          const stats = dashboardStats.employeeStats?.find((s: any) => s.employeeId === employee.id) || {};
+                          return (
+                            <Card 
+                              key={employee.id} 
+                              className="cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={() => handleNavigateToTimecard(employee.id)}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex justify-between items-start mb-3">
+                                  <div>
+                                    <div className="font-medium">{employee.firstName} {employee.lastName}</div>
+                                    <div className="text-xs text-muted-foreground">{employee.position}</div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-sm font-medium">{stats.totalHours?.toFixed?.(2) ?? '0.00'}h</div>
+                                    <div className="text-xs text-muted-foreground">Total</div>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">OT:</span>
+                                    <span className="text-orange-600 font-medium">{stats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}h</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">PTO:</span>
+                                    <span>{stats.ptoHours?.toFixed?.(2) ?? '0.00'}h</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Miles:</span>
+                                    <span>{stats.mileage ?? 0} mi</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Reimb:</span>
+                                    <span>{formatCurrency(stats.reimbursements || 0)}</span>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </>
                   ) : (
                     <div className="text-center py-8">
                       <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />

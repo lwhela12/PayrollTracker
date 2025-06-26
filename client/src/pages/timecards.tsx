@@ -74,20 +74,20 @@ export default function Timecards() {
   const selectedPayPeriod = payPeriods.find((p: any) => p.id.toString() === selectedPayPeriodId);
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <Sidebar
         selectedEmployer={selectedEmployer}
         currentPayPeriod={selectedPayPeriod}
       />
       
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="md:ml-64">
         <Header 
           title="Timecard Entry"
           description="Enter bi-weekly timecard data for employees"
           user={user}
         />
         
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="p-4 md:p-6 pt-16 md:pt-6">
           {payPeriods.length > 0 && (
             <Select value={selectedPayPeriodId} onValueChange={setSelectedPayPeriodId}>
               <SelectTrigger className="w-[280px] mb-4">

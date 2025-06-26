@@ -545,6 +545,74 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Cards - Week 2 */}
+              <div className="lg:hidden space-y-3">
+                {payPeriodDays.slice(7, 14).map(date => {
+                  const entry = timecardData[date] || {};
+                  return (
+                    <Card key={date} className="p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <div>
+                          <div className="font-medium">{formatDate(date)}</div>
+                          <div className="text-sm text-muted-foreground">{getDayOfWeek(date)}</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Time In</label>
+                          <Input
+                            type="time"
+                            value={entry.timeIn || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'timeIn', e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Time Out</label>
+                          <Input
+                            type="time"
+                            value={entry.timeOut || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'timeOut', e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Lunch (min)</label>
+                          <Input
+                            type="number"
+                            value={entry.lunchMinutes || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'lunchMinutes', parseInt(e.target.value) || 0)}
+                            className="mt-1"
+                            min="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Regular Hours</label>
+                          <Input
+                            type="number"
+                            value={entry.regularHours || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'regularHours', parseFloat(e.target.value) || 0)}
+                            className="mt-1"
+                            step="0.25"
+                            min="0"
+                            max="24"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <label className="text-xs text-muted-foreground">Notes</label>
+                        <Input
+                          value={entry.notes || ''}
+                          onChange={(e) => updateTimecardEntry(date, 'notes', e.target.value)}
+                          className="mt-1"
+                          placeholder="Notes..."
+                        />
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Submit Button */}

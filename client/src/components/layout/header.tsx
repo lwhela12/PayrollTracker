@@ -26,21 +26,22 @@ export function Header({ title, description, user, onGenerateReports }: HeaderPr
     user.email?.[0]?.toUpperCase() || 'U' : 'U';
 
   return (
-    <header className="bg-card shadow-sm border-b border-border px-6 py-4">
+    <header className="bg-card shadow-sm border-b border-border px-4 md:px-6 py-4 fixed top-0 left-0 right-0 md:left-64 z-30">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">{title}</h2>
-          <p className="text-muted-foreground">{description}</p>
+        <div className="ml-12 md:ml-0">
+          <h2 className="text-xl md:text-2xl font-bold text-foreground">{title}</h2>
+          <p className="text-muted-foreground text-sm hidden sm:block">{description}</p>
         </div>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 md:space-x-4">
           {onGenerateReports && (
             <Button 
               onClick={onGenerateReports}
               className="payroll-button-secondary"
+              size="sm"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Generate Reports
+              <Download className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Generate Reports</span>
             </Button>
           )}
           
@@ -56,13 +57,13 @@ export function Header({ title, description, user, onGenerateReports }: HeaderPr
                     {userInitials}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium">
+                <span className="text-sm font-medium hidden md:inline">
                   {user?.firstName && user?.lastName 
                     ? `${user.firstName} ${user.lastName}`
                     : user?.email || "User"
                   }
                 </span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:inline" />
               </Button>
             </DropdownMenuTrigger>
             

@@ -92,20 +92,20 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <Sidebar 
         selectedEmployer={selectedEmployer} 
         currentPayPeriod={currentPayPeriod}
       />
       
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="md:ml-64">
         <Header 
           title="Dashboard"
           description="Overview of your payroll management"
           user={user}
         />
         
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="p-4 md:p-6 pt-16 md:pt-6">
           <div className="max-w-7xl mx-auto">
             {/* Summary Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

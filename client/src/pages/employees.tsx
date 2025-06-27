@@ -149,7 +149,10 @@ export default function Employees() {
                   </div>
                   <Button
                     className="payroll-button-primary"
-                    onClick={() => setShowEmployeeForm(true)}
+                    onClick={() => {
+                      console.log("Add Employee button clicked");
+                      setShowEmployeeForm(true);
+                    }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Employee
@@ -253,19 +256,26 @@ export default function Employees() {
       </div>
 
       {/* Employee Form Dialog */}
-      <Dialog open={showEmployeeForm} onOpenChange={setShowEmployeeForm}>
+      <Dialog open={showEmployeeForm} onOpenChange={(open) => {
+        console.log("Dialog open state changed:", open);
+        setShowEmployeeForm(open);
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               {editingEmployee ? "Edit Employee" : "Add New Employee"}
             </DialogTitle>
           </DialogHeader>
-          <EmployeeForm
-            employerId={selectedEmployerId!}
-            employee={editingEmployee}
-            onSuccess={handleCloseForm}
-            onCancel={handleCloseForm}
-          />
+          {selectedEmployerId ? (
+            <EmployeeForm
+              employerId={selectedEmployerId}
+              employee={editingEmployee}
+              onSuccess={handleCloseForm}
+              onCancel={handleCloseForm}
+            />
+          ) : (
+            <div>No employer selected</div>
+          )}
         </DialogContent>
       </Dialog>
 

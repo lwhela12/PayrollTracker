@@ -15,12 +15,13 @@ import {
   
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/context/company";
 import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency } from "@/lib/payrollUtils";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
+  const { employerId, setEmployerId } = useCompany();
 
   // Fetch employers
   const { data: employers = [] } = useQuery<any[]>({
@@ -28,28 +29,28 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  // Set first employer as default
+  // Set first employer as default if none selected
   useEffect(() => {
-    if (employers.length > 0 && !selectedEmployerId) {
-      setSelectedEmployerId(employers[0].id);
+    if (employers.length > 0 && !employerId) {
+      setEmployerId(employers[0].id);
     }
-  }, [employers, selectedEmployerId]);
+  }, [employers, employerId, setEmployerId]);
 
   // Fetch employees for selected employer
   const { data: employees = [] } = useQuery({
-    queryKey: ["/api/employees", selectedEmployerId],
-    queryFn: () => selectedEmployerId ? fetch(`/api/employees/${selectedEmployerId}`, { credentials: 'include' }).then(res => res.json()) : Promise.resolve([]),
-    enabled: !!selectedEmployerId,
+    queryKey: ["/api/employees", employerId],
+    queryFn: () => employerId ? fetch(`/api/employees/${employerId}`, { credentials: 'include' }).then(res => res.json()) : Promise.resolve([]),
+    enabled: !!employerId,
   });
 
   // Fetch dashboard stats
   const { data: dashboardStats = {} } = useQuery<any>({
-    queryKey: ["/api/dashboard/stats", selectedEmployerId],
-    queryFn: () => selectedEmployerId ? fetch(`/api/dashboard/stats/${selectedEmployerId}`, { credentials: 'include' }).then(res => res.json()) : Promise.resolve({}),
-    enabled: !!selectedEmployerId,
+    queryKey: ["/api/dashboard/stats", employerId],
+    queryFn: () => employerId ? fetch(`/api/dashboard/stats/${employerId}`, { credentials: 'include' }).then(res => res.json()) : Promise.resolve({}),
+    enabled: !!employerId,
   });
 
-  const selectedEmployer = employers.find((emp: any) => emp.id === selectedEmployerId);
+  const selectedEmployer = employers.find((emp: any) => emp.id === employerId);
   const currentPayPeriod = dashboardStats?.currentPayPeriod;
 
   const [, setLocation] = useLocation();

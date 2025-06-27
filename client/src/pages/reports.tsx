@@ -151,7 +151,7 @@ export default function Reports() {
     <div className="min-h-screen bg-background">
       <Sidebar selectedEmployer={selectedEmployer} currentPayPeriod={currentPayPeriod} user={user} />
       
-      <div className="md:ml-64 min-h-screen">
+      <div className="md:ml-48 min-h-screen">
         <Header 
           title="Report Generation"
           description="Generate and export payroll reports"

@@ -30,7 +30,7 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar selectedEmployer={employer} user={user} />
-      <div className="md:ml-64 min-h-screen">
+      <div className="md:ml-48 min-h-screen">
         <Header
           title="Settings"
           description="Manage company settings"

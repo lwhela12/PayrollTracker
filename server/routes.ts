@@ -849,7 +849,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Legacy timecard hours (if any) - combine with new entries
           const legacyPto = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.ptoHours || '0'), 0);
           const legacyHoliday = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.holidayHours || '0'), 0);
-          const legacyMisc = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.miscHours || '0'), 0);
 
           totalHours += empTotalHours;
 
@@ -866,7 +865,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             employeeId: emp.id,
             totalHours: Number(empTotalHours.toFixed(2)),
             totalOvertimeHours: Number(empOvertimeHours.toFixed(2)),
-            miscHours: Number(legacyMisc.toFixed(2)),
             ptoHours: Number((legacyPto + periodPto).toFixed(2)),
             holidayHours: Number((legacyHoliday + holidayNonWorked).toFixed(2)),
             holidayWorkedHours: Number(holidayWorked.toFixed(2)),

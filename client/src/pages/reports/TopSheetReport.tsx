@@ -48,7 +48,7 @@ export default function TopSheetReport() {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar selectedEmployer={selectedEmployer} user={user} />
-      <div className="md:ml-64">
+      <div className="md:ml-48">
         <Header title="Top Sheet" description="Payroll summary" user={user} />
         <main className="p-4 md:p-6 pt-16 md:pt-6 space-y-4">
           <Card className="payroll-card">

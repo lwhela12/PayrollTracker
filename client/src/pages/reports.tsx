@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,11 +31,11 @@ export default function Reports() {
   });
 
   // Set first employer as default
-  useState(() => {
+  useEffect(() => {
     if (employers && employers.length > 0 && !selectedEmployerId) {
       setSelectedEmployerId(employers[0].id);
     }
-  });
+  }, [employers, selectedEmployerId]);
 
   // Fetch pay periods
   const { data: payPeriods } = useQuery({

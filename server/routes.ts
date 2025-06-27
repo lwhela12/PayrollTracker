@@ -1053,12 +1053,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       for (const emp of employees) {
-        const timecards = await storage.getTimecardsByEmployee(emp.id, payPeriodId);
-        let reg = 0, ot = 0;
-        for (const tc of timecards) {
-          reg += parseFloat(tc.regularHours || '0');
-          ot += parseFloat(tc.overtimeHours || '0');
-        }
+        // Get time entries for the pay period and calculate hours
+        const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
+        const { regularHours: reg, overtimeHours: ot } = calculateWeeklyOvertime(timeEntries, 3); // Wednesday = 3
 
         const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
         const pto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
@@ -1135,9 +1132,9 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
   doc.moveTo(50, yPos - 5).lineTo(500, yPos - 5).stroke();
   
   for (const emp of employees) {
-    const empTimecard = timecardData.find(tc => tc.employeeId === emp.id);
-    let regularHours = empTimecard?.regularHours || 0;
-    let overtimeHours = empTimecard?.overtimeHours || 0;
+    // Get time entries for the pay period and calculate hours
+    const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
+    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, 3); // Wednesday = 3
     
     // Get PTO entries for pay period
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
@@ -1192,9 +1189,9 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
   
   // Process each employee
   for (const emp of employees) {
-    const empTimecard = timecardData.find(tc => tc.employeeId === emp.id);
-    let regularHours = empTimecard?.regularHours || 0;
-    let overtimeHours = empTimecard?.overtimeHours || 0;
+    // Get time entries for the pay period and calculate hours
+    const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
+    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, 3); // Wednesday = 3
     
     // Get PTO entries for pay period
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
@@ -1218,8 +1215,8 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
       `${emp.firstName} ${emp.lastName}`,
       regularHours.toFixed(2),
       overtimeHours.toFixed(2),
-      (ptoHours + periodPto).toFixed(2),
-      (holidayHours + holidayNonWorked).toFixed(2),
+      periodPto.toFixed(2),
+      holidayNonWorked.toFixed(2),
       holidayWorked.toFixed(2),
       periodReimb.toFixed(2)
     ]);

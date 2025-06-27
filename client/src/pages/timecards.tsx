@@ -120,7 +120,7 @@ export default function Timecards() {
         user={user}
       />
       
-      <div className="md:ml-64 min-h-screen">
+      <div className="md:ml-48 min-h-screen">
         <Header 
           title="Timecards"
           description="Employee timecard management"

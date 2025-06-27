@@ -92,10 +92,9 @@ export default function Employees() {
     setEditingEmployee(null);
   };
 
-
+  const [, navigate] = useLocation();
 
   if (!employers || employers.length === 0) {
-    const [, navigate] = useLocation();
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="payroll-card max-w-md mx-4">
@@ -125,7 +124,7 @@ export default function Employees() {
       <div className="min-h-screen bg-background">
         <Sidebar selectedEmployer={selectedEmployer} user={user} />
         
-        <div className="md:ml-64 min-h-screen">
+        <div className="md:ml-48 min-h-screen">
           <Header 
             title="Employee Management"
             description="Manage your employee roster and information"

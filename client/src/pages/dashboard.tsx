@@ -95,7 +95,7 @@ export default function Dashboard() {
         user={user}
       />
       
-      <div className="md:ml-64 min-h-screen">
+      <div className="md:ml-48 min-h-screen">
         <Header 
           title="Dashboard"
           description="Overview of your payroll management"

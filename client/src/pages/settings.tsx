@@ -29,7 +29,7 @@ export default function Settings() {
 
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar selectedEmployer={employer} />
+      <Sidebar selectedEmployer={employer} user={user} />
       <div className="flex-1 overflow-hidden">
         <Header
           title="Settings"

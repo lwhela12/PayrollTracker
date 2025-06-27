@@ -13,11 +13,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatDate } from "@/lib/dateUtils";
+import { useCompany } from "@/context/company";
 
 export default function Reports() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
+  const { employerId: selectedEmployerId, setEmployerId: setSelectedEmployerId } = useCompany();
   const [selectedPayPeriodId, setSelectedPayPeriodId] = useState<string>("");
   const [reportType, setReportType] = useState("payroll_summary");
   const [format, setFormat] = useState("pdf");
@@ -113,7 +114,7 @@ export default function Reports() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar selectedEmployer={selectedEmployer} currentPayPeriod={currentPayPeriod} />
+      <Sidebar selectedEmployer={selectedEmployer} currentPayPeriod={currentPayPeriod} user={user} />
       
       <div className="md:ml-64">
         <Header 

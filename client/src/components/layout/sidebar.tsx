@@ -19,9 +19,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 interface SidebarProps {
   selectedEmployer?: any;
   currentPayPeriod?: any;
+  user?: any;
 }
 
-export function Sidebar({ selectedEmployer, currentPayPeriod }: SidebarProps) {
+export function Sidebar({ selectedEmployer, currentPayPeriod, user }: SidebarProps) {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -31,6 +32,7 @@ export function Sidebar({ selectedEmployer, currentPayPeriod }: SidebarProps) {
     { name: "Employee Roster", href: "/employees", icon: Users },
     { name: "Timecards", href: "/timecards", icon: Clock },
     { name: "Payroll Reports", href: "/reports", icon: FileText },
+    ...(user?.role === 'Admin' ? [{ name: 'Companies', href: '/admin/companies', icon: Settings }] : []),
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 

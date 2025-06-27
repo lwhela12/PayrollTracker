@@ -93,9 +93,10 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar 
-        selectedEmployer={selectedEmployer} 
+      <Sidebar
+        selectedEmployer={selectedEmployer}
         currentPayPeriod={currentPayPeriod}
+        user={user}
       />
       
       <div className="md:ml-64">

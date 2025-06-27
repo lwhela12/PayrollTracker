@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { useCompany } from "@/context/company";
 import { EmployeeForm } from "@/components/employee-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,7 @@ export default function Employees() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
+  const { employerId: selectedEmployerId, setEmployerId: setSelectedEmployerId } = useCompany();
   const [searchTerm, setSearchTerm] = useState("");
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
@@ -66,9 +67,14 @@ export default function Employees() {
   });
 
   const importEmployeesMutation = useMutation({
-    mutationFn: async (data: any[]) => {
-      const response = await apiRequest("POST", "/api/employees/import", data);
-      return response.json();
+    mutationFn: async (formData: FormData) => {
+      const res = await fetch("/api/employees/import", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
@@ -106,21 +112,10 @@ export default function Employees() {
 
   const handleImport = () => {
     if (!importFile || !selectedEmployerId) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = reader.result as string;
-      const lines = text.trim().split(/\r?\n/);
-      const rows = lines.slice(1).map(line => line.split(',').map(item => item.trim()));
-      const payload = rows.map(cols => ({
-        firstName: cols[0],
-        lastName: cols[1],
-        email: cols[2] || undefined,
-        position: cols[3] || undefined,
-        employerId: selectedEmployerId,
-      }));
-      importEmployeesMutation.mutate(payload);
-    };
-    reader.readAsText(importFile);
+    const formData = new FormData();
+    formData.append("file", importFile);
+    formData.append("employerId", selectedEmployerId.toString());
+    importEmployeesMutation.mutate(formData);
   };
 
   if (!employers || employers.length === 0) {
@@ -148,7 +143,7 @@ export default function Employees() {
   return (
     <>
       <div className="min-h-screen bg-background">
-        <Sidebar selectedEmployer={selectedEmployer} />
+        <Sidebar selectedEmployer={selectedEmployer} user={user} />
         
         <div className="md:ml-64">
           <Header 

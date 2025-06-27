@@ -1255,11 +1255,11 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
     // Table headers
     doc.fontSize(10);
     doc.text('Date', 50, yPos);
-    doc.text('Time In', 150, yPos);
-    doc.text('Time Out', 220, yPos);
-    doc.text('Lunch (min)', 290, yPos);
-    doc.text('Hours', 360, yPos);
-    doc.text('Notes', 420, yPos);
+    doc.text('Time In', 120, yPos);
+    doc.text('Time Out', 180, yPos);
+    doc.text('Lunch', 240, yPos);
+    doc.text('Hours', 290, yPos);
+    doc.text('Notes', 340, yPos);
     yPos += 20;
     
     // Draw header line
@@ -1287,13 +1287,17 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
         entryHours = Math.round((minutes / 60) * 100) / 100;
       }
       
+      // Format date as MM/DD/YYYY for compactness
+      const entryDate = new Date(entry.timeIn);
+      const formattedDate = `${(entryDate.getMonth() + 1).toString().padStart(2, '0')}/${entryDate.getDate().toString().padStart(2, '0')}/${entryDate.getFullYear()}`;
+      
       doc.fontSize(9);
-      doc.text(entry.timeIn.toString().split('T')[0], 50, yPos);
-      doc.text(timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 150, yPos);
-      doc.text(timeOut ? timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--', 220, yPos);
-      doc.text((entry.lunchMinutes || 0).toString(), 290, yPos);
-      doc.text(entryHours.toFixed(2), 360, yPos);
-      doc.text(entry.notes || '', 420, yPos);
+      doc.text(formattedDate, 50, yPos);
+      doc.text(timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 120, yPos);
+      doc.text(timeOut ? timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--', 180, yPos);
+      doc.text((entry.lunchMinutes || 0).toString(), 240, yPos);
+      doc.text(entryHours.toFixed(2), 290, yPos);
+      doc.text(entry.notes || '', 340, yPos);
       yPos += 15;
       
       if (yPos > 700) {

@@ -869,7 +869,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employees = await storage.getEmployeesByEmployer(employerId);
       const timecards = await storage.getTimecardsByPayPeriod(payPeriodId);
       
-      const fileName = `${reportType}_${payPeriod.startDate}_${payPeriod.endDate}.${format}`;
+      const fileExtension = format === 'excel' ? 'xlsx' : format;
+      const fileName = `${reportType}_${payPeriod.startDate}_${payPeriod.endDate}.${fileExtension}`;
       const filePath = path.join(process.cwd(), 'reports', fileName);
       
       // Ensure reports directory exists

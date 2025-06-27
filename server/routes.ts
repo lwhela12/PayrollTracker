@@ -234,6 +234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error importing employees:', error);
       res.status(500).json({ message: 'Failed to import employees' });
     }
+    */
   });
 
   // Pay period routes

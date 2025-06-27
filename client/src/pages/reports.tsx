@@ -121,14 +121,14 @@ export default function Reports() {
     <div className="min-h-screen bg-background">
       <Sidebar selectedEmployer={selectedEmployer} currentPayPeriod={currentPayPeriod} user={user} />
       
-      <div className="md:ml-64">
+      <div className="md:ml-64 min-h-screen">
         <Header 
           title="Report Generation"
           description="Generate and export payroll reports"
           user={user}
         />
 
-        <main className="p-4 md:p-6 pt-16 md:pt-6">
+        <main className="p-4 md:p-6 pt-20 md:pt-24">
           <div className="w-full">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Report Generation */}

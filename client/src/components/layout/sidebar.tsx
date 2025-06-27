@@ -94,26 +94,7 @@ export function Sidebar({ selectedEmployer, currentPayPeriod }: SidebarProps) {
         })}
       </nav>
       
-      {/* Current Pay Period Info */}
-      {currentPayPeriod && payPeriodProgress && (
-        <Card className="mx-4 mb-4">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Current Pay Period</span>
-              <Badge variant={payPeriodProgress.isActive ? "default" : "secondary"}>
-                {payPeriodProgress.isActive ? "Active" : payPeriodProgress.isComplete ? "Complete" : "Upcoming"}
-              </Badge>
-            </div>
-            <div className="text-xs text-muted-foreground mb-3">
-              {formatDate(currentPayPeriod.startDate)} - {formatDate(currentPayPeriod.endDate)}
-            </div>
-            <Progress value={payPeriodProgress.percentage} className="h-2" />
-            <div className="mt-2 text-xs text-muted-foreground">
-              Day {payPeriodProgress.completedDays} of {payPeriodProgress.totalDays}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
     </div>
   );
 

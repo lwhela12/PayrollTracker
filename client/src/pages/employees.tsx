@@ -146,17 +146,17 @@ export default function Employees() {
   const selectedEmployer = employers.find((emp: any) => emp.id === selectedEmployerId);
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="min-h-screen bg-background">
       <Sidebar selectedEmployer={selectedEmployer} />
       
-      <div className="flex-1 overflow-hidden">
+      <div className="md:ml-64">
         <Header 
           title="Employee Management"
           description="Manage your employee roster and information"
           user={user}
         />
 
-        <div className="p-6 overflow-y-auto h-full">
+        <main className="p-4 md:p-6 pt-16 md:pt-6">
           <Card className="payroll-card">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -272,7 +272,7 @@ export default function Employees() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </main>
       </div>
 
       {/* Employee Form Dialog */}

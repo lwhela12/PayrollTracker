@@ -116,6 +116,14 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
             console.warn('Failed to process time entry:', e, error);
           }
         });
+        
+        // Ensure each day has at least one empty shift for new entries
+        Object.values(map).forEach(day => {
+          if (day.shifts.length === 0) {
+            day.shifts.push({ timeIn: "", timeOut: "", lunch: 0 });
+          }
+        });
+        
         return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
       });
     }

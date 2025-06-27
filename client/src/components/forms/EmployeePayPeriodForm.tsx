@@ -100,15 +100,21 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         const map: Record<string, DayEntry> = {};
         prev.forEach((d) => (map[d.date] = { ...d, shifts: [] }));
         existingEntries.forEach((e: any) => {
-          const date = e.timeIn.split("T")[0];
-          if (!map[date]) {
-            map[date] = { date, shifts: [] };
+          if (!e.timeIn) return; // Skip entries without timeIn
+          
+          try {
+            const date = e.timeIn.split("T")[0];
+            if (!map[date]) {
+              map[date] = { date, shifts: [] };
+            }
+            map[date].shifts.push({
+              timeIn: e.timeIn.split("T")[1]?.slice(0, 5) || "",
+              timeOut: e.timeOut?.split("T")[1]?.slice(0, 5) || "",
+              lunch: e.lunchMinutes || 0,
+            });
+          } catch (error) {
+            console.warn('Failed to process time entry:', e, error);
           }
-          map[date].shifts.push({
-            timeIn: e.timeIn.split("T")[1]?.slice(0, 5) || "",
-            timeOut: e.timeOut?.split("T")[1]?.slice(0, 5) || "",
-            lunch: e.lunchMinutes || 0,
-          });
         });
         return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
       });
@@ -119,69 +125,81 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   // Populate PTO hours from existing entries
   useEffect(() => {
     if (existingPtoEntries.length > 0) {
-      const periodPto = existingPtoEntries.filter(p => 
-        p.entryDate >= start && p.entryDate <= end
-      ).reduce((sum, p) => sum + parseFloat(p.hours), 0);
-      setPtoHours(periodPto);
+      try {
+        const periodPto = existingPtoEntries.filter(p => 
+          p.entryDate >= start && p.entryDate <= end
+        ).reduce((sum, p) => sum + (parseFloat(p.hours) || 0), 0);
+        setPtoHours(periodPto);
+      } catch (error) {
+        console.warn('Failed to process PTO entries:', error);
+      }
     }
   }, [existingPtoEntries, start, end]);
 
   // Populate misc hours from existing entries
   useEffect(() => {
     if (existingMiscEntries.length > 0) {
-      const periodMisc = existingMiscEntries.filter(m => 
-        m.entryDate >= start && m.entryDate <= end
-      );
-      
-      const holidayHours = periodMisc.filter(m => m.entryType === 'holiday')
-        .reduce((sum, m) => sum + parseFloat(m.hours), 0);
-      const holidayWorkedHours = periodMisc.filter(m => m.entryType === 'holiday-worked')
-        .reduce((sum, m) => sum + parseFloat(m.hours), 0);
-      
-      setHolidayNonWorked(holidayHours);
-      setHolidayWorked(holidayWorkedHours);
+      try {
+        const periodMisc = existingMiscEntries.filter(m => 
+          m.entryDate >= start && m.entryDate <= end
+        );
+        
+        const holidayHours = periodMisc.filter(m => m.entryType === 'holiday')
+          .reduce((sum, m) => sum + (parseFloat(m.hours) || 0), 0);
+        const holidayWorkedHours = periodMisc.filter(m => m.entryType === 'holiday-worked')
+          .reduce((sum, m) => sum + (parseFloat(m.hours) || 0), 0);
+        
+        setHolidayNonWorked(holidayHours);
+        setHolidayWorked(holidayWorkedHours);
+      } catch (error) {
+        console.warn('Failed to process misc hours entries:', error);
+      }
     }
   }, [existingMiscEntries, start, end]);
 
   // Populate reimbursement from existing entries
   useEffect(() => {
     if (existingReimbEntries.length > 0) {
-      const periodReimb = existingReimbEntries.filter(r => 
-        r.entryDate >= start && r.entryDate <= end
-      );
-      
-      if (periodReimb.length > 0) {
-        const reimbEntry = periodReimb[0]; // Get the first (most recent) entry
-        const description = reimbEntry.description || "";
-        const totalAmount = parseFloat(reimbEntry.amount);
+      try {
+        const periodReimb = existingReimbEntries.filter(r => 
+          r.entryDate >= start && r.entryDate <= end
+        );
         
-        // Parse combined reimbursement entry
-        let mileageAmount = 0;
-        let otherAmount = totalAmount;
-        let otherDesc = "";
-        
-        // Extract mileage info if present
-        const mileageMatch = description.match(/Mileage: (\d+(?:\.\d+)?) miles \(\$(\d+(?:\.\d+)?)\)/);
-        if (mileageMatch) {
-          setMilesDriven(parseFloat(mileageMatch[1]));
-          mileageAmount = parseFloat(mileageMatch[2]);
-          otherAmount = totalAmount - mileageAmount;
+        if (periodReimb.length > 0) {
+          const reimbEntry = periodReimb[0]; // Get the first (most recent) entry
+          const description = reimbEntry.description || "";
+          const totalAmount = parseFloat(reimbEntry.amount) || 0;
           
-          // Extract other reimbursement description after the semicolon
-          const parts = description.split('; ');
-          if (parts.length > 1) {
-            otherDesc = parts[1];
+          // Parse combined reimbursement entry
+          let mileageAmount = 0;
+          let otherAmount = totalAmount;
+          let otherDesc = "";
+          
+          // Extract mileage info if present
+          const mileageMatch = description.match(/Mileage: (\d+(?:\.\d+)?) miles \(\$(\d+(?:\.\d+)?)\)/);
+          if (mileageMatch) {
+            setMilesDriven(parseFloat(mileageMatch[1]) || 0);
+            mileageAmount = parseFloat(mileageMatch[2]) || 0;
+            otherAmount = totalAmount - mileageAmount;
+            
+            // Extract other reimbursement description after the semicolon
+            const parts = description.split('; ');
+            if (parts.length > 1) {
+              otherDesc = parts[1];
+            }
+          } else {
+            // No mileage, treat entire amount as other reimbursement
+            otherDesc = description;
           }
-        } else {
-          // No mileage, treat entire amount as other reimbursement
-          otherDesc = description;
+          
+          // Set other reimbursement amount and description
+          if (otherAmount > 0) {
+            setReimbAmt(otherAmount);
+            setReimbDesc(otherDesc);
+          }
         }
-        
-        // Set other reimbursement amount and description
-        if (otherAmount > 0) {
-          setReimbAmt(otherAmount);
-          setReimbDesc(otherDesc);
-        }
+      } catch (error) {
+        console.warn('Failed to process reimbursement entries:', error);
       }
     }
   }, [existingReimbEntries, start, end]);
@@ -345,8 +363,6 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         title: "Success",
         description: "Timecard data saved successfully",
       });
-      // Clear real-time updates since data is now saved
-      clearEmployee(employeeId);
       
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries/employee", employeeId] });
@@ -354,11 +370,17 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       queryClient.invalidateQueries({ queryKey: ["/api/misc-hours-entries/employee", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["/api/reimbursement-entries/employee", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["/api/timecards/pay-period"] });
-      // Invalidate dashboard stats with employer ID to refresh pay period summary
+      
+      // Invalidate dashboard stats to refresh pay period summary
       if (employee?.employerId) {
         queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      
+      // Clear real-time updates after queries refresh to prevent form reset
+      setTimeout(() => {
+        clearEmployee(employeeId);
+      }, 100);
     },
     onError: (error: Error) => {
       toast({

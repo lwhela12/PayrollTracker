@@ -11,12 +11,16 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
-- **2025-06-27**: Real-time mileage tracking implementation
+- **2025-06-27**: Real-time mileage tracking implementation and stability fixes
   - Added mileage entry field to timecard form with automatic dollar calculation
   - Created TimecardUpdatesProvider for real-time pay period summary updates
   - Fixed timecard form summary to show combined mileage + reimbursement totals
   - Dashboard stats API updated to properly parse mileage from reimbursement entries
   - Pay period summary now displays real-time mileage and reimbursement data
+  - Fixed time entry validation to accept string datetime inputs
+  - Improved form state management to keep fields editable after saving
+  - Added comprehensive error handling to prevent app crashes on data parsing
+  - Enhanced query invalidation for proper payroll summary refresh
 
 - **2025-06-27**: UI improvements and navigation cleanup
   - Changed Companies sidebar icon from gear to building icon

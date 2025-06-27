@@ -13,7 +13,29 @@ export default function TimecardEntry() {
   if (!match) return <div>Invalid route</div>;
   const employeeId = parseInt(params.employeeId, 10);
   const start = params.start;
-  const startDate = new Date(start);
+  
+  // Parse the date string properly - handle various date formats
+  let startDate: Date;
+  try {
+    // Try parsing as ISO date first
+    startDate = new Date(start);
+    // If that fails, try adding time component
+    if (isNaN(startDate.getTime())) {
+      startDate = new Date(start + 'T00:00:00.000Z');
+    }
+    // Final fallback - manual parsing for YYYY-MM-DD format
+    if (isNaN(startDate.getTime()) && /^\d{4}-\d{2}-\d{2}$/.test(start)) {
+      const [year, month, day] = start.split('-').map(Number);
+      startDate = new Date(year, month - 1, day); // month is 0-indexed
+    }
+  } catch (error) {
+    return <div>Invalid date parameter: {start}</div>;
+  }
+  
+  if (isNaN(startDate.getTime())) {
+    return <div>Invalid date parameter: {start}</div>;
+  }
+  
   const endDate = new Date(startDate);
   endDate.setDate(startDate.getDate() + 13);
   const payPeriod = { start: startDate.toISOString().split("T")[0], end: endDate.toISOString().split("T")[0] };

@@ -193,6 +193,9 @@ export const insertTimecardSchema = createInsertSchema(timecards).omit({
 
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({
   id: true,
+}).extend({
+  timeIn: z.string().transform((val) => new Date(val)),
+  timeOut: z.string().optional().transform((val) => val ? new Date(val) : undefined),
 });
 
 export const insertPtoEntrySchema = createInsertSchema(ptoEntries).omit({

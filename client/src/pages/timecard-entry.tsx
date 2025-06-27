@@ -70,7 +70,7 @@ export default function TimecardEntry() {
       <Sidebar selectedEmployer={selectedEmployer} currentPayPeriod={currentPayPeriod} user={user} />
       <div className="md:ml-48 min-h-screen">
         <Header title={employee ? `${employee.firstName} ${employee.lastName} - Timecard` : "Timecard"} description="Enter pay period data" user={user} />
-        <main className="p-4 md:p-6 pt-20 md:pt-24">
+        <main className="p-4 md:p-6">
           <h2 className="text-lg font-semibold mb-4">
             {employee ? `${employee.firstName} ${employee.lastName}` : "Loading..."}
           </h2>

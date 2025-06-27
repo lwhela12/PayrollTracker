@@ -158,7 +158,7 @@ export default function Reports() {
           user={user}
         />
 
-        <main className="p-4 md:p-6 pt-20 md:pt-24">
+        <main className="p-4 md:p-6">
           <div className="w-full">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Report Generation */}

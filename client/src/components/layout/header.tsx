@@ -37,7 +37,7 @@ export function Header({ title, description, user, onGenerateReports }: HeaderPr
     user.email?.[0]?.toUpperCase() || 'U' : 'U';
 
   return (
-    <header className="bg-card shadow-sm border-b border-border px-4 md:px-6 py-4 fixed top-0 left-0 right-0 md:left-64 z-30">
+    <header className="bg-card shadow-sm border-b border-border px-4 md:px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="ml-12 md:ml-0">
           <h2 className="text-xl md:text-2xl font-bold text-foreground">{title}</h2>

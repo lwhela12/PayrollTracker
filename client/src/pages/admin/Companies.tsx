@@ -35,7 +35,7 @@ export default function CompaniesAdmin() {
       <Sidebar selectedEmployer={employers[0]} user={user} />
       <div className="md:ml-48 min-h-screen">
         <Header title="Companies" description="Manage companies" user={user} />
-        <main className="p-4 md:p-6 pt-20 md:pt-24">
+        <main className="p-4 md:p-6">
           <Card className="payroll-card">
             <CardHeader className="flex items-center justify-between">
               <CardTitle>Companies</CardTitle>

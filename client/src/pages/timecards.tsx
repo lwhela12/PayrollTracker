@@ -127,7 +127,7 @@ export default function Timecards() {
           user={user}
         />
         
-        <main className="p-4 md:p-6 pt-20 md:pt-24">
+        <main className="p-4 md:p-6">
           <div className="w-full">
             {/* Pay Period Selector */}
             {payPeriods.length > 0 && (

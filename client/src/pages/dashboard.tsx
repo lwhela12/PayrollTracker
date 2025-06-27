@@ -102,7 +102,7 @@ export default function Dashboard() {
           user={user}
         />
         
-        <main className="p-4 md:p-6 pt-20 md:pt-24">
+        <main className="p-4 md:p-6">
           <div className="w-full">
             {/* Summary Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">

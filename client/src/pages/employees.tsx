@@ -131,7 +131,7 @@ export default function Employees() {
             user={user}
           />
 
-          <main className="p-4 md:p-6 pt-20 md:pt-24">
+          <main className="p-4 md:p-6">
             <Card className="payroll-card">
             <CardHeader>
               <div className="flex items-center justify-between">

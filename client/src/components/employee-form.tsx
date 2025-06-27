@@ -19,7 +19,7 @@ interface EmployeeFormProps {
 
 const employeeFormSchema = insertEmployeeSchema.extend({
   mileageRate: z.string().optional(),
-  email: z.string().email().optional(),
+  email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
   position: z.string().optional(),
 });
@@ -112,6 +112,7 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
   });
 
   const onSubmit = (data: EmployeeFormData) => {
+    console.log('Submitting employee form', data);
     const submissionData = {
       ...data,
       mileageRate: data.mileageRate ? parseFloat(data.mileageRate) : 0.655,

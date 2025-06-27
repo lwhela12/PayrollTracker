@@ -18,7 +18,8 @@ import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
-// import multer from "multer"; // Temporarily disabled due to dependency conflicts
+import multer from "multer";
+import { parseString } from "@fast-csv/parse";
 import fs from "fs";
 import path from "path";
 import { db } from "./db";
@@ -43,6 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Employer routes
   app.post('/api/employers', isAuthenticated, async (req: any, res) => {
     try {
+      console.log('Creating employer with data:', req.body);
       const userId = req.user.claims.sub;
       const employerData = insertEmployerSchema.parse({ ...req.body, ownerId: userId });
       const employer = await storage.createEmployer(employerData);
@@ -52,6 +54,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: fromZodError(error).toString() });
       }
       console.error("Error creating employer:", error);
+      console.error("Full error creating employer:", error);
       res.status(500).json({ message: "Failed to create employer" });
     }
   });
@@ -197,12 +200,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Temporarily disabled multer-based file upload until dependency is resolved
-  // const upload = multer();
-  app.post('/api/employees/import', isAuthenticated, async (req: any, res) => {
+  const upload = multer();
+  app.post('/api/employees/import', isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
-      // Temporarily return a message indicating feature is unavailable
-      res.status(501).json({ message: 'File upload feature temporarily unavailable - dependency issue being resolved' });
+      const employerId = parseInt(req.body.employerId);
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      const csvData = req.file.buffer.toString();
+      const employees: any[] = [];
+      await new Promise<void>((resolve, reject) => {
+        parseString(csvData, { headers: ['firstName','lastName','email','position'], renameHeaders: false })
+          .on('error', reject)
+          .on('data', row => {
+            employees.push({
+              firstName: row.firstName,
+              lastName: row.lastName,
+              email: row.email || undefined,
+              position: row.position || undefined,
+              hireDate: new Date().toISOString().split('T')[0],
+              employerId,
+            });
+          })
+          .on('end', () => resolve());
+      });
+
+      const result = await storage.createMultipleEmployees(employees);
+      res.json({ message: 'Employees imported', ...result });
     } catch (error: any) {
       console.error('Error importing employees:', error);
       res.status(500).json({ message: 'Failed to import employees' });

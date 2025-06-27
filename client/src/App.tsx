@@ -12,6 +12,7 @@ import Timecards from "@/pages/timecards";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 import CreateCompany from "@/pages/create-company";
+import TimecardEntry from "@/pages/timecard-entry";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -34,6 +35,7 @@ function Router() {
           <Route path="/create-company" component={CreateCompany} />
           <Route path="/employees" component={Employees} />
           <Route path="/timecards" component={Timecards} />
+          <Route path="/timecard/employee/:employeeId/period/:start" component={TimecardEntry} />
           <Route path="/reports" component={Reports} />
           <Route path="/settings" component={Settings} />
         </>

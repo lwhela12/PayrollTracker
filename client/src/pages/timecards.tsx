@@ -1,92 +1,79 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
-import { BiweeklyTimecardForm } from "@/components/biweekly-timecard-form";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Calendar } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function Timecards() {
   const { user } = useAuth();
-  // Extract employer and employee IDs directly from the browser URL search params
-  const searchParams = new URLSearchParams(window.location.search);
-  const employerParam = searchParams.get("employer");
-  const initialEmployerId = employerParam ? parseInt(employerParam, 10) : null;
-  const employeeParam = searchParams.get("employee");
-  const initialPreSelectedEmployeeId = employeeParam
-    ? parseInt(employeeParam, 10)
-    : null;
-  const payPeriodParam = searchParams.get("payPeriod") || "";
-  const [preSelectedEmployeeId] = useState<number | null>(initialPreSelectedEmployeeId);
-  const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(initialEmployerId);
-  const [selectedPayPeriodId, setSelectedPayPeriodId] = useState<string>(payPeriodParam);
+  const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
+  const [selectedPayPeriodId, setSelectedPayPeriodId] = useState<string>("");
 
-  // Fetch employers
   const { data: employers = [] } = useQuery<any[]>({
     queryKey: ["/api/employers"],
     enabled: !!user,
   });
 
-  // If no employer in URL, default to the first employer once loaded
   useEffect(() => {
-    if (selectedEmployerId == null && employers.length > 0) {
+    if (employers.length > 0 && selectedEmployerId == null) {
       setSelectedEmployerId(employers[0].id);
     }
   }, [employers, selectedEmployerId]);
 
-  // Fetch employees for selected employer
   const { data: employees = [] } = useQuery<any[]>({
     queryKey: ["/api/employees", selectedEmployerId],
-    queryFn: () => selectedEmployerId ? fetch(`/api/employees/${selectedEmployerId}`).then(res => res.json()) : Promise.resolve([]),
+    queryFn: () =>
+      selectedEmployerId ? fetch(`/api/employees/${selectedEmployerId}`).then((r) => r.json()) : Promise.resolve([]),
     enabled: !!selectedEmployerId,
   });
 
-  // Fetch all pay periods for selected employer
   const { data: payPeriods = [] } = useQuery<any[]>({
     queryKey: ["/api/pay-periods", selectedEmployerId],
     queryFn: () =>
-      selectedEmployerId
-        ? fetch(`/api/pay-periods/${selectedEmployerId}`, { credentials: "include" }).then((res) => res.json())
-        : Promise.resolve([]),
+      selectedEmployerId ? fetch(`/api/pay-periods/${selectedEmployerId}`, { credentials: "include" }).then((r) => r.json()) : Promise.resolve([]),
     enabled: !!selectedEmployerId,
   });
 
-  // Set default selected pay period only when no payPeriod parameter was provided
   useEffect(() => {
-    if (!payPeriodParam && payPeriods.length > 0 && !selectedPayPeriodId) {
+    if (payPeriods.length > 0 && !selectedPayPeriodId) {
       const current = payPeriods.find((p: any) => p.isActive) || payPeriods[0];
       setSelectedPayPeriodId(current.id.toString());
     }
-  }, [payPeriods, selectedPayPeriodId, payPeriodParam]);
+  }, [payPeriods, selectedPayPeriodId]);
 
+  const { data: timecards = [] } = useQuery<any[]>({
+    queryKey: ["/api/timecards/pay-period", selectedPayPeriodId],
+    queryFn: () =>
+      selectedPayPeriodId ? fetch(`/api/timecards/pay-period/${selectedPayPeriodId}`, { credentials: "include" }).then((r) => r.json()) : Promise.resolve([]),
+    enabled: !!selectedPayPeriodId,
+  });
 
-
-  const selectedEmployer = employers?.find((emp: any) => emp.id === selectedEmployerId);
+  const selectedEmployer = employers.find((e: any) => e.id === selectedEmployerId);
   const selectedPayPeriod = payPeriods.find((p: any) => p.id.toString() === selectedPayPeriodId);
+
+  const getTotalHours = (empId: number) => {
+    const records = timecards.filter((t: any) => t.employeeId === empId);
+    const hours = records.reduce(
+      (sum: number, t: any) => sum + parseFloat(t.regularHours || 0) + parseFloat(t.overtimeHours || 0),
+      0
+    );
+    return hours.toFixed(2);
+  };
+
+  const getStatus = (empId: number) => {
+    const records = timecards.filter((t: any) => t.employeeId === empId);
+    return records.length === 0 ? "Not Started" : "In Progress";
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar
-        selectedEmployer={selectedEmployer}
-        currentPayPeriod={selectedPayPeriod}
-      />
-      
+      <Sidebar selectedEmployer={selectedEmployer} currentPayPeriod={selectedPayPeriod} />
       <div className="md:ml-64">
-        <Header 
-          title="Timecard Entry"
-          description="Enter bi-weekly timecard data for employees"
-          user={user}
-        />
-        
+        <Header title="Timecards" description="Select an employee to enter hours" user={user} />
         <main className="p-4 md:p-6 pt-16 md:pt-6">
           {payPeriods.length > 0 && (
             <Select value={selectedPayPeriodId} onValueChange={setSelectedPayPeriodId}>
@@ -103,29 +90,32 @@ export default function Timecards() {
               </SelectContent>
             </Select>
           )}
-          {selectedEmployerId ? (
-            selectedPayPeriod ? (
-              <BiweeklyTimecardForm
-                employees={employees || []}
-                currentPayPeriod={selectedPayPeriod}
-                preSelectedEmployeeId={preSelectedEmployeeId}
-              />
-            ) : (
-              <Card className="max-w-md mx-auto mt-8">
-                <CardHeader className="text-center">
-                  <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                    <Calendar className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <CardTitle>Setting Up Pay Periods</CardTitle>
-                  <p className="text-muted-foreground">
-                    Pay periods are being generated automatically. Please refresh the page if this message persists.
-                  </p>
-                </CardHeader>
-              </Card>
-            )
+
+          {employees.length === 0 ? (
+            <Card className="p-6 text-center">No employees found</Card>
           ) : (
-            <div className="flex items-center justify-center h-64">
-              <p className="text-muted-foreground">Please select a company to view timecards.</p>
+            <div className="space-y-3">
+              {employees.map((emp: any) => (
+                <Link
+                  key={emp.id}
+                  href={`/timecard/employee/${emp.id}/period/${selectedPayPeriod?.startDate}`}
+                  className="block"
+                >
+                  <Card className="cursor-pointer hover:bg-accent">
+                    <CardHeader>
+                      <CardTitle className="flex justify-between">
+                        <span>
+                          {emp.firstName} {emp.lastName}
+                        </span>
+                        <span className="text-sm text-muted-foreground">{getStatus(emp.id)}</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm text-right">
+                      {getTotalHours(emp.id)} hrs
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
             </div>
           )}
         </main>

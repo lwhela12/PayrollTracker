@@ -127,6 +127,26 @@ export default function Timecards() {
         
         <main className="p-4 md:p-6 pt-20 md:pt-24">
           <div className="w-full">
+            {/* Pay Period Selector */}
+            {payPeriods.length > 0 && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium mb-2">Pay Period</label>
+                <Select value={selectedPayPeriodId} onValueChange={setSelectedPayPeriodId}>
+                  <SelectTrigger className="w-[300px]">
+                    <SelectValue placeholder="Select a pay period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {payPeriods.map((pp: any) => (
+                      <SelectItem key={pp.id} value={pp.id.toString()}>
+                        {formatDate(pp.startDate)} - {formatDate(pp.endDate)}
+                        {pp.isActive && " (Current)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Summary Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
               {stats.map((stat, index) => (

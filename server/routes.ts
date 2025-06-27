@@ -18,7 +18,7 @@ import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
-// import multer from "multer"; // Temporarily disabled due to dependency conflicts
+import multer from "multer";
 import { parseString } from "@fast-csv/parse";
 import fs from "fs";
 import path from "path";
@@ -200,41 +200,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // File upload feature temporarily disabled due to multer dependency conflicts
-  app.post('/api/employees/import', isAuthenticated, async (req: any, res) => {
-    return res.status(501).json({ message: 'File upload feature temporarily unavailable' });
-    /*
+  const upload = multer();
+  app.post('/api/employees/import', isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
       const employerId = parseInt(req.body.employerId);
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
       }
 
+      // Verify employer ownership
+      const employer = await storage.getEmployer(employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
       const csvData = req.file.buffer.toString();
       const employees: any[] = [];
+      
       await new Promise<void>((resolve, reject) => {
-        parseString(csvData, { headers: ['firstName','lastName','email','position'], renameHeaders: false })
+        parseString(csvData, { 
+          headers: true,
+          trim: true
+        })
           .on('error', reject)
-          .on('data', row => {
-            employees.push({
-              firstName: row.firstName,
-              lastName: row.lastName,
-              email: row.email || undefined,
-              position: row.position || undefined,
-              hireDate: new Date().toISOString().split('T')[0],
-              employerId,
-            });
+          .on('data', (row: any) => {
+            // Handle the format: Pay Group,Name,Hire Date
+            if (row.Name && row.Name.trim()) {
+              // Parse the name field which contains "LastName,FirstName" format
+              const nameParts = row.Name.split(',');
+              let firstName = '';
+              let lastName = '';
+              
+              if (nameParts.length >= 2) {
+                lastName = nameParts[0].trim();
+                firstName = nameParts[1].trim();
+              } else {
+                // Fallback if name doesn't contain comma
+                const spaceParts = row.Name.trim().split(' ');
+                firstName = spaceParts[0] || '';
+                lastName = spaceParts.slice(1).join(' ') || '';
+              }
+
+              // Parse hire date from M/D/YYYY format to YYYY-MM-DD
+              let hireDate = new Date().toISOString().split('T')[0];
+              if (row['Hire Date']) {
+                try {
+                  const dateParts = row['Hire Date'].split('/');
+                  if (dateParts.length === 3) {
+                    const month = dateParts[0].padStart(2, '0');
+                    const day = dateParts[1].padStart(2, '0');
+                    const year = dateParts[2];
+                    hireDate = `${year}-${month}-${day}`;
+                  }
+                } catch (dateError) {
+                  console.warn('Could not parse hire date:', row['Hire Date']);
+                }
+              }
+
+              employees.push({
+                firstName,
+                lastName,
+                email: undefined, // Not provided in this CSV format
+                position: row['Pay Group'] || undefined,
+                hireDate,
+                employerId,
+              });
+            }
           })
           .on('end', () => resolve());
       });
 
       const result = await storage.createMultipleEmployees(employees);
-      res.json({ message: 'Employees imported', ...result });
+      res.json({ 
+        message: `Successfully imported ${result.success} employees${result.failed > 0 ? `, ${result.failed} failed` : ''}`,
+        ...result 
+      });
     } catch (error: any) {
       console.error('Error importing employees:', error);
       res.status(500).json({ message: 'Failed to import employees' });
     }
-    */
   });
 
   // Pay period routes

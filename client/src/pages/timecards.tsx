@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/lib/dateUtils";
+import { useCompany } from "@/context/company";
 
 export default function Timecards() {
   const { user } = useAuth();
-  const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
+  const { employerId: selectedEmployerId, setEmployerId: setSelectedEmployerId } = useCompany();
   const [selectedPayPeriodId, setSelectedPayPeriodId] = useState<string>("");
 
   const { data: employers = [] } = useQuery<any[]>({
@@ -71,7 +72,7 @@ export default function Timecards() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar selectedEmployer={selectedEmployer} currentPayPeriod={selectedPayPeriod} />
+      <Sidebar selectedEmployer={selectedEmployer} currentPayPeriod={selectedPayPeriod} user={user} />
       <div className="md:ml-64">
         <Header title="Timecards" description="Select an employee to enter hours" user={user} />
         <main className="p-4 md:p-6 pt-16 md:pt-6">

@@ -22,6 +22,7 @@ const employerFormSchema = z.object({
   email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
   taxId: z.string().optional(),
   payPeriodStartDate: z.string().optional(),
+  weekStartsOn: z.string().optional(),
 });
 
 type EmployerFormData = z.infer<typeof employerFormSchema>;
@@ -40,6 +41,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
       email: employer?.email || "",
       taxId: employer?.taxId || "",
       payPeriodStartDate: employer?.payPeriodStartDate || "",
+      weekStartsOn: employer?.weekStartsOn?.toString() || "0",
     },
   });
 
@@ -189,6 +191,28 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
                   {...field}
                   value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
                 />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="weekStartsOn"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Week Starts On</FormLabel>
+              <FormControl>
+                <select {...field} className="border rounded p-2 w-full">
+                  <option value="0">Sunday</option>
+                  <option value="1">Monday</option>
+                  <option value="2">Tuesday</option>
+                  <option value="3">Wednesday</option>
+                  <option value="4">Thursday</option>
+                  <option value="5">Friday</option>
+                  <option value="6">Saturday</option>
+                </select>
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -8,6 +8,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Download, ChevronDown, LogOut, User, Settings } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { useCompany } from "@/context/company";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HeaderProps {
   title: string;
@@ -20,6 +24,13 @@ export function Header({ title, description, user, onGenerateReports }: HeaderPr
   const handleLogout = () => {
     window.location.href = "/api/logout";
   };
+
+  const { employerId, setEmployerId } = useCompany();
+  const { user: authUser } = useAuth();
+  const { data: employers = [] } = useQuery<any[]>({
+    queryKey: ["/api/employers"],
+    enabled: !!authUser,
+  });
 
   const userInitials = user ? 
     `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || 
@@ -34,8 +45,25 @@ export function Header({ title, description, user, onGenerateReports }: HeaderPr
         </div>
         
         <div className="flex items-center space-x-2 md:space-x-4">
+          {employers.length > 0 && (
+            <Select
+              value={employerId ? employerId.toString() : ""}
+              onValueChange={(v) => setEmployerId(parseInt(v))}
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Select Company" />
+              </SelectTrigger>
+              <SelectContent>
+                {employers.map((e: any) => (
+                  <SelectItem key={e.id} value={e.id.toString()}>
+                    {e.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {onGenerateReports && (
-            <Button 
+            <Button
               onClick={onGenerateReports}
               className="payroll-button-secondary"
               size="sm"

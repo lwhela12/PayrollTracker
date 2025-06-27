@@ -18,6 +18,7 @@ import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
+import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { db } from "./db";
@@ -196,25 +197,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/employees/import', isAuthenticated, async (req: any, res) => {
+  const upload = multer();
+  app.post('/api/employees/import', isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
-      const employeesData = z.array(insertEmployeeSchema).parse(req.body);
-
-      for (const emp of employeesData) {
-        const employer = await storage.getEmployer(emp.employerId);
-        if (!employer || employer.ownerId !== req.user.claims.sub) {
-          return res.status(403).json({ message: "Access denied" });
-        }
+      if (!req.file) return res.status(400).json({ message: 'Missing file' });
+      const employerId = parseInt(req.body.employerId);
+      if (!employerId) return res.status(400).json({ message: 'Missing employerId' });
+      const employer = await storage.getEmployer(employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: 'Access denied' });
       }
-
-      const result = await storage.createMultipleEmployees(employeesData);
+      const text = req.file.buffer.toString();
+      const lines = text.trim().split(/\r?\n/).slice(1); // skip header
+      const existing = await storage.getEmployeesByEmployer(employerId);
+      const errors: any[] = [];
+      const toInsert: any[] = [];
+      lines.forEach((line, idx) => {
+        const cols = line.split(',').map((c) => c.trim());
+        const data = {
+          firstName: cols[0],
+          lastName: cols[1],
+          email: cols[2] || undefined,
+          position: cols[3] || undefined,
+          hireDate: cols[4],
+          employerId,
+        };
+        try {
+          insertEmployeeSchema.parse(data);
+          if (existing.some(e => e.firstName === data.firstName && e.lastName === data.lastName)) {
+            errors.push({ row: idx + 2, message: 'Employee already exists' });
+          } else {
+            toInsert.push(data);
+          }
+        } catch (e: any) {
+          errors.push({ row: idx + 2, message: fromZodError(e).toString() });
+        }
+      });
+      if (errors.length > 0) {
+        return res.status(400).json({ errors });
+      }
+      const result = await storage.createMultipleEmployees(toInsert);
       res.json(result);
     } catch (error: any) {
-      if (error.name === 'ZodError') {
-        return res.status(400).json({ message: fromZodError(error).toString() });
-      }
-      console.error("Error importing employees:", error);
-      res.status(500).json({ message: "Failed to import employees" });
+      console.error('Error importing employees:', error);
+      res.status(500).json({ message: 'Failed to import employees' });
     }
   });
 
@@ -840,6 +866,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating report:", error);
       res.status(500).json({ message: "Failed to generate report" });
+    }
+  });
+
+  app.get('/api/reports/top-sheet', isAuthenticated, async (req: any, res) => {
+    try {
+      const employerId = parseInt(req.query.employerId);
+      const payPeriodId = parseInt(req.query.payPeriodId);
+      if (!employerId || !payPeriodId) {
+        return res.status(400).json({ message: 'Missing parameters' });
+      }
+
+      const employer = await storage.getEmployer(employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      const payPeriod = await storage.getPayPeriod(payPeriodId);
+      if (!payPeriod || payPeriod.employerId !== employerId) {
+        return res.status(404).json({ message: 'Pay period not found' });
+      }
+
+      const employees = await storage.getEmployeesByEmployer(employerId);
+      const rows: any[] = [];
+      const totals = {
+        regularHours: 0,
+        overtimeHours: 0,
+        ptoHours: 0,
+        holidayNonWorkedHours: 0,
+        holidayWorkedHours: 0,
+        reimbursement: 0,
+      };
+
+      for (const emp of employees) {
+        const timecards = await storage.getTimecardsByEmployee(emp.id, payPeriodId);
+        let reg = 0, ot = 0;
+        for (const tc of timecards) {
+          reg += parseFloat(tc.regularHours || '0');
+          ot += parseFloat(tc.overtimeHours || '0');
+        }
+
+        const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
+        const pto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
+          .reduce((s, p) => s + parseFloat(p.hours as any), 0);
+
+        const misc = await storage.getMiscHoursEntriesByEmployee(emp.id);
+        const holidayWorked = misc.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+          .reduce((s, m) => s + parseFloat(m.hours as any), 0);
+        const holidayNon = misc.filter(m => m.entryType !== 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+          .reduce((s, m) => s + parseFloat(m.hours as any), 0);
+
+        const reimb = await storage.getReimbursementEntriesByEmployee(emp.id);
+        const reimbTotal = reimb.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
+          .reduce((s, r) => s + parseFloat(r.amount as any), 0);
+
+        rows.push({
+          id: emp.id,
+          name: `${emp.firstName} ${emp.lastName}`,
+          regularHours: reg,
+          overtimeHours: ot,
+          ptoHours: pto,
+          holidayWorkedHours: holidayWorked,
+          holidayNonWorkedHours: holidayNon,
+          reimbursement: reimbTotal,
+        });
+
+        totals.regularHours += reg;
+        totals.overtimeHours += ot;
+        totals.ptoHours += pto;
+        totals.holidayWorkedHours += holidayWorked;
+        totals.holidayNonWorkedHours += holidayNon;
+        totals.reimbursement += reimbTotal;
+      }
+
+      res.json({ rows, totals });
+    } catch (err) {
+      console.error('Error generating top sheet:', err);
+      res.status(500).json({ message: 'Failed to generate report' });
     }
   });
 

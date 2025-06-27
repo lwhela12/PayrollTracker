@@ -13,6 +13,9 @@ import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 import CreateCompany from "@/pages/create-company";
 import TimecardEntry from "@/pages/timecard-entry";
+import TopSheetReport from "@/pages/reports/TopSheetReport";
+import CompaniesAdmin from "@/pages/admin/Companies";
+import { CompanyProvider } from "@/context/company";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -37,6 +40,8 @@ function Router() {
           <Route path="/timecards" component={Timecards} />
           <Route path="/timecard/employee/:employeeId/period/:start" component={TimecardEntry} />
           <Route path="/reports" component={Reports} />
+          <Route path="/reports/top-sheet" component={TopSheetReport} />
+          <Route path="/admin/companies" component={CompaniesAdmin} />
           <Route path="/settings" component={Settings} />
         </>
       )}
@@ -48,10 +53,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <CompanyProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </CompanyProvider>
     </QueryClientProvider>
   );
 }

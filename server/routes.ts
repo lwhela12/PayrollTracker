@@ -1112,6 +1112,8 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
     const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
     const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+    const holidayNonWorked = miscEntries.filter(m => m.entryType === 'holiday' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+      .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
     
     // Get reimbursement entries for pay period
     const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
@@ -1124,7 +1126,7 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
     doc.text(regularHours.toFixed(2), 150, yPos);
     doc.text(overtimeHours.toFixed(2), 210, yPos);
     doc.text((ptoHours + periodPto).toFixed(2), 260, yPos);
-    doc.text(holidayHours.toFixed(2), 310, yPos);
+    doc.text((holidayHours + holidayNonWorked).toFixed(2), 310, yPos);
     doc.text(holidayWorked.toFixed(2), 370, yPos);
     doc.text(`$${periodReimb.toFixed(2)}`, 440, yPos);
     yPos += 15;
@@ -1174,6 +1176,8 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
     const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
     const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+    const holidayNonWorked = miscEntries.filter(m => m.entryType === 'holiday' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+      .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
     
     // Get reimbursement entries for pay period
     const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
@@ -1186,7 +1190,7 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
       regularHours.toFixed(2),
       overtimeHours.toFixed(2),
       (ptoHours + periodPto).toFixed(2),
-      holidayHours.toFixed(2),
+      (holidayHours + holidayNonWorked).toFixed(2),
       holidayWorked.toFixed(2),
       periodReimb.toFixed(2)
     ]);

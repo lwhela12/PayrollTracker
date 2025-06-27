@@ -41,6 +41,15 @@ export default function Reports() {
   // Fetch pay periods
   const { data: payPeriods = [] } = useQuery<any[]>({
     queryKey: ["/api/pay-periods", selectedEmployerId],
+    queryFn: async () => {
+      const response = await fetch(`/api/pay-periods/${selectedEmployerId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch pay periods');
+      }
+      return response.json();
+    },
     enabled: !!selectedEmployerId,
   });
 

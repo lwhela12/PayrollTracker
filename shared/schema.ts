@@ -45,6 +45,7 @@ export const employers = pgTable("employers", {
   phone: varchar("phone", { length: 20 }),
   email: varchar("email", { length: 255 }),
   taxId: varchar("tax_id", { length: 50 }),
+  weekStartsOn: integer("week_starts_on").notNull().default(0),
   payPeriodStartDate: date("pay_period_start_date"),
   ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
@@ -59,6 +60,7 @@ export const employees = pgTable("employees", {
   phone: varchar("phone", { length: 20 }),
   position: varchar("position", { length: 100 }),
   mileageRate: decimal("mileage_rate", { precision: 10, scale: 4 }).default("0.655"), // IRS standard rate
+  hireDate: date("hire_date").notNull(),
   isActive: boolean("is_active").default(true),
   employerId: integer("employer_id").notNull().references(() => employers.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
@@ -96,6 +98,42 @@ export const timecards = pgTable("timecards", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// New table for granular time entry records
+export const timeEntries = pgTable('time_entries', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').references(() => employees.id).notNull(),
+  timeIn: timestamp('time_in', { withTimezone: true }).notNull(),
+  timeOut: timestamp('time_out', { withTimezone: true }),
+  lunchMinutes: integer('lunch_minutes').default(0),
+  notes: text('notes'),
+});
+
+// PTO entries table
+export const ptoEntries = pgTable('pto_entries', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').references(() => employees.id).notNull(),
+  entryDate: date('entry_date').notNull(),
+  hours: decimal('hours', { precision: 5, scale: 2 }).notNull(),
+});
+
+// Reimbursement entries table for miscellaneous dollar reimbursements
+export const reimbursementEntries = pgTable('reimbursement_entries', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').references(() => employees.id).notNull(),
+  entryDate: date('entry_date').notNull(),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  description: text('description'),
+});
+
+// Misc hours entries for retroactive hours
+export const miscHoursEntries = pgTable('misc_hours_entries', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').references(() => employees.id).notNull(),
+  entryDate: date('entry_date').notNull(),
+  hours: decimal('hours', { precision: 5, scale: 2 }).notNull(),
+  entryType: varchar('entry_type', { length: 20 }).notNull(),
+});
+
 // Reimbursements table
 export const reimbursements = pgTable("reimbursements", {
   id: serial("id").primaryKey(),
@@ -126,6 +164,8 @@ export const reports = pgTable("reports", {
 export const insertEmployerSchema = createInsertSchema(employers).omit({
   id: true,
   createdAt: true,
+}).extend({
+  weekStartsOn: z.coerce.number().min(0).max(6).default(0),
 });
 
 export const insertEmployeeSchema = createInsertSchema(employees).omit({
@@ -133,6 +173,7 @@ export const insertEmployeeSchema = createInsertSchema(employees).omit({
   createdAt: true,
 }).extend({
   mileageRate: z.coerce.number().min(0).max(5).default(0.655),
+  hireDate: z.coerce.date(),
 });
 
 export const insertPayPeriodSchema = createInsertSchema(payPeriods).omit({
@@ -144,6 +185,22 @@ export const insertTimecardSchema = createInsertSchema(timecards).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({
+  id: true,
+});
+
+export const insertPtoEntrySchema = createInsertSchema(ptoEntries).omit({
+  id: true,
+});
+
+export const insertReimbursementEntrySchema = createInsertSchema(reimbursementEntries).omit({
+  id: true,
+});
+
+export const insertMiscHoursEntrySchema = createInsertSchema(miscHoursEntries).omit({
+  id: true,
 });
 
 export const insertReimbursementSchema = createInsertSchema(reimbursements).omit({
@@ -169,5 +226,13 @@ export type InsertTimecard = z.infer<typeof insertTimecardSchema>;
 export type Timecard = typeof timecards.$inferSelect;
 export type InsertReimbursement = z.infer<typeof insertReimbursementSchema>;
 export type Reimbursement = typeof reimbursements.$inferSelect;
+export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;
+export type TimeEntry = typeof timeEntries.$inferSelect;
+export type InsertPtoEntry = z.infer<typeof insertPtoEntrySchema>;
+export type PtoEntry = typeof ptoEntries.$inferSelect;
+export type InsertReimbursementEntry = z.infer<typeof insertReimbursementEntrySchema>;
+export type ReimbursementEntry = typeof reimbursementEntries.$inferSelect;
+export type InsertMiscHoursEntry = z.infer<typeof insertMiscHoursEntrySchema>;
+export type MiscHoursEntry = typeof miscHoursEntries.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Report = typeof reports.$inferSelect;

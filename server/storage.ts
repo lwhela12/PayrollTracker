@@ -4,6 +4,10 @@ import {
   employees,
   payPeriods,
   timecards,
+  timeEntries,
+  ptoEntries,
+  reimbursementEntries,
+  miscHoursEntries,
   reimbursements,
   reports,
   type User,
@@ -16,6 +20,14 @@ import {
   type InsertPayPeriod,
   type Timecard,
   type InsertTimecard,
+  type InsertTimeEntry,
+  type TimeEntry,
+  type InsertPtoEntry,
+  type PtoEntry,
+  type InsertReimbursementEntry,
+  type ReimbursementEntry,
+  type InsertMiscHoursEntry,
+  type MiscHoursEntry,
   type Reimbursement,
   type InsertReimbursement,
   type Report,
@@ -57,6 +69,30 @@ export interface IStorage {
   getTimecard(id: number): Promise<Timecard | undefined>;
   updateTimecard(id: number, timecard: Partial<InsertTimecard>): Promise<Timecard>;
   deleteTimecard(id: number): Promise<void>;
+
+  // Time entry operations
+  createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry>;
+  getTimeEntriesByEmployee(employeeId: number, start?: string, end?: string): Promise<TimeEntry[]>;
+  updateTimeEntry(id: number, entry: Partial<InsertTimeEntry>): Promise<TimeEntry>;
+  deleteTimeEntry(id: number): Promise<void>;
+
+  // PTO entry operations
+  createPtoEntry(entry: InsertPtoEntry): Promise<PtoEntry>;
+  getPtoEntriesByEmployee(employeeId: number): Promise<PtoEntry[]>;
+  updatePtoEntry(id: number, entry: Partial<InsertPtoEntry>): Promise<PtoEntry>;
+  deletePtoEntry(id: number): Promise<void>;
+
+  // Misc reimbursement entry operations
+  createReimbursementEntry(entry: InsertReimbursementEntry): Promise<ReimbursementEntry>;
+  getReimbursementEntriesByEmployee(employeeId: number): Promise<ReimbursementEntry[]>;
+  updateReimbursementEntry(id: number, entry: Partial<InsertReimbursementEntry>): Promise<ReimbursementEntry>;
+  deleteReimbursementEntry(id: number): Promise<void>;
+
+  // Misc hours entry operations
+  createMiscHoursEntry(entry: InsertMiscHoursEntry): Promise<MiscHoursEntry>;
+  getMiscHoursEntriesByEmployee(employeeId: number): Promise<MiscHoursEntry[]>;
+  updateMiscHoursEntry(id: number, entry: Partial<InsertMiscHoursEntry>): Promise<MiscHoursEntry>;
+  deleteMiscHoursEntry(id: number): Promise<void>;
   
   // Reimbursement operations
   createReimbursement(reimbursement: InsertReimbursement): Promise<Reimbursement>;
@@ -355,6 +391,117 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTimecard(id: number): Promise<void> {
     await db.delete(timecards).where(eq(timecards.id, id));
+  }
+
+  // Time entry operations
+  async createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry> {
+    const [newEntry] = await db.insert(timeEntries).values(entry).returning();
+    return newEntry;
+  }
+
+  async getTimeEntriesByEmployee(employeeId: number, start?: string, end?: string): Promise<TimeEntry[]> {
+    const conditions: any[] = [eq(timeEntries.employeeId, employeeId)];
+    if (start) conditions.push(gte(timeEntries.timeIn, new Date(start)));
+    if (end) conditions.push(lte(timeEntries.timeIn, new Date(end)));
+    return await db
+      .select()
+      .from(timeEntries)
+      .where(and(...conditions))
+      .orderBy(asc(timeEntries.timeIn));
+  }
+
+  async updateTimeEntry(id: number, entry: Partial<InsertTimeEntry>): Promise<TimeEntry> {
+    const [updated] = await db
+      .update(timeEntries)
+      .set(entry)
+      .where(eq(timeEntries.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteTimeEntry(id: number): Promise<void> {
+    await db.delete(timeEntries).where(eq(timeEntries.id, id));
+  }
+
+  // PTO entry operations
+  async createPtoEntry(entry: InsertPtoEntry): Promise<PtoEntry> {
+    const [newEntry] = await db.insert(ptoEntries).values(entry).returning();
+    return newEntry;
+  }
+
+  async getPtoEntriesByEmployee(employeeId: number): Promise<PtoEntry[]> {
+    return await db
+      .select()
+      .from(ptoEntries)
+      .where(eq(ptoEntries.employeeId, employeeId))
+      .orderBy(asc(ptoEntries.entryDate));
+  }
+
+  async updatePtoEntry(id: number, entry: Partial<InsertPtoEntry>): Promise<PtoEntry> {
+    const [updated] = await db
+      .update(ptoEntries)
+      .set(entry)
+      .where(eq(ptoEntries.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePtoEntry(id: number): Promise<void> {
+    await db.delete(ptoEntries).where(eq(ptoEntries.id, id));
+  }
+
+  // Reimbursement entry operations
+  async createReimbursementEntry(entry: InsertReimbursementEntry): Promise<ReimbursementEntry> {
+    const [newEntry] = await db.insert(reimbursementEntries).values(entry).returning();
+    return newEntry;
+  }
+
+  async getReimbursementEntriesByEmployee(employeeId: number): Promise<ReimbursementEntry[]> {
+    return await db
+      .select()
+      .from(reimbursementEntries)
+      .where(eq(reimbursementEntries.employeeId, employeeId))
+      .orderBy(desc(reimbursementEntries.entryDate));
+  }
+
+  async updateReimbursementEntry(id: number, entry: Partial<InsertReimbursementEntry>): Promise<ReimbursementEntry> {
+    const [updated] = await db
+      .update(reimbursementEntries)
+      .set(entry)
+      .where(eq(reimbursementEntries.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteReimbursementEntry(id: number): Promise<void> {
+    await db.delete(reimbursementEntries).where(eq(reimbursementEntries.id, id));
+  }
+
+  // Misc hours entry operations
+  async createMiscHoursEntry(entry: InsertMiscHoursEntry): Promise<MiscHoursEntry> {
+    const [newEntry] = await db.insert(miscHoursEntries).values(entry).returning();
+    return newEntry;
+  }
+
+  async getMiscHoursEntriesByEmployee(employeeId: number): Promise<MiscHoursEntry[]> {
+    return await db
+      .select()
+      .from(miscHoursEntries)
+      .where(eq(miscHoursEntries.employeeId, employeeId))
+      .orderBy(asc(miscHoursEntries.entryDate));
+  }
+
+  async updateMiscHoursEntry(id: number, entry: Partial<InsertMiscHoursEntry>): Promise<MiscHoursEntry> {
+    const [updated] = await db
+      .update(miscHoursEntries)
+      .set(entry)
+      .where(eq(miscHoursEntries.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMiscHoursEntry(id: number): Promise<void> {
+    await db.delete(miscHoursEntries).where(eq(miscHoursEntries.id, id));
   }
 
   // Reimbursement operations

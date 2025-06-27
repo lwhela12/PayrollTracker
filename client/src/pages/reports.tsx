@@ -112,18 +112,19 @@ export default function Reports() {
   const currentPayPeriod = payPeriods?.find((pp: any) => pp.isActive);
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="min-h-screen bg-background">
       <Sidebar selectedEmployer={selectedEmployer} currentPayPeriod={currentPayPeriod} />
       
-      <div className="flex-1 overflow-hidden">
+      <div className="md:ml-64">
         <Header 
           title="Report Generation"
           description="Generate and export payroll reports"
           user={user}
         />
 
-        <div className="p-6 overflow-y-auto h-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <main className="p-4 md:p-6 pt-16 md:pt-6">
+          <div className="w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Report Generation */}
             <Card className="payroll-card">
               <CardHeader>
@@ -287,7 +288,7 @@ export default function Reports() {
               </CardContent>
             </Card>
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

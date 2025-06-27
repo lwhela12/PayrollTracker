@@ -7,6 +7,10 @@ import {
   insertEmployeeSchema,
   insertPayPeriodSchema,
   insertTimecardSchema,
+  insertTimeEntrySchema,
+  insertPtoEntrySchema,
+  insertReimbursementEntrySchema,
+  insertMiscHoursEntrySchema,
   insertReimbursementSchema,
   payPeriods
 } from "@shared/schema";
@@ -450,6 +454,236 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error updating timecard:", error);
       res.status(500).json({ message: "Failed to update timecard" });
+    }
+  });
+
+  // Time entry routes
+  app.post('/api/time-entries', isAuthenticated, async (req: any, res) => {
+    try {
+      const entryData = insertTimeEntrySchema.parse(req.body);
+      const employee = await storage.getEmployee(entryData.employeeId);
+      if (!employee) {
+        return res.status(404).json({ message: 'Employee not found' });
+      }
+      const employer = await storage.getEmployer(employee.employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+      const entry = await storage.createTimeEntry(entryData);
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      console.error('Error creating time entry:', error);
+      res.status(500).json({ message: 'Failed to create time entry' });
+    }
+  });
+
+  app.get('/api/time-entries/employee/:employeeId', isAuthenticated, async (req: any, res) => {
+    try {
+      const employeeId = parseInt(req.params.employeeId);
+      const employee = await storage.getEmployee(employeeId);
+      if (!employee) {
+        return res.status(404).json({ message: 'Employee not found' });
+      }
+      const employer = await storage.getEmployer(employee.employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+      const { start, end } = req.query as any;
+      const entries = await storage.getTimeEntriesByEmployee(employeeId, start, end);
+      res.json(entries);
+    } catch (error) {
+      console.error('Error fetching time entries:', error);
+      res.status(500).json({ message: 'Failed to fetch time entries' });
+    }
+  });
+
+  app.put('/api/time-entries/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const entry = await storage.updateTimeEntry(id, insertTimeEntrySchema.partial().parse(req.body));
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      console.error('Error updating time entry:', error);
+      res.status(500).json({ message: 'Failed to update time entry' });
+    }
+  });
+
+  app.delete('/api/time-entries/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteTimeEntry(id);
+      res.json({ message: 'Deleted' });
+    } catch (error) {
+      console.error('Error deleting time entry:', error);
+      res.status(500).json({ message: 'Failed to delete time entry' });
+    }
+  });
+
+  // PTO entry routes
+  app.post('/api/pto-entries', isAuthenticated, async (req: any, res) => {
+    try {
+      const data = insertPtoEntrySchema.parse(req.body);
+      const employee = await storage.getEmployee(data.employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+      const employer = await storage.getEmployer(employee.employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
+      const entry = await storage.createPtoEntry(data);
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
+      console.error('Error creating PTO entry:', error);
+      res.status(500).json({ message: 'Failed to create PTO entry' });
+    }
+  });
+
+  app.get('/api/pto-entries/employee/:employeeId', isAuthenticated, async (req: any, res) => {
+    try {
+      const employeeId = parseInt(req.params.employeeId);
+      const employee = await storage.getEmployee(employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+      const employer = await storage.getEmployer(employee.employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
+      const entries = await storage.getPtoEntriesByEmployee(employeeId);
+      res.json(entries);
+    } catch (error) {
+      console.error('Error fetching PTO entries:', error);
+      res.status(500).json({ message: 'Failed to fetch PTO entries' });
+    }
+  });
+
+  app.put('/api/pto-entries/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const entry = await storage.updatePtoEntry(id, insertPtoEntrySchema.partial().parse(req.body));
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
+      console.error('Error updating PTO entry:', error);
+      res.status(500).json({ message: 'Failed to update PTO entry' });
+    }
+  });
+
+  app.delete('/api/pto-entries/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deletePtoEntry(parseInt(req.params.id));
+      res.json({ message: 'Deleted' });
+    } catch (error) {
+      console.error('Error deleting PTO entry:', error);
+      res.status(500).json({ message: 'Failed to delete PTO entry' });
+    }
+  });
+
+  // Reimbursement entry routes
+  app.post('/api/reimbursement-entries', isAuthenticated, async (req: any, res) => {
+    try {
+      const data = insertReimbursementEntrySchema.parse(req.body);
+      const employee = await storage.getEmployee(data.employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+      const employer = await storage.getEmployer(employee.employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
+      const entry = await storage.createReimbursementEntry(data);
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
+      console.error('Error creating reimbursement entry:', error);
+      res.status(500).json({ message: 'Failed to create reimbursement entry' });
+    }
+  });
+
+  app.get('/api/reimbursement-entries/employee/:employeeId', isAuthenticated, async (req: any, res) => {
+    try {
+      const employeeId = parseInt(req.params.employeeId);
+      const employee = await storage.getEmployee(employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+      const employer = await storage.getEmployer(employee.employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
+      const entries = await storage.getReimbursementEntriesByEmployee(employeeId);
+      res.json(entries);
+    } catch (error) {
+      console.error('Error fetching reimbursement entries:', error);
+      res.status(500).json({ message: 'Failed to fetch reimbursement entries' });
+    }
+  });
+
+  app.put('/api/reimbursement-entries/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const entry = await storage.updateReimbursementEntry(id, insertReimbursementEntrySchema.partial().parse(req.body));
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
+      console.error('Error updating reimbursement entry:', error);
+      res.status(500).json({ message: 'Failed to update reimbursement entry' });
+    }
+  });
+
+  app.delete('/api/reimbursement-entries/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteReimbursementEntry(parseInt(req.params.id));
+      res.json({ message: 'Deleted' });
+    } catch (error) {
+      console.error('Error deleting reimbursement entry:', error);
+      res.status(500).json({ message: 'Failed to delete reimbursement entry' });
+    }
+  });
+
+  // Misc hours entry routes
+  app.post('/api/misc-hours-entries', isAuthenticated, async (req: any, res) => {
+    try {
+      const data = insertMiscHoursEntrySchema.parse(req.body);
+      const employee = await storage.getEmployee(data.employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+      const employer = await storage.getEmployer(employee.employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
+      const entry = await storage.createMiscHoursEntry(data);
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
+      console.error('Error creating misc hours entry:', error);
+      res.status(500).json({ message: 'Failed to create misc hours entry' });
+    }
+  });
+
+  app.get('/api/misc-hours-entries/employee/:employeeId', isAuthenticated, async (req: any, res) => {
+    try {
+      const employeeId = parseInt(req.params.employeeId);
+      const employee = await storage.getEmployee(employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+      const employer = await storage.getEmployer(employee.employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
+      const entries = await storage.getMiscHoursEntriesByEmployee(employeeId);
+      res.json(entries);
+    } catch (error) {
+      console.error('Error fetching misc hours entries:', error);
+      res.status(500).json({ message: 'Failed to fetch misc hours entries' });
+    }
+  });
+
+  app.put('/api/misc-hours-entries/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const entry = await storage.updateMiscHoursEntry(id, insertMiscHoursEntrySchema.partial().parse(req.body));
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
+      console.error('Error updating misc hours entry:', error);
+      res.status(500).json({ message: 'Failed to update misc hours entry' });
+    }
+  });
+
+  app.delete('/api/misc-hours-entries/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteMiscHoursEntry(parseInt(req.params.id));
+      res.json({ message: 'Deleted' });
+    } catch (error) {
+      console.error('Error deleting misc hours entry:', error);
+      res.status(500).json({ message: 'Failed to delete misc hours entry' });
     }
   });
 

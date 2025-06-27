@@ -276,14 +276,14 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       for (const day of payload.days) {
         for (const shift of day.shifts) {
           if (shift.timeIn && shift.timeOut) {
-            // Combine date and time into proper timestamps
-            const timeInTimestamp = new Date(`${day.date}T${shift.timeIn}:00`);
-            const timeOutTimestamp = new Date(`${day.date}T${shift.timeOut}:00`);
+            // Create timestamps that preserve local time without timezone conversion
+            const timeInLocal = `${day.date}T${shift.timeIn}:00`;
+            const timeOutLocal = `${day.date}T${shift.timeOut}:00`;
             
             await apiRequest("POST", "/api/time-entries", {
               employeeId: payload.employeeId,
-              timeIn: timeInTimestamp.toISOString(),
-              timeOut: timeOutTimestamp.toISOString(),
+              timeIn: timeInLocal,
+              timeOut: timeOutLocal,
               lunchMinutes: shift.lunch,
               notes: payload.notes || ""
             });

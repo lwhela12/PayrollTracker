@@ -106,8 +106,8 @@ export const timecards = pgTable("timecards", {
 export const timeEntries = pgTable('time_entries', {
   id: serial('id').primaryKey(),
   employeeId: integer('employee_id').references(() => employees.id).notNull(),
-  timeIn: timestamp('time_in', { withTimezone: true }).notNull(),
-  timeOut: timestamp('time_out', { withTimezone: true }),
+  timeIn: timestamp('time_in', { withTimezone: false }).notNull(),
+  timeOut: timestamp('time_out', { withTimezone: false }),
   lunchMinutes: integer('lunch_minutes').default(0),
   notes: text('notes'),
 });
@@ -194,8 +194,8 @@ export const insertTimecardSchema = createInsertSchema(timecards).omit({
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({
   id: true,
 }).extend({
-  timeIn: z.string().transform((val) => new Date(val)),
-  timeOut: z.string().optional().transform((val) => val ? new Date(val) : undefined),
+  timeIn: z.string(),
+  timeOut: z.string().optional(),
 });
 
 export const insertPtoEntrySchema = createInsertSchema(ptoEntries).omit({

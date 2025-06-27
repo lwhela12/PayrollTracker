@@ -34,7 +34,7 @@ import {
   type InsertReport,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, gt, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -220,6 +220,9 @@ export class DatabaseStorage implements IStorage {
     // Ensure pay periods exist for current date
     await this.ensurePayPeriodsExist(employerId);
     
+    // Clean up any future periods first
+    await this.cleanupFuturePeriods(employerId);
+    
     // Get current pay period first
     const currentPayPeriod = await this.getCurrentPayPeriod(employerId);
     
@@ -232,6 +235,23 @@ export class DatabaseStorage implements IStorage {
       .limit(4); // Current + 3 historical
     
     return allPeriods;
+  }
+
+  private async cleanupFuturePeriods(employerId: number): Promise<void> {
+    // Use UTC date to ensure consistent timezone handling
+    const today = new Date();
+    const utcToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+    const todayStr = utcToday.toISOString().split('T')[0];
+    
+    // Delete any pay periods that start after today
+    await db
+      .delete(payPeriods)
+      .where(
+        and(
+          eq(payPeriods.employerId, employerId),
+          gt(payPeriods.startDate, todayStr)
+        )
+      );
   }
 
   async getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined> {

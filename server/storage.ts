@@ -217,11 +217,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]> {
-    return await db
+    // Ensure pay periods exist for current date
+    await this.ensurePayPeriodsExist(employerId);
+    
+    // Get current pay period first
+    const currentPayPeriod = await this.getCurrentPayPeriod(employerId);
+    
+    // Get all pay periods and limit to current + 3 historical
+    const allPeriods = await db
       .select()
       .from(payPeriods)
       .where(eq(payPeriods.employerId, employerId))
-      .orderBy(desc(payPeriods.startDate));
+      .orderBy(desc(payPeriods.startDate))
+      .limit(4); // Current + 3 historical
+    
+    return allPeriods;
   }
 
   async getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined> {
@@ -291,25 +301,28 @@ export class DatabaseStorage implements IStorage {
       currentStart = new Date(startDate);
     }
 
-    // Generate pay periods up to a few weeks into the future using UTC dates
-    const futureDate = new Date(todayUTC);
-    futureDate.setUTCDate(futureDate.getUTCDate() + 21); // 3 weeks ahead
-
+    // Only generate current pay period (no future periods)
     const payPeriodsToCreate = [];
-    while (currentStart <= futureDate) {
-      // Ensure we're using UTC dates for end date calculation
-      const endDate = new Date(currentStart);
-      endDate.setUTCDate(endDate.getUTCDate() + 13); // 14 days total (0-13 = 14 days)
-
-      payPeriodsToCreate.push({
-        employerId,
-        startDate: currentStart.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
-        isActive: false
-      });
-
-      // Move to next pay period - increment by 14 days using UTC
-      currentStart.setUTCDate(currentStart.getUTCDate() + 14);
+    
+    // Find the current pay period that contains today
+    let periodStart = new Date(currentStart);
+    while (periodStart <= todayUTC) {
+      const periodEnd = new Date(periodStart);
+      periodEnd.setUTCDate(periodEnd.getUTCDate() + 13); // 14 days total
+      
+      // If today falls within this period, create it
+      if (todayUTC >= periodStart && todayUTC <= periodEnd) {
+        payPeriodsToCreate.push({
+          employerId,
+          startDate: periodStart.toISOString().split('T')[0],
+          endDate: periodEnd.toISOString().split('T')[0],
+          isActive: false
+        });
+        break;
+      }
+      
+      // Move to next period
+      periodStart.setUTCDate(periodStart.getUTCDate() + 14);
     }
 
     if (payPeriodsToCreate.length > 0) {

@@ -257,16 +257,20 @@ export class DatabaseStorage implements IStorage {
       console.warn(
         `Employer ${employerId} missing pay_period_start_date, defaulting to the most recent Wednesday.`
       );
-      // Find the most recent Wednesday (including today if it's Wednesday)
+      // Find the most recent Wednesday (including today if it's Wednesday) using UTC
       const today = new Date();
-      startDate = this.getMostRecentWednesday(today);
+      const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+      startDate = this.getMostRecentWednesday(todayUTC);
     } else {
-      // Find the most recent Wednesday from the configured start date
-      const configuredDate = new Date(employer.payPeriodStartDate);
+      // Find the most recent Wednesday from the configured start date - parse as UTC
+      const [year, month, day] = employer.payPeriodStartDate.split('-').map(Number);
+      const configuredDate = new Date(Date.UTC(year, month - 1, day));
       startDate = this.getMostRecentWednesday(configuredDate);
     }
 
+    // Use UTC for consistent date handling
     const today = new Date();
+    const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
     
     // Get the latest pay period for this employer
     const [latestPayPeriod] = await db
@@ -278,16 +282,17 @@ export class DatabaseStorage implements IStorage {
 
     let currentStart: Date;
     if (latestPayPeriod) {
-      // Start from the day after the latest pay period ends
-      currentStart = new Date(latestPayPeriod.endDate);
-      currentStart.setDate(currentStart.getDate() + 1);
+      // Start from the day after the latest pay period ends - parse as UTC
+      const [year, month, day] = latestPayPeriod.endDate.split('-').map(Number);
+      currentStart = new Date(Date.UTC(year, month - 1, day)); // month is 0-indexed
+      currentStart.setUTCDate(currentStart.getUTCDate() + 1);
     } else {
       // No pay periods exist, start from the configured start date
       currentStart = new Date(startDate);
     }
 
     // Generate pay periods up to a few weeks into the future using UTC dates
-    const futureDate = new Date(today);
+    const futureDate = new Date(todayUTC);
     futureDate.setUTCDate(futureDate.getUTCDate() + 21); // 3 weeks ahead
 
     const payPeriodsToCreate = [];

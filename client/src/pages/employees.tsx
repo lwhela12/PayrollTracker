@@ -67,26 +67,7 @@ export default function Employees() {
     },
   });
 
-  const importEmployeesMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const res = await fetch("/api/employees/import", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
-      toast({ title: "Success", description: "Employees imported successfully" });
-      setShowImport(false);
-      setImportFile(null);
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
+
 
   // Filter employees
   const filteredEmployees = employees?.filter((emp: any) =>
@@ -111,13 +92,7 @@ export default function Employees() {
     setEditingEmployee(null);
   };
 
-  const handleImport = () => {
-    if (!importFile || !selectedEmployerId) return;
-    const formData = new FormData();
-    formData.append("file", importFile);
-    formData.append("employerId", selectedEmployerId.toString());
-    importEmployeesMutation.mutate(formData);
-  };
+
 
   if (!employers || employers.length === 0) {
     const [, navigate] = useLocation();

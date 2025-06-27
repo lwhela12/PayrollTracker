@@ -36,6 +36,27 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
     enabled: !!employeeId,
   });
 
+  const { data: existingPtoEntries = [] } = useQuery<any[]>({
+    queryKey: ["/api/pto-entries/employee", employeeId],
+    queryFn: () =>
+      apiRequest("GET", `/api/pto-entries/employee/${employeeId}`).then((res) => res.json()),
+    enabled: !!employeeId,
+  });
+
+  const { data: existingMiscEntries = [] } = useQuery<any[]>({
+    queryKey: ["/api/misc-hours-entries/employee", employeeId],
+    queryFn: () =>
+      apiRequest("GET", `/api/misc-hours-entries/employee/${employeeId}`).then((res) => res.json()),
+    enabled: !!employeeId,
+  });
+
+  const { data: existingReimbEntries = [] } = useQuery<any[]>({
+    queryKey: ["/api/reimbursement-entries/employee", employeeId],
+    queryFn: () =>
+      apiRequest("GET", `/api/reimbursement-entries/employee/${employeeId}`).then((res) => res.json()),
+    enabled: !!employeeId,
+  });
+
   const generateDays = () => {
     const startDate = new Date(start);
     const days: DayEntry[] = [];
@@ -77,6 +98,49 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingEntries.length]);
+
+  // Populate PTO hours from existing entries
+  useEffect(() => {
+    if (existingPtoEntries.length > 0) {
+      const periodPto = existingPtoEntries.filter(p => 
+        p.entryDate >= start && p.entryDate <= end
+      ).reduce((sum, p) => sum + parseFloat(p.hours), 0);
+      setPtoHours(periodPto);
+    }
+  }, [existingPtoEntries, start, end]);
+
+  // Populate misc hours from existing entries
+  useEffect(() => {
+    if (existingMiscEntries.length > 0) {
+      const periodMisc = existingMiscEntries.filter(m => 
+        m.entryDate >= start && m.entryDate <= end
+      );
+      
+      const holidayHours = periodMisc.filter(m => m.entryType === 'holiday')
+        .reduce((sum, m) => sum + parseFloat(m.hours), 0);
+      const holidayWorkedHours = periodMisc.filter(m => m.entryType === 'holiday-worked')
+        .reduce((sum, m) => sum + parseFloat(m.hours), 0);
+      
+      setHolidayNonWorked(holidayHours);
+      setHolidayWorked(holidayWorkedHours);
+    }
+  }, [existingMiscEntries, start, end]);
+
+  // Populate reimbursement from existing entries
+  useEffect(() => {
+    if (existingReimbEntries.length > 0) {
+      const periodReimb = existingReimbEntries.filter(r => 
+        r.entryDate >= start && r.entryDate <= end
+      );
+      
+      if (periodReimb.length > 0) {
+        const totalAmount = periodReimb.reduce((sum, r) => sum + parseFloat(r.amount), 0);
+        const description = periodReimb[0].description || "";
+        setReimbAmt(totalAmount);
+        setReimbDesc(description);
+      }
+    }
+  }, [existingReimbEntries, start, end]);
 
   const addShift = (date: string) => {
     setDays((prev) =>
@@ -142,6 +206,28 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
         }
       }
 
+      // Delete existing entries in this pay period first to avoid duplicates
+      const existingPtoForPeriod = existingPtoEntries.filter(p => 
+        p.entryDate >= payload.payPeriod.start && p.entryDate <= payload.payPeriod.end
+      );
+      for (const pto of existingPtoForPeriod) {
+        await apiRequest("DELETE", `/api/pto-entries/${pto.id}`);
+      }
+
+      const existingMiscForPeriod = existingMiscEntries.filter(m => 
+        m.entryDate >= payload.payPeriod.start && m.entryDate <= payload.payPeriod.end
+      );
+      for (const misc of existingMiscForPeriod) {
+        await apiRequest("DELETE", `/api/misc-hours-entries/${misc.id}`);
+      }
+
+      const existingReimbForPeriod = existingReimbEntries.filter(r => 
+        r.entryDate >= payload.payPeriod.start && r.entryDate <= payload.payPeriod.end
+      );
+      for (const reimb of existingReimbForPeriod) {
+        await apiRequest("DELETE", `/api/reimbursement-entries/${reimb.id}`);
+      }
+
       // Save PTO entry if any
       if (payload.ptoHours > 0) {
         await apiRequest("POST", "/api/pto-entries", {
@@ -191,6 +277,10 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
       });
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries/employee", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pto-entries/employee", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/misc-hours-entries/employee", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reimbursement-entries/employee", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/timecards/pay-period"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
     onError: (error: Error) => {

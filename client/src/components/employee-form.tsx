@@ -22,6 +22,7 @@ const employeeFormSchema = insertEmployeeSchema.extend({
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
   position: z.string().optional(),
+  hireDate: z.string().min(1, "Hire date is required"),
 });
 
 type EmployeeFormData = z.infer<typeof employeeFormSchema>;
@@ -40,6 +41,7 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
       phone: employee?.phone || "",
       position: employee?.position || "",
       mileageRate: employee?.mileageRate?.toString() || "0.655",
+      hireDate: employee?.hireDate || new Date().toISOString().split('T')[0],
       isActive: employee?.isActive ?? true,
       employerId,
     },
@@ -117,11 +119,15 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
   });
 
   const onSubmit = (data: EmployeeFormData) => {
-    console.log('Submitting employee form', data);
+    console.log('Form submitted with data:', data);
+    console.log('Form validation errors:', form.formState.errors);
+    console.log('Form is valid:', form.formState.isValid);
+    
     const submissionData = {
       ...data,
       mileageRate: data.mileageRate ? parseFloat(data.mileageRate) : 0.655,
     };
+    console.log('Final submission data:', submissionData);
 
     if (isEditing) {
       updateEmployeeMutation.mutate({ id: employee.id, ...submissionData });
@@ -199,6 +205,24 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
               <FormLabel>Position</FormLabel>
               <FormControl>
                 <Input placeholder="Enter job position" {...field} value={field.value || ""} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="hireDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Hire Date</FormLabel>
+              <FormControl>
+                <Input 
+                  type="date" 
+                  {...field} 
+                  value={field.value || ""}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

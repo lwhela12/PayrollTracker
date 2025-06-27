@@ -345,6 +345,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         title: "Success",
         description: "Timecard data saved successfully",
       });
+      // Clear real-time updates since data is now saved
+      clearEmployee(employeeId);
+      
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries/employee", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["/api/pto-entries/employee", employeeId] });

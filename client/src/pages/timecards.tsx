@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/lib/dateUtils";
 import { formatCurrency } from "@/lib/payrollUtils";
 import { useCompany } from "@/context/company";
+import { useTimecardUpdates } from "@/context/timecard-updates";
 import {
   Users,
   Clock,
@@ -21,6 +22,7 @@ import {
 export default function Timecards() {
   const { user } = useAuth();
   const { employerId: selectedEmployerId, setEmployerId: setSelectedEmployerId } = useCompany();
+  const { getEmployeeUpdate } = useTimecardUpdates();
   const [selectedPayPeriodId, setSelectedPayPeriodId] = useState<string>("");
 
   const { data: employers = [] } = useQuery<any[]>({
@@ -207,6 +209,18 @@ export default function Timecards() {
                           <tbody>
                             {employees.map((employee: any) => {
                               const stats = dashboardStats.employeeStats?.find((s: any) => s.employeeId === employee.id) || {};
+                              const updates = getEmployeeUpdate(employee.id);
+                              
+                              // Combine saved data with real-time updates
+                              const displayStats = {
+                                ...stats,
+                                mileage: updates?.mileage ?? stats.mileage ?? 0,
+                                reimbursements: updates?.reimbursement ?? stats.reimbursements ?? 0,
+                                ptoHours: updates?.ptoHours ?? stats.ptoHours ?? 0,
+                                holidayHours: updates?.holidayHours ?? stats.holidayHours ?? 0,
+                                holidayWorkedHours: updates?.holidayWorkedHours ?? stats.holidayWorkedHours ?? 0
+                              };
+                              
                               return (
                                 <tr
                                   key={employee.id}
@@ -217,13 +231,13 @@ export default function Timecards() {
                                     <div className="font-medium">{employee.firstName} {employee.lastName}</div>
                                     <div className="text-xs text-muted-foreground">{employee.position}</div>
                                   </td>
-                                  <td className="p-2 text-right">{stats.totalHours?.toFixed?.(2) ?? '0.00'}</td>
-                                  <td className="p-2 text-right text-orange-600 font-medium">{stats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}</td>
-                                  <td className="p-2 text-right">{stats.ptoHours?.toFixed?.(2) ?? '0.00'}h</td>
-                                  <td className="p-2 text-right">{stats.holidayHours?.toFixed?.(2) ?? '0.00'}h</td>
-                                  <td className="p-2 text-right">{stats.holidayWorkedHours?.toFixed?.(2) ?? '0.00'}h</td>
-                                  <td className="p-2 text-right">{stats.mileage ?? 0} mi</td>
-                                  <td className="p-2 text-right">{formatCurrency(stats.reimbursements || 0)}</td>
+                                  <td className="p-2 text-right">{displayStats.totalHours?.toFixed?.(2) ?? '0.00'}</td>
+                                  <td className="p-2 text-right text-orange-600 font-medium">{displayStats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}</td>
+                                  <td className="p-2 text-right">{displayStats.ptoHours?.toFixed?.(2) ?? '0.00'}h</td>
+                                  <td className="p-2 text-right">{displayStats.holidayHours?.toFixed?.(2) ?? '0.00'}h</td>
+                                  <td className="p-2 text-right">{displayStats.holidayWorkedHours?.toFixed?.(2) ?? '0.00'}h</td>
+                                  <td className="p-2 text-right">{displayStats.mileage ?? 0} mi</td>
+                                  <td className="p-2 text-right">{formatCurrency(displayStats.reimbursements || 0)}</td>
                                 </tr>
                               );
                             })}
@@ -235,6 +249,18 @@ export default function Timecards() {
                       <div className="md:hidden space-y-3">
                         {employees.map((employee: any) => {
                           const stats = dashboardStats.employeeStats?.find((s: any) => s.employeeId === employee.id) || {};
+                          const updates = getEmployeeUpdate(employee.id);
+                          
+                          // Combine saved data with real-time updates
+                          const displayStats = {
+                            ...stats,
+                            mileage: updates?.mileage ?? stats.mileage ?? 0,
+                            reimbursements: updates?.reimbursement ?? stats.reimbursements ?? 0,
+                            ptoHours: updates?.ptoHours ?? stats.ptoHours ?? 0,
+                            holidayHours: updates?.holidayHours ?? stats.holidayHours ?? 0,
+                            holidayWorkedHours: updates?.holidayWorkedHours ?? stats.holidayWorkedHours ?? 0
+                          };
+                          
                           return (
                             <Card 
                               key={employee.id} 
@@ -248,34 +274,34 @@ export default function Timecards() {
                                     <div className="text-xs text-muted-foreground">{employee.position}</div>
                                   </div>
                                   <div className="text-right">
-                                    <div className="text-sm font-medium">{stats.totalHours?.toFixed?.(2) ?? '0.00'}h</div>
+                                    <div className="text-sm font-medium">{displayStats.totalHours?.toFixed?.(2) ?? '0.00'}h</div>
                                     <div className="text-xs text-muted-foreground">Total</div>
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">OT:</span>
-                                    <span className="text-orange-600 font-medium">{stats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}h</span>
+                                    <span className="text-orange-600 font-medium">{displayStats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}h</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">PTO:</span>
-                                    <span>{stats.ptoHours?.toFixed?.(2) ?? '0.00'}h</span>
+                                    <span>{displayStats.ptoHours?.toFixed?.(2) ?? '0.00'}h</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">Holiday:</span>
-                                    <span>{stats.holidayHours?.toFixed?.(2) ?? '0.00'}h</span>
+                                    <span>{displayStats.holidayHours?.toFixed?.(2) ?? '0.00'}h</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">Holiday Worked:</span>
-                                    <span>{stats.holidayWorkedHours?.toFixed?.(2) ?? '0.00'}h</span>
+                                    <span>{displayStats.holidayWorkedHours?.toFixed?.(2) ?? '0.00'}h</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">Miles:</span>
-                                    <span>{stats.mileage ?? 0} mi</span>
+                                    <span>{displayStats.mileage ?? 0} mi</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">Reimb:</span>
-                                    <span>{formatCurrency(stats.reimbursements || 0)}</span>
+                                    <span>{formatCurrency(displayStats.reimbursements || 0)}</span>
                                   </div>
                                 </div>
                               </CardContent>

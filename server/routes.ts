@@ -1255,11 +1255,11 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
     // Table headers
     doc.fontSize(10);
     doc.text('Date', 50, yPos);
-    doc.text('Time In', 120, yPos);
-    doc.text('Time Out', 170, yPos);
-    doc.text('Lunch (min)', 220, yPos);
-    doc.text('Hours', 270, yPos);
-    doc.text('Notes', 320, yPos);
+    doc.text('Time In', 150, yPos);
+    doc.text('Time Out', 220, yPos);
+    doc.text('Lunch (min)', 290, yPos);
+    doc.text('Hours', 360, yPos);
+    doc.text('Notes', 420, yPos);
     yPos += 20;
     
     // Draw header line
@@ -1289,11 +1289,11 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
       
       doc.fontSize(9);
       doc.text(entry.timeIn.toString().split('T')[0], 50, yPos);
-      doc.text(timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 120, yPos);
-      doc.text(timeOut ? timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--', 170, yPos);
-      doc.text((entry.lunchMinutes || 0).toString(), 220, yPos);
-      doc.text(entryHours.toFixed(2), 270, yPos);
-      doc.text(entry.notes || '', 320, yPos);
+      doc.text(timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 150, yPos);
+      doc.text(timeOut ? timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--', 220, yPos);
+      doc.text((entry.lunchMinutes || 0).toString(), 290, yPos);
+      doc.text(entryHours.toFixed(2), 360, yPos);
+      doc.text(entry.notes || '', 420, yPos);
       yPos += 15;
       
       if (yPos > 700) {

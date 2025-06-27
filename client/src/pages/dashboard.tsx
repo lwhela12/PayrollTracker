@@ -68,22 +68,10 @@ export default function Dashboard() {
       color: "bg-blue-500",
     },
     {
-      title: "Pending Timecards",
+      title: "Unsaved Timecards",
       value: dashboardStats?.pendingTimecards || 0,
       icon: Clock,
       color: "bg-orange-500",
-    },
-    {
-      title: "Total Hours",
-      value: dashboardStats?.totalHours || 0,
-      icon: Clock,
-      color: "bg-green-500",
-    },
-    {
-      title: "Payroll Ready",
-      value: dashboardStats?.payrollReady || 0,
-      icon: DollarSign,
-      color: "bg-purple-500",
     },
   ];
 

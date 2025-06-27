@@ -11,7 +11,7 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
-- **2025-06-27**: Complete UI cleanup, header scrolling, report generation, and timezone fixes
+- **2025-06-27**: Complete UI cleanup, header scrolling, report generation, timezone fixes, and dashboard optimization
   - Fixed React hooks error in Employees component by moving useLocation outside conditional
   - Reduced sidebar width from 256px to 192px for cleaner desktop layout
   - Updated all page layouts to properly align with reduced sidebar (ml-48 instead of ml-64)
@@ -22,7 +22,9 @@ A comprehensive payroll tracking web application designed to streamline employee
   - Fixed Individual Timecard report generation and improved column spacing for readability
   - Resolved timezone shifting issue - times now store exactly as entered without UTC conversion
   - Updated database schema to use timezone-naive timestamps for accurate time tracking
-  - All report formats use authentic time entry data with proper hour calculations
+  - Fixed timecard form to keep empty time entry fields visible after saving
+  - Streamlined dashboard and timecard page stats by removing Total Hours and Payroll Ready cards
+  - Renamed "Pending Timecards" to "Unsaved Timecards" for clarity
 
 - **2025-06-27**: UI improvements and navigation cleanup
   - Changed Companies sidebar icon from gear to building icon

@@ -25,7 +25,6 @@ export default function Employees() {
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [showImport, setShowImport] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
 
   // Fetch employers
   const { data: employers = [] } = useQuery<any[]>({
@@ -295,27 +294,12 @@ export default function Employees() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showImport} onOpenChange={setShowImport}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Import Employees from CSV</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              The CSV file must have the following columns in this order: firstName, lastName, email, position.
-            </p>
-            <Input type="file" accept=".csv" onChange={e => setImportFile(e.target.files?.[0] || null)} />
-            <div className="flex justify-end space-x-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setShowImport(false)}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={handleImport} disabled={!importFile || importEmployeesMutation.isPending} className="payroll-button-primary">
-                {importEmployeesMutation.isPending ? 'Importing...' : 'Import'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* CSV Import Dialog */}
+      <CsvImportDialog
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+        employerId={selectedEmployerId!}
+      />
     </>
   );
 }

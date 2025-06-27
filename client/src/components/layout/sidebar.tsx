@@ -127,7 +127,7 @@ export function Sidebar({ selectedEmployer, currentPayPeriod, user }: SidebarPro
   }
 
   return (
-    <div className="hidden md:flex w-64 bg-sidebar border-r border-sidebar-border shadow-lg">
+    <div className="hidden md:flex fixed left-0 top-0 h-full w-64 bg-sidebar border-r border-sidebar-border shadow-lg z-30">
       <SidebarContent />
     </div>
   );

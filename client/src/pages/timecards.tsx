@@ -73,9 +73,9 @@ export default function Timecards() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar selectedEmployer={selectedEmployer} currentPayPeriod={selectedPayPeriod} user={user} />
-      <div className="md:ml-64">
+      <div className="md:ml-64 min-h-screen">
         <Header title="Timecards" description="Select an employee to enter hours" user={user} />
-        <main className="p-4 md:p-6 pt-16 md:pt-6">
+        <main className="p-4 md:p-6 pt-20 md:pt-24">
           {payPeriods.length > 0 && (
             <Select value={selectedPayPeriodId} onValueChange={setSelectedPayPeriodId}>
               <SelectTrigger className="w-[280px] mb-4">

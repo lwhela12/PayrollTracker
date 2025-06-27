@@ -150,14 +150,14 @@ export default function Employees() {
       <div className="min-h-screen bg-background">
         <Sidebar selectedEmployer={selectedEmployer} user={user} />
         
-        <div className="md:ml-64">
+        <div className="md:ml-64 min-h-screen">
           <Header 
             title="Employee Management"
             description="Manage your employee roster and information"
             user={user}
           />
 
-          <main className="p-4 md:p-6 pt-16 md:pt-6">
+          <main className="p-4 md:p-6 pt-20 md:pt-24">
             <Card className="payroll-card">
             <CardHeader>
               <div className="flex items-center justify-between">

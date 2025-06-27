@@ -18,7 +18,7 @@ import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
-import multer from "multer";
+// import multer from "multer"; // Temporarily disabled due to dependency conflicts
 import { parseString } from "@fast-csv/parse";
 import fs from "fs";
 import path from "path";
@@ -200,8 +200,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const upload = multer();
-  app.post('/api/employees/import', isAuthenticated, upload.single('file'), async (req: any, res) => {
+  // File upload feature temporarily disabled due to multer dependency conflicts
+  app.post('/api/employees/import', isAuthenticated, async (req: any, res) => {
+    return res.status(501).json({ message: 'File upload feature temporarily unavailable' });
+    /*
     try {
       const employerId = parseInt(req.body.employerId);
       if (!req.file) {

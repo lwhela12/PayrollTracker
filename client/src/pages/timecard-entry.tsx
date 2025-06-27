@@ -4,6 +4,7 @@ import { Header } from "@/components/layout/header";
 import { EmployeePayPeriodForm } from "@/components/forms/EmployeePayPeriodForm";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/context/company";
 
 export default function TimecardEntry() {
   const { user } = useAuth();
@@ -16,11 +17,13 @@ export default function TimecardEntry() {
   endDate.setDate(startDate.getDate() + 13);
   const payPeriod = { start: startDate.toISOString().split("T")[0], end: endDate.toISOString().split("T")[0] };
 
-  const { data: employee } = useQuery<any>({
-    queryKey: ["/api/employee", employeeId],
-    queryFn: () => fetch(`/api/employees/${employeeId}`).then((r) => r.json()),
+  const { data: employees = [] } = useQuery<any[]>({
+    queryKey: ["/api/employees", employeeId],
+    queryFn: () => fetch(`/api/employees/${Math.floor(employeeId / 1000) || 1}`, { credentials: 'include' }).then((r) => r.json()),
     enabled: !!employeeId,
   });
+
+  const employee = employees.find(emp => emp.id === employeeId);
 
   return (
     <div className="min-h-screen bg-gray-50">

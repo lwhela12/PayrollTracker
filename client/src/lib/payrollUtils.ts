@@ -31,15 +31,14 @@ export function calculateHoursFromTimecard(timeIn: string, timeOut: string, lunc
 
   const totalHours = totalMinutes / 60;
   
-  // Calculate regular and overtime hours (8 hours = regular, anything over is overtime)
-  const regularHours = Math.min(totalHours, 8);
-  const overtimeHours = Math.max(0, totalHours - 8);
+  const regularHours = totalHours;
+  const overtimeHours = 0;
 
   return {
     totalMinutes,
     totalHours: Math.round(totalHours * 100) / 100,
     regularHours: Math.round(regularHours * 100) / 100,
-    overtimeHours: Math.round(overtimeHours * 100) / 100,
+    overtimeHours: 0,
   };
 }
 

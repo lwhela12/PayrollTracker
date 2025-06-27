@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { calculateWeeklyOvertime } from "./lib/payroll";
 import { 
   insertEmployerSchema,
   insertEmployeeSchema,
@@ -807,27 +808,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get time entries for this employee in the current pay period
           const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, currentPayPeriod.startDate, currentPayPeriod.endDate);
           
-          // Calculate total hours from time entries
-          let empTotalHours = 0;
-          let empOvertimeHours = 0;
-          
-          timeEntries.forEach(entry => {
-            if (entry.timeIn && entry.timeOut) {
-              const timeIn = new Date(entry.timeIn);
-              const timeOut = new Date(entry.timeOut);
-              const totalMinutes = (timeOut.getTime() - timeIn.getTime()) / (1000 * 60);
-              const lunchMinutes = entry.lunchMinutes || 0;
-              const workedMinutes = totalMinutes - lunchMinutes;
-              const workedHours = workedMinutes / 60;
-              
-              empTotalHours += workedHours;
-              
-              // Calculate daily overtime (over 8 hours per day)
-              if (workedHours > 8) {
-                empOvertimeHours += workedHours - 8;
-              }
-            }
-          });
+          const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, employer.weekStartsOn || 0);
+          let empTotalHours = regularHours + overtimeHours;
+          let empOvertimeHours = overtimeHours;
 
           // Get reimbursement entries for pay period to calculate mileage and reimbursements
           const reimbursementEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
@@ -866,6 +849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Legacy timecard hours (if any) - combine with new entries
           const legacyPto = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.ptoHours || '0'), 0);
           const legacyHoliday = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.holidayHours || '0'), 0);
+          const legacyMisc = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.miscHours || '0'), 0);
 
           totalHours += empTotalHours;
 
@@ -882,6 +866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             employeeId: emp.id,
             totalHours: Number(empTotalHours.toFixed(2)),
             totalOvertimeHours: Number(empOvertimeHours.toFixed(2)),
+            miscHours: Number(legacyMisc.toFixed(2)),
             ptoHours: Number((legacyPto + periodPto).toFixed(2)),
             holidayHours: Number((legacyHoliday + holidayNonWorked).toFixed(2)),
             holidayWorkedHours: Number(holidayWorked.toFixed(2)),
@@ -937,7 +922,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (format === 'pdf') {
-        await generatePDFReport(employer, payPeriod, employees, timecards, filePath);
+        if (reportType === 'individual-timecard') {
+          await generateIndividualTimecardPDFReport(employer, payPeriod, employees, timecards, filePath);
+        } else {
+          await generatePDFReport(employer, payPeriod, employees, timecards, filePath);
+        }
       } else if (format === 'excel') {
         await generateExcelReport(employer, payPeriod, employees, timecards, filePath);
       }
@@ -1250,4 +1239,63 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
   });
   
   await workbook.xlsx.writeFile(filePath);
+}
+
+async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any, employees: any[], timecards: any[], filePath: string) {
+  const doc = new PDFDocument();
+  doc.pipe(fs.createWriteStream(filePath));
+
+  for (const emp of employees) {
+    doc.addPage();
+    // Header
+    doc.fontSize(20).text('Timecard Report', 50, 50);
+    doc.fontSize(14).text(`Company: ${employer.name}`, 50, 80);
+    doc.fontSize(14).text(`Employee: ${emp.firstName} ${emp.lastName}`, 50, 100);
+    doc.text(`Pay Period: ${payPeriod.startDate} to ${payPeriod.endDate}`, 50, 120);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 50, 140);
+    
+    // Column headers
+    let yPos = 180;
+    doc.fontSize(16).text('Timecard Details', 50, yPos);
+    yPos += 30;
+    
+    // Table headers
+    doc.fontSize(10);
+    doc.text('Date', 50, yPos);
+    doc.text('Time In', 120, yPos);
+    doc.text('Time Out', 170, yPos);
+    doc.text('Lunch', 220, yPos);
+    doc.text('Regular', 270, yPos);
+    doc.text('Overtime', 320, yPos);
+    doc.text('Misc', 370, yPos);
+    doc.text('PTO', 420, yPos);
+    doc.text('Holiday', 470, yPos);
+    yPos += 20;
+    
+    // Draw header line
+    doc.moveTo(50, yPos - 5).lineTo(520, yPos - 5).stroke();
+    
+    const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
+
+    for (const tc of empTimecards) {
+      doc.fontSize(9);
+      doc.text(tc.workDate, 50, yPos);
+      doc.text(tc.timeIn, 120, yPos);
+      doc.text(tc.timeOut, 170, yPos);
+      doc.text(tc.lunchMinutes, 220, yPos);
+      doc.text(tc.regularHours, 270, yPos);
+      doc.text(tc.overtimeHours, 320, yPos);
+      doc.text(tc.miscHours, 370, yPos);
+      doc.text(tc.ptoHours, 420, yPos);
+      doc.text(tc.holidayHours, 470, yPos);
+      yPos += 15;
+      
+      if (yPos > 700) {
+        doc.addPage();
+        yPos = 50;
+      }
+    }
+  }
+  
+  doc.end();
 }

@@ -169,10 +169,8 @@ export default function Employees() {
                   <thead>
                     <tr>
                       <th>Employee</th>
-                      <th>Department</th>
-                      <th>Position</th>
-                      <th>Contact</th>
-                      <th>Hourly Rate</th>
+                      <th>Hire Date</th>
+                      <th>Company</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
@@ -203,17 +201,8 @@ export default function Employees() {
                               </div>
                             </div>
                           </td>
-                          <td>{employee.department || "N/A"}</td>
+                          <td>{employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : "N/A"}</td>
                           <td>{employee.position || "N/A"}</td>
-                          <td>
-                            <div className="text-sm">
-                              {employee.email && <div>{employee.email}</div>}
-                              {employee.phone && <div className="text-muted-foreground">{employee.phone}</div>}
-                            </div>
-                          </td>
-                          <td>
-                            {employee.hourlyRate ? `$${parseFloat(employee.hourlyRate).toFixed(2)}` : "N/A"}
-                          </td>
                           <td>
                             <Badge 
                               variant={employee.isActive ? "default" : "secondary"}

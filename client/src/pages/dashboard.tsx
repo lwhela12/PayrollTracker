@@ -154,6 +154,7 @@ export default function Dashboard() {
                               <th className="p-2 text-left">Employee</th>
                               <th className="p-2 text-right">Total Hours</th>
                               <th className="p-2 text-right">OT Hours</th>
+                              <th className="p-2 text-right">Misc</th>
                               <th className="p-2 text-right">PTO</th>
                               <th className="p-2 text-right">Holiday</th>
                               <th className="p-2 text-right">Holiday Worked</th>
@@ -176,6 +177,7 @@ export default function Dashboard() {
                                   </td>
                                   <td className="p-2 text-right">{stats.totalHours?.toFixed?.(2) ?? '0.00'}</td>
                                   <td className="p-2 text-right text-orange-600 font-medium">{stats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}</td>
+                                  <td className="p-2 text-right">{stats.miscHours?.toFixed?.(2) ?? '0.00'}</td>
                                   <td className="p-2 text-right">{stats.ptoHours?.toFixed?.(2) ?? '0.00'}h</td>
                                   <td className="p-2 text-right">{stats.holidayHours?.toFixed?.(2) ?? '0.00'}h</td>
                                   <td className="p-2 text-right">{stats.holidayWorkedHours?.toFixed?.(2) ?? '0.00'}h</td>
@@ -213,6 +215,10 @@ export default function Dashboard() {
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">OT:</span>
                                     <span className="text-orange-600 font-medium">{stats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}h</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Misc:</span>
+                                    <span>{stats.miscHours?.toFixed?.(2) ?? '0.00'}h</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">PTO:</span>

@@ -20,6 +20,7 @@ interface TimecardEntry {
   lunchMinutes: number;
   regularHours: number;
   overtimeHours: number;
+  miscHours: number;
   ptoHours: number;
   holidayHours: number;
   startOdometer: number | null;
@@ -106,10 +107,17 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
   const calculateHours = (timeIn: string, timeOut: string, lunchMinutes: number): number => {
     if (!timeIn || !timeOut) return 0;
     
-    const startTime = new Date(`2000-01-01T${timeIn}`);
-    const endTime = new Date(`2000-01-01T${timeOut}`);
+    const [inHours, inMinutes] = timeIn.split(':').map(Number);
+    const [outHours, outMinutes] = timeOut.split(':').map(Number);
+
+    const startTime = new Date(Date.UTC(2000, 0, 1, inHours, inMinutes));
+    const endTime = new Date(Date.UTC(2000, 0, 1, outHours, outMinutes));
     
-    const diffMs = endTime.getTime() - startTime.getTime();
+    let diffMs = endTime.getTime() - startTime.getTime();
+    if (diffMs < 0) { // Handle overnight shifts
+      diffMs += 24 * 60 * 60 * 1000;
+    }
+    
     const diffHours = diffMs / (1000 * 60 * 60);
     
     return Math.max(0, diffHours - (lunchMinutes / 60));
@@ -124,6 +132,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
         lunchMinutes: 0,
         regularHours: 0,
         overtimeHours: 0,
+        miscHours: 0,
         ptoHours: 0,
         holidayHours: 0,
         startOdometer: null,
@@ -150,15 +159,13 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
         throw new Error("Please select an employee and ensure a pay period is active");
       }
 
-      const timecardEntries = Object.values(timecardData).filter(entry =>
-        entry.timeIn || entry.timeOut || entry.regularHours > 0 || entry.overtimeHours > 0 ||
-        entry.ptoHours > 0 || entry.holidayHours > 0
-      );
+      const timecardEntries = Object.values(timecardData);
 
       const formattedEntries = timecardEntries.map(entry => ({
         ...entry,
         regularHours: (entry.regularHours || 0).toFixed(2),
         overtimeHours: (entry.overtimeHours || 0).toFixed(2),
+        miscHours: (entry.miscHours || 0).toFixed(2),
         ptoHours: (entry.ptoHours || 0).toFixed(2),
         holidayHours: (entry.holidayHours || 0).toFixed(2),
       }));
@@ -174,6 +181,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/timecards", currentPayPeriod?.id] });
       queryClient.invalidateQueries({ queryKey: ["/api/timecards/employee", selectedEmployeeId, currentPayPeriod?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", selectedEmployeeId] });
       toast({
         title: "Success",
         description: "Timecard submitted successfully",
@@ -270,6 +278,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                       <th className="border p-2 text-left">Lunch (min)</th>
                       <th className="border p-2 text-left">Regular</th>
                       <th className="border p-2 text-left">Overtime</th>
+                      <th className="border p-2 text-left">Misc</th>
                       <th className="border p-2 text-left">PTO</th>
                       <th className="border p-2 text-left">Holiday</th>
                       <th className="border p-2 text-left">Notes</th>
@@ -327,6 +336,17 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                               step="0.25"
                               value={entry.overtimeHours || ''}
                               onChange={(e) => updateTimecardEntry(date, 'overtimeHours', Number(e.target.value) || 0)}
+                              className="w-20"
+                              min="0"
+                              max="24"
+                            />
+                          </td>
+                          <td className="border p-2">
+                            <Input
+                              type="number"
+                              step="0.25"
+                              value={entry.miscHours || ''}
+                              onChange={(e) => updateTimecardEntry(date, 'miscHours', Number(e.target.value) || 0)}
                               className="w-20"
                               min="0"
                               max="24"
@@ -437,6 +457,18 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                           />
                         </div>
                         <div>
+                          <label className="text-xs text-muted-foreground">Misc Hours</label>
+                          <Input
+                            type="number"
+                            value={entry.miscHours || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'miscHours', parseFloat(e.target.value) || 0)}
+                            className="mt-1"
+                            step="0.25"
+                            min="0"
+                            max="24"
+                          />
+                        </div>
+                        <div>
                           <label className="text-xs text-muted-foreground">PTO Hours</label>
                           <Input
                             type="number"
@@ -511,6 +543,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                       <th className="border p-2 text-left">Lunch (min)</th>
                       <th className="border p-2 text-left">Regular</th>
                       <th className="border p-2 text-left">Overtime</th>
+                      <th className="border p-2 text-left">Misc</th>
                       <th className="border p-2 text-left">PTO</th>
                       <th className="border p-2 text-left">Holiday</th>
                       <th className="border p-2 text-left">Notes</th>
@@ -568,6 +601,17 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                               step="0.25"
                               value={entry.overtimeHours || ''}
                               onChange={(e) => updateTimecardEntry(date, 'overtimeHours', Number(e.target.value) || 0)}
+                              className="w-20"
+                              min="0"
+                              max="24"
+                            />
+                          </td>
+                          <td className="border p-2">
+                            <Input
+                              type="number"
+                              step="0.25"
+                              value={entry.miscHours || ''}
+                              onChange={(e) => updateTimecardEntry(date, 'miscHours', Number(e.target.value) || 0)}
                               className="w-20"
                               min="0"
                               max="24"
@@ -671,6 +715,18 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                             type="number"
                             value={entry.overtimeHours || ''}
                             onChange={(e) => updateTimecardEntry(date, 'overtimeHours', parseFloat(e.target.value) || 0)}
+                            className="mt-1"
+                            step="0.25"
+                            min="0"
+                            max="24"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Misc Hours</label>
+                          <Input
+                            type="number"
+                            value={entry.miscHours || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'miscHours', parseFloat(e.target.value) || 0)}
                             className="mt-1"
                             step="0.25"
                             min="0"

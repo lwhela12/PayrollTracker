@@ -186,6 +186,7 @@ export default function Reports() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="payroll_summary">Payroll Summary Report</SelectItem>
+                        <SelectItem value="individual-timecard">Individual Timecard Report</SelectItem>
                         <SelectItem value="detailed_timecard">Detailed Timecard Report</SelectItem>
                         <SelectItem value="employee_hours">Employee Hours Report</SelectItem>
                         <SelectItem value="mileage_reimbursement">Mileage & Reimbursement Report</SelectItem>

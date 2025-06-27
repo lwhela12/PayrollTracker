@@ -813,8 +813,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           const empPto = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.ptoHours || '0'), 0);
           const empHoliday = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.holidayHours || '0'), 0);
-          const empMiles = empTimecards.reduce((sum, tc) => sum + (tc.totalMiles || 0), 0);
-          const empReimbAmt = empReimbs.reduce((sum, r) => sum + parseFloat(r.amount || '0'), 0);
+          // Get reimbursement entries for pay period to calculate mileage and reimbursements
+          const reimbursementEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
+          const periodReimbEntries = reimbursementEntries.filter(r => 
+            r.entryDate >= currentPayPeriod.startDate && r.entryDate <= currentPayPeriod.endDate
+          );
+          
+          let empMiles = 0;
+          let empReimbAmt = 0;
+          
+          // Parse mileage and reimbursement from reimbursement entries
+          periodReimbEntries.forEach(entry => {
+            const description = entry.description || "";
+            const totalAmount = parseFloat(entry.amount);
+            empReimbAmt += totalAmount;
+            
+            // Extract mileage info if present in description
+            const mileageMatch = description.match(/Mileage: (\d+(?:\.\d+)?) miles/);
+            if (mileageMatch) {
+              empMiles += parseFloat(mileageMatch[1]);
+            }
+          });
 
           // Get PTO entries for pay period
           const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);

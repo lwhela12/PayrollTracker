@@ -18,7 +18,7 @@ import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
-import multer from "multer";
+// import multer from "multer"; // Temporarily disabled due to dependency conflicts
 import fs from "fs";
 import path from "path";
 import { db } from "./db";
@@ -197,47 +197,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const upload = multer();
-  app.post('/api/employees/import', isAuthenticated, upload.single('file'), async (req: any, res) => {
+  // Temporarily disabled multer-based file upload until dependency is resolved
+  // const upload = multer();
+  app.post('/api/employees/import', isAuthenticated, async (req: any, res) => {
     try {
-      if (!req.file) return res.status(400).json({ message: 'Missing file' });
-      const employerId = parseInt(req.body.employerId);
-      if (!employerId) return res.status(400).json({ message: 'Missing employerId' });
-      const employer = await storage.getEmployer(employerId);
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
-        return res.status(403).json({ message: 'Access denied' });
-      }
-      const text = req.file.buffer.toString();
-      const lines = text.trim().split(/\r?\n/).slice(1); // skip header
-      const existing = await storage.getEmployeesByEmployer(employerId);
-      const errors: any[] = [];
-      const toInsert: any[] = [];
-      lines.forEach((line, idx) => {
-        const cols = line.split(',').map((c) => c.trim());
-        const data = {
-          firstName: cols[0],
-          lastName: cols[1],
-          email: cols[2] || undefined,
-          position: cols[3] || undefined,
-          hireDate: cols[4],
-          employerId,
-        };
-        try {
-          insertEmployeeSchema.parse(data);
-          if (existing.some(e => e.firstName === data.firstName && e.lastName === data.lastName)) {
-            errors.push({ row: idx + 2, message: 'Employee already exists' });
-          } else {
-            toInsert.push(data);
-          }
-        } catch (e: any) {
-          errors.push({ row: idx + 2, message: fromZodError(e).toString() });
-        }
-      });
-      if (errors.length > 0) {
-        return res.status(400).json({ errors });
-      }
-      const result = await storage.createMultipleEmployees(toInsert);
-      res.json(result);
+      // Temporarily return a message indicating feature is unavailable
+      res.status(501).json({ message: 'File upload feature temporarily unavailable - dependency issue being resolved' });
     } catch (error: any) {
       console.error('Error importing employees:', error);
       res.status(500).json({ message: 'Failed to import employees' });

@@ -1039,35 +1039,68 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
   doc.text(`Pay Period: ${payPeriod.startDate} to ${payPeriod.endDate}`, 50, 100);
   doc.text(`Generated: ${new Date().toLocaleDateString()}`, 50, 120);
   
-  // Employee summary
+  // Column headers
   let yPos = 160;
   doc.fontSize(16).text('Employee Summary', 50, yPos);
   yPos += 30;
   
-  const employeeHours = new Map();
-  timecards.forEach(tc => {
-    if (!employeeHours.has(tc.employeeId)) {
-      employeeHours.set(tc.employeeId, { regular: 0, overtime: 0, total: 0 });
-    }
-    const hours = employeeHours.get(tc.employeeId);
-    hours.regular += parseFloat(tc.regularHours || '0');
-    hours.overtime += parseFloat(tc.overtimeHours || '0');
-    hours.total = hours.regular + hours.overtime;
-  });
+  // Table headers
+  doc.fontSize(10);
+  doc.text('Employee', 50, yPos);
+  doc.text('Regular Hrs', 150, yPos);
+  doc.text('OT Hrs', 210, yPos);
+  doc.text('PTO Hrs', 260, yPos);
+  doc.text('Holiday Hrs', 310, yPos);
+  doc.text('Holiday Worked', 370, yPos);
+  doc.text('Reimbursement', 440, yPos);
+  yPos += 20;
   
-  employees.forEach(emp => {
-    const hours = employeeHours.get(emp.id) || { regular: 0, overtime: 0, total: 0 };
-    doc.fontSize(12).text(`${emp.firstName} ${emp.lastName}`, 50, yPos);
-    doc.text(`Regular: ${hours.regular.toFixed(2)}h`, 200, yPos);
-    doc.text(`Overtime: ${hours.overtime.toFixed(2)}h`, 300, yPos);
-    doc.text(`Total: ${hours.total.toFixed(2)}h`, 400, yPos);
-    yPos += 20;
+  // Draw header line
+  doc.moveTo(50, yPos - 5).lineTo(500, yPos - 5).stroke();
+  
+  for (const emp of employees) {
+    // Calculate hours from timecards
+    const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
+    let regularHours = 0, overtimeHours = 0, ptoHours = 0, holidayHours = 0;
+    
+    empTimecards.forEach(tc => {
+      regularHours += parseFloat(tc.regularHours || '0');
+      overtimeHours += parseFloat(tc.overtimeHours || '0');
+      ptoHours += parseFloat(tc.ptoHours || '0');
+      holidayHours += parseFloat(tc.holidayHours || '0');
+    });
+    
+    // Get PTO entries for pay period
+    const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
+    const periodPto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
+      .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
+    
+    // Get misc hours entries for holidays
+    const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
+    const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+      .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+    
+    // Get reimbursement entries for pay period
+    const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
+    const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
+      .reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
+    
+    // Employee row
+    doc.fontSize(9);
+    doc.text(`${emp.firstName} ${emp.lastName}`, 50, yPos);
+    doc.text(regularHours.toFixed(2), 150, yPos);
+    doc.text(overtimeHours.toFixed(2), 210, yPos);
+    doc.text((ptoHours + periodPto).toFixed(2), 260, yPos);
+    doc.text(holidayHours.toFixed(2), 310, yPos);
+    doc.text(holidayWorked.toFixed(2), 370, yPos);
+    doc.text(`$${periodReimb.toFixed(2)}`, 440, yPos);
+    yPos += 15;
     
     if (yPos > 700) {
       doc.addPage();
       yPos = 50;
     }
-  });
+  }
   
   doc.end();
 }
@@ -1084,37 +1117,56 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
   worksheet.addRow([]);
   
   // Employee data headers
-  worksheet.addRow(['Employee ID', 'First Name', 'Last Name', 'Department', 'Regular Hours', 'Overtime Hours', 'Total Hours', 'Total Miles']);
+  worksheet.addRow(['Employee', 'Regular Hours', 'OT Hours', 'PTO Hours', 'Holiday Hours', 'Holiday Worked', 'Reimbursement']);
   
-  // Employee data
-  const employeeStats = new Map();
-  timecards.forEach(tc => {
-    if (!employeeStats.has(tc.employeeId)) {
-      employeeStats.set(tc.employeeId, { regular: 0, overtime: 0, miles: 0 });
-    }
-    const stats = employeeStats.get(tc.employeeId);
-    stats.regular += parseFloat(tc.regularHours || '0');
-    stats.overtime += parseFloat(tc.overtimeHours || '0');
-    stats.miles += parseInt(tc.totalMiles || '0');
-  });
-  
-  employees.forEach(emp => {
-    const stats = employeeStats.get(emp.id) || { regular: 0, overtime: 0, miles: 0 };
+  // Process each employee
+  for (const emp of employees) {
+    // Calculate hours from timecards
+    const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
+    let regularHours = 0, overtimeHours = 0, ptoHours = 0, holidayHours = 0;
+    
+    empTimecards.forEach(tc => {
+      regularHours += parseFloat(tc.regularHours || '0');
+      overtimeHours += parseFloat(tc.overtimeHours || '0');
+      ptoHours += parseFloat(tc.ptoHours || '0');
+      holidayHours += parseFloat(tc.holidayHours || '0');
+    });
+    
+    // Get PTO entries for pay period
+    const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
+    const periodPto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
+      .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
+    
+    // Get misc hours entries for holidays
+    const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
+    const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+      .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+    
+    // Get reimbursement entries for pay period
+    const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
+    const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
+      .reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
+    
+    // Add employee row
     worksheet.addRow([
-      emp.employeeId,
-      emp.firstName,
-      emp.lastName,
-      emp.department || '',
-      stats.regular.toFixed(2),
-      stats.overtime.toFixed(2),
-      (stats.regular + stats.overtime).toFixed(2),
-      stats.miles
+      `${emp.firstName} ${emp.lastName}`,
+      regularHours.toFixed(2),
+      overtimeHours.toFixed(2),
+      (ptoHours + periodPto).toFixed(2),
+      holidayHours.toFixed(2),
+      holidayWorked.toFixed(2),
+      periodReimb.toFixed(2)
     ]);
-  });
+  }
   
   // Style the worksheet
   worksheet.getRow(1).font = { bold: true, size: 16 };
   worksheet.getRow(6).font = { bold: true };
+  
+  // Auto-fit columns
+  worksheet.columns.forEach(column => {
+    column.width = 15;
+  });
   
   await workbook.xlsx.writeFile(filePath);
 }

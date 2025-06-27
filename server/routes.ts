@@ -907,6 +907,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get reports for employer
+  app.get('/api/reports/:employerId', isAuthenticated, async (req: any, res) => {
+    try {
+      const employerId = parseInt(req.params.employerId);
+      
+      // Verify employer ownership
+      const employer = await storage.getEmployer(employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+      
+      const reports = await storage.getReportsByEmployer(employerId);
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ message: "Failed to fetch reports" });
+    }
+  });
+
   // Download report route
   app.get('/api/reports/download/:reportId', isAuthenticated, async (req: any, res) => {
     try {

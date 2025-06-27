@@ -56,6 +56,15 @@ export default function Reports() {
   // Fetch recent reports
   const { data: reports = [], isLoading: reportsLoading } = useQuery<any[]>({
     queryKey: ["/api/reports", selectedEmployerId],
+    queryFn: async () => {
+      const response = await fetch(`/api/reports/${selectedEmployerId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch reports');
+      }
+      return response.json();
+    },
     enabled: !!selectedEmployerId,
   });
 
@@ -82,7 +91,7 @@ export default function Reports() {
       }
       
       // Refresh reports list
-      queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reports", selectedEmployerId] });
     },
     onError: (error: Error) => {
       toast({

@@ -89,6 +89,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   const [reimbDesc, setReimbDesc] = useState("");
   const [notes, setNotes] = useState("");
 
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   useEffect(() => {
     if (existingEntries.length > 0) {
       setDays((prev) => {
@@ -181,6 +184,17 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     }
   }, [existingReimbEntries, start, end]);
 
+  // Debounced effect to refresh pay period summary when mileage/reimbursement changes
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (employee?.employerId && (milesDriven > 0 || reimbAmt > 0)) {
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeout);
+  }, [milesDriven, reimbAmt, employee?.employerId, queryClient]);
+
   const addShift = (date: string) => {
     setDays((prev) =>
       prev.map((d) =>
@@ -220,9 +234,6 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     },
     { regular: 0, overtime: 0, totalHours: 0 }
   );
-
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const saveTimeEntries = useMutation({
     mutationFn: async (payload: any) => {
@@ -333,6 +344,10 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       queryClient.invalidateQueries({ queryKey: ["/api/misc-hours-entries/employee", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["/api/reimbursement-entries/employee", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["/api/timecards/pay-period"] });
+      // Invalidate dashboard stats with employer ID to refresh pay period summary
+      if (employee?.employerId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
     onError: (error: Error) => {

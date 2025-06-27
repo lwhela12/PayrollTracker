@@ -125,8 +125,8 @@ export default function Reports() {
         <main className="p-4 md:p-6 pt-16 md:pt-6">
           <div className="w-full">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Report Generation */}
-            <Card className="payroll-card">
+              {/* Report Generation */}
+              <Card className="payroll-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5" />
@@ -287,6 +287,7 @@ export default function Reports() {
                 )}
               </CardContent>
             </Card>
+            </div>
           </div>
         </main>
       </div>

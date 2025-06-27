@@ -219,6 +219,14 @@ export default function Dashboard() {
                                     <span>{stats.ptoHours?.toFixed?.(2) ?? '0.00'}h</span>
                                   </div>
                                   <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Holiday:</span>
+                                    <span>{stats.holidayHours?.toFixed?.(2) ?? '0.00'}h</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Holiday Worked:</span>
+                                    <span>{stats.holidayWorkedHours?.toFixed?.(2) ?? '0.00'}h</span>
+                                  </div>
+                                  <div className="flex justify-between">
                                     <span className="text-muted-foreground">Miles:</span>
                                     <span>{stats.mileage ?? 0} mi</span>
                                   </div>

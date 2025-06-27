@@ -198,6 +198,8 @@ export default function Timecards() {
                               <th className="p-2 text-right">Total Hours</th>
                               <th className="p-2 text-right">OT Hours</th>
                               <th className="p-2 text-right">PTO</th>
+                              <th className="p-2 text-right">Holiday</th>
+                              <th className="p-2 text-right">Holiday Worked</th>
                               <th className="p-2 text-right">Mileage</th>
                               <th className="p-2 text-right">Reimbursements</th>
                             </tr>
@@ -218,6 +220,8 @@ export default function Timecards() {
                                   <td className="p-2 text-right">{stats.totalHours?.toFixed?.(2) ?? '0.00'}</td>
                                   <td className="p-2 text-right text-orange-600 font-medium">{stats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}</td>
                                   <td className="p-2 text-right">{stats.ptoHours?.toFixed?.(2) ?? '0.00'}h</td>
+                                  <td className="p-2 text-right">{stats.holidayHours?.toFixed?.(2) ?? '0.00'}h</td>
+                                  <td className="p-2 text-right">{stats.holidayWorkedHours?.toFixed?.(2) ?? '0.00'}h</td>
                                   <td className="p-2 text-right">{stats.mileage ?? 0} mi</td>
                                   <td className="p-2 text-right">{formatCurrency(stats.reimbursements || 0)}</td>
                                 </tr>
@@ -256,6 +260,14 @@ export default function Timecards() {
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">PTO:</span>
                                     <span>{stats.ptoHours?.toFixed?.(2) ?? '0.00'}h</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Holiday:</span>
+                                    <span>{stats.holidayHours?.toFixed?.(2) ?? '0.00'}h</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Holiday Worked:</span>
+                                    <span>{stats.holidayWorkedHours?.toFixed?.(2) ?? '0.00'}h</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">Miles:</span>

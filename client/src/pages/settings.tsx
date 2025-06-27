@@ -28,15 +28,15 @@ export default function Settings() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       <Sidebar selectedEmployer={employer} user={user} />
-      <div className="flex-1 overflow-hidden">
+      <div className="md:ml-64 min-h-screen">
         <Header
           title="Settings"
           description="Manage company settings"
           user={user}
         />
-        <div className="p-6 overflow-y-auto h-full">
+        <main className="p-4 md:p-6 pt-20 md:pt-24">
           <Card className="payroll-card max-w-2xl">
             <CardHeader>
               <CardTitle>Company Profile</CardTitle>
@@ -49,7 +49,7 @@ export default function Settings() {
               />
             </CardContent>
           </Card>
-        </div>
+        </main>
       </div>
     </div>
   );

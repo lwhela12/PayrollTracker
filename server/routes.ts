@@ -825,6 +825,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
           const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= currentPayPeriod.startDate && m.entryDate <= currentPayPeriod.endDate)
             .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+          const holidayNonWorked = miscEntries.filter(m => m.entryType === 'holiday' && m.entryDate >= currentPayPeriod.startDate && m.entryDate <= currentPayPeriod.endDate)
+            .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
 
           totalHours += empTotalHours;
 
@@ -839,7 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             totalHours: Number(empTotalHours.toFixed(2)),
             totalOvertimeHours: Number(empOvertimeHours.toFixed(2)),
             ptoHours: Number((empPto + periodPto).toFixed(2)),
-            holidayHours: Number(empHoliday.toFixed(2)),
+            holidayHours: Number((empHoliday + holidayNonWorked).toFixed(2)),
             holidayWorkedHours: Number(holidayWorked.toFixed(2)),
             mileage: empMiles,
             reimbursements: Number(empReimbAmt.toFixed(2))

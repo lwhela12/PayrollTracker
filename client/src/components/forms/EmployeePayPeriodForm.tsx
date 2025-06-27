@@ -257,24 +257,18 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     }, 0);
   };
 
-  const totals = days.reduce(
-    (acc, d) => {
-      const dayTotal = calculateDayTotal(d);
-      acc.totalHours += dayTotal;
-      if (dayTotal > 8) {
-        acc.overtime += dayTotal - 8;
-        acc.regular += 8;
-      } else {
-        acc.regular += dayTotal;
-      }
-      return acc;
-    },
-    { regular: 0, overtime: 0, totalHours: 0 }
-  );
-
-  // Add misc hours to regular hours (doesn't affect OT calculation)
-  totals.regular += miscHours;
-  totals.totalHours += miscHours;
+  // Calculate total hours from all days first
+  const totalWorkedHours = days.reduce((sum, d) => sum + calculateDayTotal(d), 0);
+  
+  // Calculate weekly overtime (anything over 40 hours)
+  const weeklyOvertimeHours = Math.max(0, totalWorkedHours - 40);
+  const regularHours = Math.min(totalWorkedHours, 40);
+  
+  const totals = {
+    regular: regularHours + miscHours, // Add misc hours to regular hours
+    overtime: weeklyOvertimeHours,
+    totalHours: totalWorkedHours + miscHours
+  };
 
   const saveTimeEntries = useMutation({
     mutationFn: async (payload: any) => {

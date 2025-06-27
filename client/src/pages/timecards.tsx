@@ -174,9 +174,9 @@ export default function Timecards() {
                     <Clock className="h-5 w-5" />
                     Pay Period Summary
                   </CardTitle>
-                  {currentPayPeriod && (
+                  {selectedPayPeriod && (
                     <Badge variant="outline" className="text-xs">
-                      {formatDate(currentPayPeriod.startDate)} - {formatDate(currentPayPeriod.endDate)}
+                      {formatDate(selectedPayPeriod.startDate)} - {formatDate(selectedPayPeriod.endDate)}
                     </Badge>
                   )}
                   <Link href="/employees">

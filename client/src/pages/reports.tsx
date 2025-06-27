@@ -70,6 +70,17 @@ export default function Reports() {
         title: "Success",
         description: "Report generated successfully",
       });
+      
+      // Automatically download the report
+      if (data.downloadUrl) {
+        const link = document.createElement('a');
+        link.href = data.downloadUrl;
+        link.download = data.report.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
       // Refresh reports list
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
     },
@@ -293,6 +304,14 @@ export default function Reports() {
                             variant="ghost" 
                             size="sm"
                             className="text-primary hover:text-primary/80"
+                            onClick={() => {
+                              const link = document.createElement('a');
+                              link.href = `/api/reports/download/${report.id}`;
+                              link.download = report.fileName;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
                           >
                             <Download className="h-4 w-4" />
                           </Button>

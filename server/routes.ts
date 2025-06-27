@@ -906,6 +906,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Download report route
+  app.get('/api/reports/download/:reportId', isAuthenticated, async (req: any, res) => {
+    try {
+      const reportId = parseInt(req.params.reportId);
+      
+      // Find the report across all user's employers
+      const userEmployers = await storage.getEmployersByOwner(req.user.claims.sub);
+      let report = null;
+      
+      for (const employer of userEmployers) {
+        const reports = await storage.getReportsByEmployer(employer.id);
+        const foundReport = reports.find(r => r.id === reportId);
+        if (foundReport) {
+          report = foundReport;
+          break;
+        }
+      }
+      
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+
+      // Verify the file exists
+      if (!report.filePath || !fs.existsSync(report.filePath)) {
+        return res.status(404).json({ message: "Report file not found" });
+      }
+
+      // Set appropriate headers for download
+      const mimeType = report.format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Disposition', `attachment; filename="${report.fileName}"`);
+      
+      // Stream the file
+      const fileStream = fs.createReadStream(report.filePath!);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error("Error downloading report:", error);
+      res.status(500).json({ message: "Failed to download report" });
+    }
+  });
+
   app.get('/api/reports/top-sheet', isAuthenticated, async (req: any, res) => {
     try {
       const employerId = parseInt(req.query.employerId);

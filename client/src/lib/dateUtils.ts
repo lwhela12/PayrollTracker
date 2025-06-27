@@ -13,7 +13,15 @@ export function formatDate(date: string | Date): string {
   }
   
   if (isNaN(dateObj.getTime())) return '';
-  return format(dateObj, 'MMM dd, yyyy');
+  
+  // Use custom formatting to avoid timezone issues in date-fns
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const utcMonth = dateObj.getUTCMonth();
+  const utcDay = dateObj.getUTCDate();
+  const utcYear = dateObj.getUTCFullYear();
+  
+  return `${monthNames[utcMonth]} ${utcDay.toString().padStart(2, '0')}, ${utcYear}`;
 }
 
 export function formatTime(time: string): string {
@@ -113,7 +121,10 @@ export function getDayOfWeek(date: string): string {
   // Parse date string as UTC to avoid timezone shifts
   const [year, month, day] = date.split('-').map(Number);
   const dateObj = new Date(Date.UTC(year, month - 1, day));
-  return format(dateObj, 'EEEE');
+  
+  // Use custom day calculation to avoid timezone issues in date-fns
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return dayNames[dateObj.getUTCDay()];
 }
 
 export function getShortDayOfWeek(date: string): string {

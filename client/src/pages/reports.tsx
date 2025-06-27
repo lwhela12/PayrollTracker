@@ -19,6 +19,7 @@ import { useLocation } from "wouter";
 export default function Reports() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { employerId: selectedEmployerId, setEmployerId: setSelectedEmployerId } = useCompany();
   const [selectedPayPeriodId, setSelectedPayPeriodId] = useState<string>("");
   const [reportType, setReportType] = useState("payroll_summary");
@@ -61,7 +62,7 @@ export default function Reports() {
         description: "Report generated successfully",
       });
       // Refresh reports list
-      // queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
     },
     onError: (error: Error) => {
       toast({

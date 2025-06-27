@@ -1053,12 +1053,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       for (const emp of employees) {
-        const timecards = await storage.getTimecardsByEmployee(emp.id, payPeriodId);
-        let reg = 0, ot = 0;
-        for (const tc of timecards) {
-          reg += parseFloat(tc.regularHours || '0');
-          ot += parseFloat(tc.overtimeHours || '0');
-        }
+        // Get time entries for the pay period and calculate hours
+        const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
+        const { regularHours: reg, overtimeHours: ot } = calculateWeeklyOvertime(timeEntries, 3); // Wednesday = 3
 
         const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
         const pto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
@@ -1135,9 +1132,9 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
   doc.moveTo(50, yPos - 5).lineTo(500, yPos - 5).stroke();
   
   for (const emp of employees) {
-    const empTimecard = timecardData.find(tc => tc.employeeId === emp.id);
-    let regularHours = empTimecard?.regularHours || 0;
-    let overtimeHours = empTimecard?.overtimeHours || 0;
+    // Get time entries for the pay period and calculate hours
+    const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
+    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, 3); // Wednesday = 3
     
     // Get PTO entries for pay period
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
@@ -1192,9 +1189,9 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
   
   // Process each employee
   for (const emp of employees) {
-    const empTimecard = timecardData.find(tc => tc.employeeId === emp.id);
-    let regularHours = empTimecard?.regularHours || 0;
-    let overtimeHours = empTimecard?.overtimeHours || 0;
+    // Get time entries for the pay period and calculate hours
+    const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
+    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, 3); // Wednesday = 3
     
     // Get PTO entries for pay period
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
@@ -1218,8 +1215,8 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
       `${emp.firstName} ${emp.lastName}`,
       regularHours.toFixed(2),
       overtimeHours.toFixed(2),
-      (ptoHours + periodPto).toFixed(2),
-      (holidayHours + holidayNonWorked).toFixed(2),
+      periodPto.toFixed(2),
+      holidayNonWorked.toFixed(2),
       holidayWorked.toFixed(2),
       periodReimb.toFixed(2)
     ]);
@@ -1259,32 +1256,48 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
     doc.fontSize(10);
     doc.text('Date', 50, yPos);
     doc.text('Time In', 120, yPos);
-    doc.text('Time Out', 170, yPos);
-    doc.text('Lunch', 220, yPos);
-    doc.text('Regular', 270, yPos);
-    doc.text('Overtime', 320, yPos);
-    doc.text('Misc', 370, yPos);
-    doc.text('PTO', 420, yPos);
-    doc.text('Holiday', 470, yPos);
+    doc.text('Time Out', 180, yPos);
+    doc.text('Lunch', 240, yPos);
+    doc.text('Hours', 290, yPos);
+    doc.text('Notes', 340, yPos);
     yPos += 20;
     
     // Draw header line
     doc.moveTo(50, yPos - 5).lineTo(520, yPos - 5).stroke();
     
-    const empTimecard = timecardData.find(tc => tc.employeeId === emp.id);
-    const empTimeEntries = empTimecard?.timeEntries || [];
+    // Get time entries for this employee
+    const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
+    
+    // Calculate total hours for display
+    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, 3);
 
-    for (const tc of empTimeEntries) {
+    for (const entry of timeEntries) {
+      // Calculate hours for this entry
+      const timeIn = new Date(entry.timeIn);
+      const timeOut = entry.timeOut ? new Date(entry.timeOut) : null;
+      let entryHours = 0;
+      
+      if (timeOut) {
+        let minutes = (timeOut.getTime() - timeIn.getTime()) / 60000;
+        if (minutes < 0) minutes += 24 * 60; // Handle overnight shifts
+        if (entry.lunchMinutes && minutes / 60 >= 8) {
+          minutes -= entry.lunchMinutes;
+        }
+        if (minutes < 0) minutes = 0;
+        entryHours = Math.round((minutes / 60) * 100) / 100;
+      }
+      
+      // Format date as MM/DD/YYYY for compactness
+      const entryDate = new Date(entry.timeIn);
+      const formattedDate = `${(entryDate.getMonth() + 1).toString().padStart(2, '0')}/${entryDate.getDate().toString().padStart(2, '0')}/${entryDate.getFullYear()}`;
+      
       doc.fontSize(9);
-      doc.text(tc.workDate, 50, yPos);
-      doc.text(tc.timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 120, yPos);
-      doc.text(tc.timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 170, yPos);
-      doc.text(tc.lunchMinutes.toString(), 220, yPos);
-      doc.text(tc.regularHours.toFixed(2), 270, yPos);
-      doc.text(tc.overtimeHours.toFixed(2), 320, yPos);
-      doc.text(tc.miscHours.toFixed(2), 370, yPos);
-      doc.text(tc.ptoHours.toFixed(2), 420, yPos);
-      doc.text(tc.holidayHours.toFixed(2), 470, yPos);
+      doc.text(formattedDate, 50, yPos);
+      doc.text(timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 120, yPos);
+      doc.text(timeOut ? timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--', 180, yPos);
+      doc.text((entry.lunchMinutes || 0).toString(), 240, yPos);
+      doc.text(entryHours.toFixed(2), 290, yPos);
+      doc.text(entry.notes || '', 340, yPos);
       yPos += 15;
       
       if (yPos > 700) {
@@ -1292,6 +1305,14 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
         yPos = 50;
       }
     }
+    
+    // Add summary at the bottom
+    yPos += 20;
+    doc.moveTo(50, yPos - 5).lineTo(520, yPos - 5).stroke();
+    yPos += 10;
+    doc.fontSize(10).text(`Total Regular Hours: ${regularHours.toFixed(2)}`, 50, yPos);
+    yPos += 15;
+    doc.text(`Total Overtime Hours: ${overtimeHours.toFixed(2)}`, 50, yPos);
   }
   
   doc.end();

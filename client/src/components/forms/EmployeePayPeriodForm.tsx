@@ -86,6 +86,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   const [holidayNonWorked, setHolidayNonWorked] = useState(0);
   const [holidayWorked, setHolidayWorked] = useState(0);
   const [milesDriven, setMilesDriven] = useState(0);
+  const [miscHours, setMiscHours] = useState(0);
   const [reimbAmt, setReimbAmt] = useState(0);
   const [reimbDesc, setReimbDesc] = useState("");
   const [notes, setNotes] = useState("");
@@ -156,9 +157,12 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
           .reduce((sum, m) => sum + (parseFloat(m.hours) || 0), 0);
         const holidayWorkedHours = periodMisc.filter(m => m.entryType === 'holiday-worked')
           .reduce((sum, m) => sum + (parseFloat(m.hours) || 0), 0);
+        const miscHoursTotal = periodMisc.filter(m => m.entryType === 'misc')
+          .reduce((sum, m) => sum + (parseFloat(m.hours) || 0), 0);
         
         setHolidayNonWorked(holidayHours);
         setHolidayWorked(holidayWorkedHours);
+        setMiscHours(miscHoursTotal);
       } catch (error) {
         console.warn('Failed to process misc hours entries:', error);
       }
@@ -268,6 +272,10 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     { regular: 0, overtime: 0, totalHours: 0 }
   );
 
+  // Add misc hours to regular hours (doesn't affect OT calculation)
+  totals.regular += miscHours;
+  totals.totalHours += miscHours;
+
   const saveTimeEntries = useMutation({
     mutationFn: async (payload: any) => {
       // Delete existing time entries in this pay period first to avoid duplicates
@@ -353,6 +361,17 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         });
       }
 
+      // Save misc hours entry if any
+      if (payload.miscHours > 0) {
+        await apiRequest("POST", "/api/misc-hours-entries", {
+          employeeId: payload.employeeId,
+          entryDate: payload.payPeriod.start,
+          hours: payload.miscHours.toString(),
+          entryType: "misc",
+          description: "Misc hours"
+        });
+      }
+
       // Save combined reimbursement entry (includes mileage + other reimbursements)
       const mileageAmount = payload.milesDriven > 0 && employee ? 
         payload.milesDriven * parseFloat(employee.mileageRate || '0') : 0;
@@ -418,6 +437,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       holidayNonWorked,
       holidayWorked,
       milesDriven,
+      miscHours,
       reimbursement: { amount: reimbAmt, description: reimbDesc },
       notes,
     };
@@ -520,6 +540,17 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                   ${(milesDriven * parseFloat(employee.mileageRate || '0')).toFixed(2)} at ${parseFloat(employee.mileageRate || '0').toFixed(3)}/mile
                 </div>
               )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Misc. Hours</label>
+              <Input
+                type="number"
+                value={miscHours}
+                onChange={(e) => setMiscHours(parseFloat(e.target.value) || 0)}
+                placeholder="0.00"
+                step="0.25"
+                min="0"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Reimbursement Amount</label>

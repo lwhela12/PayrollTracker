@@ -18,6 +18,7 @@ import TimecardEntry from "@/pages/timecard-entry";
 import TopSheetReport from "@/pages/reports/TopSheetReport";
 import CompaniesAdmin from "@/pages/admin/Companies";
 import { CompanyProvider } from "@/context/company";
+import { TimecardUpdatesProvider } from "@/context/timecard-updates";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -58,10 +59,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <CompanyProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <TimecardUpdatesProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </TimecardUpdatesProvider>
       </CompanyProvider>
     </QueryClientProvider>
   );

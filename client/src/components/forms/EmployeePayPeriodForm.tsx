@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { calculateHoursFromTimecard } from "@/lib/payrollUtils";
 import { getDayOfWeek } from "@/lib/dateUtils";
 import { useToast } from "@/hooks/use-toast";
+import { useTimecardUpdates } from "@/context/timecard-updates";
 
 interface EmployeePayPeriodFormProps {
   employeeId: number;
@@ -91,6 +92,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { updateEmployee, clearEmployee } = useTimecardUpdates();
 
   useEffect(() => {
     if (existingEntries.length > 0) {
@@ -184,16 +186,21 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     }
   }, [existingReimbEntries, start, end]);
 
-  // Debounced effect to refresh pay period summary when mileage/reimbursement changes
+  // Real-time updates to pay period summary when mileage/reimbursement changes
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (employee?.employerId && (milesDriven > 0 || reimbAmt > 0)) {
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
-      }
-    }, 500); // 500ms debounce
-
-    return () => clearTimeout(timeout);
-  }, [milesDriven, reimbAmt, employee?.employerId, queryClient]);
+    if (employee) {
+      const mileageAmount = milesDriven > 0 ? milesDriven * parseFloat(employee.mileageRate || '0') : 0;
+      const totalReimbursement = reimbAmt + mileageAmount;
+      
+      updateEmployee(employeeId, {
+        mileage: milesDriven,
+        reimbursement: totalReimbursement,
+        ptoHours,
+        holidayHours: holidayNonWorked,
+        holidayWorkedHours: holidayWorked
+      });
+    }
+  }, [milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, employee, employeeId, updateEmployee]);
 
   const addShift = (date: string) => {
     setDays((prev) =>
@@ -523,8 +530,16 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
           <div className="flex justify-between"><span>PTO:</span><span>{ptoHours.toFixed(2)}h</span></div>
           <div className="flex justify-between"><span>Holiday:</span><span>{holidayNonWorked.toFixed(2)}h</span></div>
           <div className="flex justify-between"><span>Holiday Worked:</span><span>{holidayWorked.toFixed(2)}h</span></div>
-          <div className="flex justify-between"><span>Reimb:</span><span>${reimbAmt.toFixed(2)}</span></div>
-          <div className="flex justify-between font-semibold"><span>Total:</span><span>{(totals.totalHours + ptoHours + holidayNonWorked + holidayWorked).toFixed(2)}h</span></div>
+          {milesDriven > 0 && employee && (
+            <div className="flex justify-between"><span>Mileage:</span><span>{milesDriven} mi</span></div>
+          )}
+          <div className="flex justify-between">
+            <span>Reimb:</span>
+            <span>
+              ${(reimbAmt + (employee && milesDriven > 0 ? milesDriven * parseFloat(employee.mileageRate || '0') : 0)).toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between font-semibold"><span>Total Hours:</span><span>{(totals.totalHours + ptoHours + holidayNonWorked + holidayWorked).toFixed(2)}h</span></div>
         </div>
       </div>
     </div>

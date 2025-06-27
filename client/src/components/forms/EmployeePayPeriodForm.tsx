@@ -179,38 +179,66 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
         ))}
         <div className="border p-3 rounded-md space-y-2">
           <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="number"
-              value={ptoHours}
-              onChange={(e) => setPtoHours(parseFloat(e.target.value) || 0)}
-              placeholder="PTO Hours"
-            />
-            <Input
-              type="number"
-              value={holidayNonWorked}
-              onChange={(e) => setHolidayNonWorked(parseFloat(e.target.value) || 0)}
-              placeholder="Holiday (Non-Worked)"
-            />
-            <Input
-              type="number"
-              value={holidayWorked}
-              onChange={(e) => setHolidayWorked(parseFloat(e.target.value) || 0)}
-              placeholder="Holiday (Worked)"
-            />
-            <Input
-              type="number"
-              value={reimbAmt}
-              onChange={(e) => setReimbAmt(parseFloat(e.target.value) || 0)}
-              placeholder="Reimbursement $"
-            />
-            <Input
-              value={reimbDesc}
-              onChange={(e) => setReimbDesc(e.target.value)}
-              placeholder="Reimbursement Description"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">PTO Hours</label>
+              <Input
+                type="number"
+                value={ptoHours}
+                onChange={(e) => setPtoHours(parseFloat(e.target.value) || 0)}
+                placeholder="0.00"
+                step="0.25"
+                min="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Holiday (Non-Worked)</label>
+              <Input
+                type="number"
+                value={holidayNonWorked}
+                onChange={(e) => setHolidayNonWorked(parseFloat(e.target.value) || 0)}
+                placeholder="0.00"
+                step="0.25"
+                min="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Holiday (Worked)</label>
+              <Input
+                type="number"
+                value={holidayWorked}
+                onChange={(e) => setHolidayWorked(parseFloat(e.target.value) || 0)}
+                placeholder="0.00"
+                step="0.25"
+                min="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reimbursement Amount</label>
+              <Input
+                type="number"
+                value={reimbAmt}
+                onChange={(e) => setReimbAmt(parseFloat(e.target.value) || 0)}
+                placeholder="$0.00"
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reimbursement Description</label>
+              <Input
+                value={reimbDesc}
+                onChange={(e) => setReimbDesc(e.target.value)}
+                placeholder="Description of reimbursement"
+              />
+            </div>
           </div>
           <div>
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <Input 
+              value={notes} 
+              onChange={(e) => setNotes(e.target.value)} 
+              placeholder="Additional notes or comments" 
+            />
           </div>
         </div>
         <div className="pt-4 text-right">

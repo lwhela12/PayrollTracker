@@ -11,6 +11,13 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
+- **2025-06-27**: UI improvements and navigation cleanup
+  - Changed Companies sidebar icon from gear to building icon
+  - Removed redundant Settings tab - company editing now handled entirely under Companies
+  - Fixed layout alignment issues for Settings and Companies pages to match standard layout
+  - Added selectable pay period dropdown to timecards that defaults to current period
+  - Fixed Pay Period Summary badge to show selected period date instead of always current
+
 - **2025-06-27**: Enhanced timecard functionality and fixed employee creation
   - Fixed missing hire date field in employee form that was preventing employee creation
   - Updated timecards page to default to current pay period automatically

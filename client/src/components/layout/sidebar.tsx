@@ -4,7 +4,7 @@ import {
   Users, 
   Clock, 
   FileText, 
-  Settings,
+  Building,
   Menu,
   X
 } from "lucide-react";
@@ -32,8 +32,7 @@ export function Sidebar({ selectedEmployer, currentPayPeriod, user }: SidebarPro
     { name: "Employee Roster", href: "/employees", icon: Users },
     { name: "Timecards", href: "/timecards", icon: Clock },
     { name: "Payroll Reports", href: "/reports", icon: FileText },
-    ...(user?.role === 'Admin' ? [{ name: 'Companies', href: '/admin/companies', icon: Settings }] : []),
-    { name: "Settings", href: "/settings", icon: Settings },
+    ...(user?.role === 'Admin' ? [{ name: 'Companies', href: '/admin/companies', icon: Building }] : []),
   ];
 
   const isActive = (href: string) => {

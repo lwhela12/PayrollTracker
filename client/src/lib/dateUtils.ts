@@ -2,7 +2,16 @@ import { format, differenceInDays, isAfter, isBefore, addDays, startOfDay } from
 
 export function formatDate(date: string | Date): string {
   if (!date) return '';
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  let dateObj: Date;
+  if (typeof date === 'string') {
+    // Parse date string as UTC to avoid timezone shifts
+    const [year, month, day] = date.split('-').map(Number);
+    dateObj = new Date(Date.UTC(year, month - 1, day));
+  } else {
+    dateObj = date;
+  }
+  
   if (isNaN(dateObj.getTime())) return '';
   return format(dateObj, 'MMM dd, yyyy');
 }
@@ -17,14 +26,20 @@ export function formatTime(time: string): string {
 }
 
 export function calculateWorkingDays(startDate: string, endDate: string): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  // Parse both dates as UTC to avoid timezone shifts
+  const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+  const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+  const start = new Date(Date.UTC(startYear, startMonth - 1, startDay));
+  const end = new Date(Date.UTC(endYear, endMonth - 1, endDay));
   return differenceInDays(end, start) + 1;
 }
 
 export function getPayPeriodProgress(startDate: string, endDate: string) {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  // Parse dates as UTC to avoid timezone shifts
+  const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+  const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+  const start = new Date(Date.UTC(startYear, startMonth - 1, startDay));
+  const end = new Date(Date.UTC(endYear, endMonth - 1, endDay));
   const today = startOfDay(new Date());
   
   const totalDays = differenceInDays(end, start) + 1;
@@ -63,8 +78,11 @@ export function getPayPeriodProgress(startDate: string, endDate: string) {
 
 export function isCurrentPayPeriod(startDate: string, endDate: string): boolean {
   const today = new Date();
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  // Parse dates as UTC to avoid timezone shifts
+  const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+  const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+  const start = new Date(Date.UTC(startYear, startMonth - 1, startDay));
+  const end = new Date(Date.UTC(endYear, endMonth - 1, endDay));
   
   return !isBefore(today, start) && !isAfter(today, end);
 }
@@ -92,7 +110,9 @@ export function createBiWeeklyPayPeriod(startDate: Date) {
 }
 
 export function getDayOfWeek(date: string): string {
-  const dateObj = new Date(date);
+  // Parse date string as UTC to avoid timezone shifts
+  const [year, month, day] = date.split('-').map(Number);
+  const dateObj = new Date(Date.UTC(year, month - 1, day));
   return format(dateObj, 'EEEE');
 }
 

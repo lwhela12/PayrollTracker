@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 
@@ -54,14 +55,8 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
 
   const handleNavigateToTimecard = (employeeId: number) => {
-    const payPeriodQuery = currentPayPeriod ? `&payPeriod=${currentPayPeriod.id}` : "";
-    if (selectedEmployerId) {
-      setLocation(
-        `/timecards?employer=${selectedEmployerId}&employee=${employeeId}${payPeriodQuery}`
-      );
-    } else {
-      setLocation(`/timecards?employee=${employeeId}${payPeriodQuery}`);
-    }
+    if (!currentPayPeriod) return;
+    setLocation(`/timecard/employee/${employeeId}/period/${currentPayPeriod.startDate}`);
   };
 
   const stats = [
@@ -135,6 +130,11 @@ export default function Dashboard() {
                     <Clock className="h-5 w-5" />
                     Pay Period Summary
                   </CardTitle>
+                  {currentPayPeriod && (
+                    <Badge variant="outline" className="text-xs">
+                      {formatDate(currentPayPeriod.startDate)} - {formatDate(currentPayPeriod.endDate)}
+                    </Badge>
+                  )}
                   <Link href="/employees">
                     <Button size="sm" variant="outline">
                       <Plus className="h-4 w-4 mr-2" />

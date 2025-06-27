@@ -145,6 +145,12 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
                 + Add Shift
               </Button>
             </div>
+            <div className="grid grid-cols-4 gap-2 text-xs font-medium text-muted-foreground mb-1">
+              <span>Time In</span>
+              <span>Time Out</span>
+              <span>Lunch</span>
+              <span>Total</span>
+            </div>
             {day.shifts.map((shift, idx) => (
               <div key={idx} className="grid grid-cols-4 gap-2 mb-2">
                 <Input

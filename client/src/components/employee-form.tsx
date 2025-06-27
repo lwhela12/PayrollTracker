@@ -47,9 +47,13 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
 
   const createEmployeeMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("POST", "/api/employees", data);
+      console.log('Creating employee with data:', data);
+      const response = await apiRequest("POST", "/api/employees", data);
+      console.log('Create employee response:', response);
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Employee created successfully:', data);
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       toast({
         title: "Success",
@@ -58,6 +62,7 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
       onSuccess();
     },
     onError: (error: Error) => {
+      console.error('Create employee error:', error);
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -71,7 +76,7 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
       }
       toast({
         title: "Error",
-        description: "Failed to create employee",
+        description: `Failed to create employee: ${error.message}`,
         variant: "destructive",
       });
     },

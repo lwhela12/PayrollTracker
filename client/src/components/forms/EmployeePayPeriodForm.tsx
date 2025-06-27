@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 interface EmployeePayPeriodFormProps {
   employeeId: number;
   payPeriod: { start: string; end: string };
+  employee?: any;
 }
 
 interface ShiftEntry {
@@ -23,15 +24,18 @@ interface DayEntry {
   shifts: ShiftEntry[];
 }
 
-export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeriodFormProps) {
+export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmployee }: EmployeePayPeriodFormProps) {
   const { start, end } = payPeriod;
 
-  const { data: employee } = useQuery<any>({
+  // Use employee from props if provided, otherwise fetch
+  const { data: fetchedEmployee } = useQuery<any>({
     queryKey: ["/api/employees", employeeId],
     queryFn: () =>
       apiRequest("GET", `/api/employees/${employeeId}`).then((res) => res.json()),
-    enabled: !!employeeId,
+    enabled: !!employeeId && !propEmployee,
   });
+
+  const employee = propEmployee || fetchedEmployee;
 
   const { data: existingEntries = [] } = useQuery<any[]>({
     queryKey: ["/api/time-entries/employee", employeeId, start, end],
@@ -142,25 +146,36 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
       );
       
       if (periodReimb.length > 0) {
-        // Separate mileage from other reimbursements
-        const mileageEntries = periodReimb.filter(r => r.description?.includes('Mileage:'));
-        const otherReimb = periodReimb.filter(r => !r.description?.includes('Mileage:'));
+        const reimbEntry = periodReimb[0]; // Get the first (most recent) entry
+        const description = reimbEntry.description || "";
+        const totalAmount = parseFloat(reimbEntry.amount);
         
-        // Extract miles from mileage entry description
-        if (mileageEntries.length > 0) {
-          const mileageDesc = mileageEntries[0].description || "";
-          const milesMatch = mileageDesc.match(/Mileage: (\d+(?:\.\d+)?) miles/);
-          if (milesMatch) {
-            setMilesDriven(parseFloat(milesMatch[1]));
+        // Parse combined reimbursement entry
+        let mileageAmount = 0;
+        let otherAmount = totalAmount;
+        let otherDesc = "";
+        
+        // Extract mileage info if present
+        const mileageMatch = description.match(/Mileage: (\d+(?:\.\d+)?) miles \(\$(\d+(?:\.\d+)?)\)/);
+        if (mileageMatch) {
+          setMilesDriven(parseFloat(mileageMatch[1]));
+          mileageAmount = parseFloat(mileageMatch[2]);
+          otherAmount = totalAmount - mileageAmount;
+          
+          // Extract other reimbursement description after the semicolon
+          const parts = description.split('; ');
+          if (parts.length > 1) {
+            otherDesc = parts[1];
           }
+        } else {
+          // No mileage, treat entire amount as other reimbursement
+          otherDesc = description;
         }
         
-        // Set other reimbursements
-        if (otherReimb.length > 0) {
-          const totalAmount = otherReimb.reduce((sum, r) => sum + parseFloat(r.amount), 0);
-          const description = otherReimb[0].description || "";
-          setReimbAmt(totalAmount);
-          setReimbDesc(description);
+        // Set other reimbursement amount and description
+        if (otherAmount > 0) {
+          setReimbAmt(otherAmount);
+          setReimbDesc(otherDesc);
         }
       }
     }
@@ -284,24 +299,26 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
         });
       }
 
-      // Save mileage reimbursement entry if any
-      if (payload.milesDriven > 0 && employee) {
-        const mileageAmount = payload.milesDriven * parseFloat(employee.mileageRate || '0');
+      // Save combined reimbursement entry (includes mileage + other reimbursements)
+      const mileageAmount = payload.milesDriven > 0 && employee ? 
+        payload.milesDriven * parseFloat(employee.mileageRate || '0') : 0;
+      const totalReimbursement = payload.reimbursement.amount + mileageAmount;
+      
+      if (totalReimbursement > 0) {
+        let description = "";
+        if (payload.milesDriven > 0 && employee) {
+          description += `Mileage: ${payload.milesDriven} miles ($${mileageAmount.toFixed(2)})`;
+        }
+        if (payload.reimbursement.amount > 0) {
+          if (description) description += "; ";
+          description += payload.reimbursement.description || "Other reimbursement";
+        }
+        
         await apiRequest("POST", "/api/reimbursement-entries", {
           employeeId: payload.employeeId,
           entryDate: payload.payPeriod.start,
-          amount: mileageAmount.toString(),
-          description: `Mileage: ${payload.milesDriven} miles at $${parseFloat(employee.mileageRate || '0').toFixed(3)}/mile`
-        });
-      }
-
-      // Save reimbursement entry if any
-      if (payload.reimbursement.amount > 0) {
-        await apiRequest("POST", "/api/reimbursement-entries", {
-          employeeId: payload.employeeId,
-          entryDate: payload.payPeriod.start,
-          amount: payload.reimbursement.amount.toString(),
-          description: payload.reimbursement.description || "Reimbursement"
+          amount: totalReimbursement.toString(),
+          description: description || "Reimbursement"
         });
       }
     },
@@ -449,6 +466,11 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
                 step="0.01"
                 min="0"
               />
+              {employee && milesDriven > 0 && (
+                <div className="text-xs text-gray-500 mt-1">
+                  + ${(milesDriven * parseFloat(employee.mileageRate || '0')).toFixed(2)} mileage (auto-added)
+                </div>
+              )}
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Reimbursement Description</label>

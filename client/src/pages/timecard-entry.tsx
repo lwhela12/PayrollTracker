@@ -74,7 +74,7 @@ export default function TimecardEntry() {
           <h2 className="text-lg font-semibold mb-4">
             {employee ? `${employee.firstName} ${employee.lastName}` : "Loading..."}
           </h2>
-          <EmployeePayPeriodForm employeeId={employeeId} payPeriod={payPeriod} />
+          <EmployeePayPeriodForm employeeId={employeeId} payPeriod={payPeriod} employee={employee} />
         </main>
       </div>
     </div>

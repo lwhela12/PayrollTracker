@@ -194,8 +194,16 @@ export const insertTimecardSchema = createInsertSchema(timecards).omit({
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({
   id: true,
 }).extend({
-  timeIn: z.string(),
-  timeOut: z.string().optional(),
+  timeIn: z.string().transform((val) => {
+    // For timezone-naive timestamps, create Date without timezone conversion
+    const dateStr = val.includes('T') ? val.replace('Z', '') : val;
+    return new Date(dateStr);
+  }),
+  timeOut: z.string().optional().transform((val) => {
+    if (!val) return undefined;
+    const dateStr = val.includes('T') ? val.replace('Z', '') : val;
+    return new Date(dateStr);
+  }),
 });
 
 export const insertPtoEntrySchema = createInsertSchema(ptoEntries).omit({

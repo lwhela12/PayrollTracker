@@ -26,6 +26,13 @@ interface DayEntry {
 export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeriodFormProps) {
   const { start, end } = payPeriod;
 
+  const { data: employee } = useQuery<any>({
+    queryKey: ["/api/employees", employeeId],
+    queryFn: () =>
+      apiRequest("GET", `/api/employees/${employeeId}`).then((res) => res.json()),
+    enabled: !!employeeId,
+  });
+
   const { data: existingEntries = [] } = useQuery<any[]>({
     queryKey: ["/api/time-entries/employee", employeeId, start, end],
     queryFn: () =>
@@ -73,6 +80,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
   const [ptoHours, setPtoHours] = useState(0);
   const [holidayNonWorked, setHolidayNonWorked] = useState(0);
   const [holidayWorked, setHolidayWorked] = useState(0);
+  const [milesDriven, setMilesDriven] = useState(0);
   const [reimbAmt, setReimbAmt] = useState(0);
   const [reimbDesc, setReimbDesc] = useState("");
   const [notes, setNotes] = useState("");
@@ -134,10 +142,26 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
       );
       
       if (periodReimb.length > 0) {
-        const totalAmount = periodReimb.reduce((sum, r) => sum + parseFloat(r.amount), 0);
-        const description = periodReimb[0].description || "";
-        setReimbAmt(totalAmount);
-        setReimbDesc(description);
+        // Separate mileage from other reimbursements
+        const mileageEntries = periodReimb.filter(r => r.description?.includes('Mileage:'));
+        const otherReimb = periodReimb.filter(r => !r.description?.includes('Mileage:'));
+        
+        // Extract miles from mileage entry description
+        if (mileageEntries.length > 0) {
+          const mileageDesc = mileageEntries[0].description || "";
+          const milesMatch = mileageDesc.match(/Mileage: (\d+(?:\.\d+)?) miles/);
+          if (milesMatch) {
+            setMilesDriven(parseFloat(milesMatch[1]));
+          }
+        }
+        
+        // Set other reimbursements
+        if (otherReimb.length > 0) {
+          const totalAmount = otherReimb.reduce((sum, r) => sum + parseFloat(r.amount), 0);
+          const description = otherReimb[0].description || "";
+          setReimbAmt(totalAmount);
+          setReimbDesc(description);
+        }
       }
     }
   }, [existingReimbEntries, start, end]);
@@ -260,6 +284,17 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
         });
       }
 
+      // Save mileage reimbursement entry if any
+      if (payload.milesDriven > 0 && employee) {
+        const mileageAmount = payload.milesDriven * parseFloat(employee.mileageRate || '0');
+        await apiRequest("POST", "/api/reimbursement-entries", {
+          employeeId: payload.employeeId,
+          entryDate: payload.payPeriod.start,
+          amount: mileageAmount.toString(),
+          description: `Mileage: ${payload.milesDriven} miles at $${parseFloat(employee.mileageRate || '0').toFixed(3)}/mile`
+        });
+      }
+
       // Save reimbursement entry if any
       if (payload.reimbursement.amount > 0) {
         await apiRequest("POST", "/api/reimbursement-entries", {
@@ -300,6 +335,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
       ptoHours,
       holidayNonWorked,
       holidayWorked,
+      milesDriven,
       reimbursement: { amount: reimbAmt, description: reimbDesc },
       notes,
     };
@@ -386,6 +422,22 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
                 step="0.25"
                 min="0"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Miles Driven</label>
+              <Input
+                type="number"
+                value={milesDriven}
+                onChange={(e) => setMilesDriven(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                step="1"
+                min="0"
+              />
+              {employee && milesDriven > 0 && (
+                <div className="text-xs text-gray-500 mt-1">
+                  ${(milesDriven * parseFloat(employee.mileageRate || '0')).toFixed(2)} at ${parseFloat(employee.mileageRate || '0').toFixed(3)}/mile
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Reimbursement Amount</label>

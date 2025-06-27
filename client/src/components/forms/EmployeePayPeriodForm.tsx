@@ -147,7 +147,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
         await apiRequest("POST", "/api/pto-entries", {
           employeeId: payload.employeeId,
           entryDate: payload.payPeriod.start,
-          hours: payload.ptoHours,
+          hours: payload.ptoHours.toString(),
           description: "PTO hours"
         });
       }
@@ -157,7 +157,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
         await apiRequest("POST", "/api/misc-hours-entries", {
           employeeId: payload.employeeId,
           entryDate: payload.payPeriod.start,
-          hours: payload.holidayNonWorked,
+          hours: payload.holidayNonWorked.toString(),
           entryType: "holiday",
           description: "Holiday (non-worked)"
         });
@@ -168,7 +168,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
         await apiRequest("POST", "/api/misc-hours-entries", {
           employeeId: payload.employeeId,
           entryDate: payload.payPeriod.start,
-          hours: payload.holidayWorked,
+          hours: payload.holidayWorked.toString(),
           entryType: "holiday-worked",
           description: "Holiday worked"
         });
@@ -179,7 +179,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
         await apiRequest("POST", "/api/reimbursement-entries", {
           employeeId: payload.employeeId,
           entryDate: payload.payPeriod.start,
-          amount: payload.reimbursement.amount,
+          amount: payload.reimbursement.amount.toString(),
           description: payload.reimbursement.description || "Reimbursement"
         });
       }

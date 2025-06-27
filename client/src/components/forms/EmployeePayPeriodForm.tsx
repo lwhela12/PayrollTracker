@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { calculateHoursFromTimecard } from "@/lib/payrollUtils";
 import { getDayOfWeek } from "@/lib/dateUtils";
+import { useToast } from "@/hooks/use-toast";
 
 interface EmployeePayPeriodFormProps {
   employeeId: number;
@@ -117,6 +118,90 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
     { regular: 0, overtime: 0, totalHours: 0 }
   );
 
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const saveTimeEntries = useMutation({
+    mutationFn: async (payload: any) => {
+      // Save time entries for each day with shifts
+      for (const day of payload.days) {
+        for (const shift of day.shifts) {
+          if (shift.timeIn && shift.timeOut) {
+            // Combine date and time into proper timestamps
+            const timeInTimestamp = new Date(`${day.date}T${shift.timeIn}:00`);
+            const timeOutTimestamp = new Date(`${day.date}T${shift.timeOut}:00`);
+            
+            await apiRequest("POST", "/api/time-entries", {
+              employeeId: payload.employeeId,
+              timeIn: timeInTimestamp.toISOString(),
+              timeOut: timeOutTimestamp.toISOString(),
+              lunchMinutes: shift.lunch,
+              notes: payload.notes || ""
+            });
+          }
+        }
+      }
+
+      // Save PTO entry if any
+      if (payload.ptoHours > 0) {
+        await apiRequest("POST", "/api/pto-entries", {
+          employeeId: payload.employeeId,
+          entryDate: payload.payPeriod.start,
+          hours: payload.ptoHours,
+          description: "PTO hours"
+        });
+      }
+
+      // Save holiday non-worked entry if any
+      if (payload.holidayNonWorked > 0) {
+        await apiRequest("POST", "/api/misc-hours-entries", {
+          employeeId: payload.employeeId,
+          entryDate: payload.payPeriod.start,
+          hours: payload.holidayNonWorked,
+          entryType: "holiday",
+          description: "Holiday (non-worked)"
+        });
+      }
+
+      // Save holiday worked entry if any
+      if (payload.holidayWorked > 0) {
+        await apiRequest("POST", "/api/misc-hours-entries", {
+          employeeId: payload.employeeId,
+          entryDate: payload.payPeriod.start,
+          hours: payload.holidayWorked,
+          entryType: "holiday-worked",
+          description: "Holiday worked"
+        });
+      }
+
+      // Save reimbursement entry if any
+      if (payload.reimbursement.amount > 0) {
+        await apiRequest("POST", "/api/reimbursement-entries", {
+          employeeId: payload.employeeId,
+          entryDate: payload.payPeriod.start,
+          amount: payload.reimbursement.amount,
+          description: payload.reimbursement.description || "Reimbursement"
+        });
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Timecard data saved successfully",
+      });
+      // Invalidate relevant queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/time-entries/employee", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save timecard data",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSubmit = async () => {
     const payload = {
       employeeId,
@@ -128,8 +213,8 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
       reimbursement: { amount: reimbAmt, description: reimbDesc },
       notes,
     };
-    console.log("submit", payload);
-    // Placeholder for API submission
+    
+    saveTimeEntries.mutate(payload);
   };
 
   return (
@@ -242,8 +327,12 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
           </div>
         </div>
         <div className="pt-4 text-right">
-          <Button onClick={handleSubmit} className="payroll-button-primary">
-            Save
+          <Button 
+            onClick={handleSubmit} 
+            className="payroll-button-primary"
+            disabled={saveTimeEntries.isPending}
+          >
+            {saveTimeEntries.isPending ? "Saving..." : "Save"}
           </Button>
         </div>
       </div>

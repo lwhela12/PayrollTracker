@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,7 +25,7 @@ export default function Reports() {
   const [format, setFormat] = useState("pdf");
 
   // Fetch employers
-  const { data: employers } = useQuery({
+  const { data: employers = [] } = useQuery<any[]>({
     queryKey: ["/api/employers"],
     enabled: !!user,
   });
@@ -38,13 +38,13 @@ export default function Reports() {
   }, [employers, selectedEmployerId]);
 
   // Fetch pay periods
-  const { data: payPeriods } = useQuery({
+  const { data: payPeriods = [] } = useQuery<any[]>({
     queryKey: ["/api/pay-periods", selectedEmployerId],
     enabled: !!selectedEmployerId,
   });
 
   // Fetch recent reports
-  const { data: reports, isLoading: reportsLoading } = useQuery({
+  const { data: reports = [], isLoading: reportsLoading } = useQuery<any[]>({
     queryKey: ["/api/reports", selectedEmployerId],
     enabled: !!selectedEmployerId,
   });

@@ -83,16 +83,18 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
     }
   };
 
-  // Generate 14 days for the pay period
+  // Generate 14 days for the pay period using UTC to avoid timezone issues
   const generatePayPeriodDays = () => {
     if (!currentPayPeriod) return [];
     
-    const startDate = new Date(currentPayPeriod.startDate);
+    // Parse the date string and create UTC date to avoid timezone issues
+    const [year, month, day] = currentPayPeriod.startDate.split('-').map(Number);
+    const startDate = new Date(Date.UTC(year, month - 1, day)); // month is 0-indexed
     const days = [];
     
     for (let i = 0; i < 14; i++) {
       const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
+      date.setUTCDate(startDate.getUTCDate() + i);
       days.push(date.toISOString().split('T')[0]);
     }
     
@@ -282,7 +284,8 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                           <td className="border p-2">{getDayOfWeek(date)}</td>
                           <td className="border p-2">
                             <Input
-                              type="time"
+                              type="text"
+                              placeholder="8:00"
                               value={entry.timeIn || ''}
                               onChange={(e) => updateTimecardEntry(date, 'timeIn', e.target.value)}
                               className="w-24"
@@ -290,7 +293,8 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                           </td>
                           <td className="border p-2">
                             <Input
-                              type="time"
+                              type="text"
+                              placeholder="17:00"
                               value={entry.timeOut || ''}
                               onChange={(e) => updateTimecardEntry(date, 'timeOut', e.target.value)}
                               className="w-24"
@@ -381,8 +385,9 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                         <div>
                           <label className="text-xs text-muted-foreground">Time In</label>
                           <Input
-                            type="time"
-                            value={entry.timeIn || ''}
+                            type="text"
+                            placeholder="8:00"
+                              value={entry.timeIn || ''}
                             onChange={(e) => updateTimecardEntry(date, 'timeIn', e.target.value)}
                             className="mt-1"
                           />
@@ -390,8 +395,9 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                         <div>
                           <label className="text-xs text-muted-foreground">Time Out</label>
                           <Input
-                            type="time"
-                            value={entry.timeOut || ''}
+                            type="text"
+                            placeholder="17:00"
+                              value={entry.timeOut || ''}
                             onChange={(e) => updateTimecardEntry(date, 'timeOut', e.target.value)}
                             className="mt-1"
                           />
@@ -519,7 +525,8 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                           <td className="border p-2">{getDayOfWeek(date)}</td>
                           <td className="border p-2">
                             <Input
-                              type="time"
+                              type="text"
+                              placeholder="8:00"
                               value={entry.timeIn || ''}
                               onChange={(e) => updateTimecardEntry(date, 'timeIn', e.target.value)}
                               className="w-24"
@@ -527,7 +534,8 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                           </td>
                           <td className="border p-2">
                             <Input
-                              type="time"
+                              type="text"
+                              placeholder="17:00"
                               value={entry.timeOut || ''}
                               onChange={(e) => updateTimecardEntry(date, 'timeOut', e.target.value)}
                               className="w-24"
@@ -618,8 +626,9 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                         <div>
                           <label className="text-xs text-muted-foreground">Time In</label>
                           <Input
-                            type="time"
-                            value={entry.timeIn || ''}
+                            type="text"
+                            placeholder="8:00"
+                              value={entry.timeIn || ''}
                             onChange={(e) => updateTimecardEntry(date, 'timeIn', e.target.value)}
                             className="mt-1"
                           />
@@ -627,8 +636,9 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                         <div>
                           <label className="text-xs text-muted-foreground">Time Out</label>
                           <Input
-                            type="time"
-                            value={entry.timeOut || ''}
+                            type="text"
+                            placeholder="17:00"
+                              value={entry.timeOut || ''}
                             onChange={(e) => updateTimecardEntry(date, 'timeOut', e.target.value)}
                             className="mt-1"
                           />

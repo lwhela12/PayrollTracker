@@ -256,28 +256,28 @@ export default function Employees() {
       </div>
 
       {/* Employee Form Dialog */}
-      <Dialog open={showEmployeeForm} onOpenChange={(open) => {
-        console.log("Dialog open state changed:", open);
-        setShowEmployeeForm(open);
-      }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingEmployee ? "Edit Employee" : "Add New Employee"}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedEmployerId ? (
-            <EmployeeForm
-              employerId={selectedEmployerId}
-              employee={editingEmployee}
-              onSuccess={handleCloseForm}
-              onCancel={handleCloseForm}
-            />
-          ) : (
-            <div>No employer selected</div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {showEmployeeForm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">
+                {editingEmployee ? "Edit Employee" : "Add New Employee"}
+              </h2>
+              <Button variant="ghost" onClick={handleCloseForm}>×</Button>
+            </div>
+            {selectedEmployerId ? (
+              <EmployeeForm
+                employerId={selectedEmployerId}
+                employee={editingEmployee}
+                onSuccess={handleCloseForm}
+                onCancel={handleCloseForm}
+              />
+            ) : (
+              <div>No employer selected</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* CSV Import Dialog */}
       <CsvImportDialog

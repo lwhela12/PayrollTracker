@@ -249,7 +249,7 @@ export function TimecardModal({ isOpen, onClose, employee, timecards, payPeriod 
                               <td>
                                 {isCurrentlyEditing ? (
                                   <Input
-                                    type="time"
+                                    type="text"
                                     value={editingTimecard.timeIn || ""}
                                     onChange={(e) => handleFieldChange("timeIn", e.target.value)}
                                     className="w-24 h-8"
@@ -261,7 +261,7 @@ export function TimecardModal({ isOpen, onClose, employee, timecards, payPeriod 
                               <td>
                                 {isCurrentlyEditing ? (
                                   <Input
-                                    type="time"
+                                    type="text"
                                     value={editingTimecard.timeOut || ""}
                                     onChange={(e) => handleFieldChange("timeOut", e.target.value)}
                                     className="w-24 h-8"

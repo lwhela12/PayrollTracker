@@ -154,12 +154,12 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
             {day.shifts.map((shift, idx) => (
               <div key={idx} className="grid grid-cols-4 gap-2 mb-2">
                 <Input
-                  type="time"
+                  type="text"
                   value={shift.timeIn}
                   onChange={(e) => updateShift(day.date, idx, "timeIn", e.target.value)}
                 />
                 <Input
-                  type="time"
+                  type="text"
                   value={shift.timeOut}
                   onChange={(e) => updateShift(day.date, idx, "timeOut", e.target.value)}
                 />

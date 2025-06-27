@@ -11,6 +11,12 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
+- **2025-06-27**: Fixed critical database schema issues and app startup failures
+  - Resolved multer dependency conflict causing app startup crash
+  - Fixed missing database columns (role, hire_date, week_starts_on) preventing login and employer creation
+  - Application now fully functional with successful login and company creation workflow
+  - Temporarily disabled file upload feature until dependency conflicts are resolved
+
 - **2025-06-26**: Implemented clean desktop layout improvements
   - Removed progress element from sidebar for cleaner appearance
   - Fixed layout structure to eliminate empty space and ensure full-width content flow

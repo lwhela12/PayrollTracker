@@ -1277,14 +1277,14 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
     for (const tc of empTimeEntries) {
       doc.fontSize(9);
       doc.text(tc.workDate, 50, yPos);
-      doc.text(tc.timeIn, 120, yPos);
-      doc.text(tc.timeOut, 170, yPos);
-      doc.text(tc.lunchMinutes, 220, yPos);
-      doc.text(tc.regularHours, 270, yPos);
-      doc.text(tc.overtimeHours, 320, yPos);
-      doc.text(tc.miscHours, 370, yPos);
-      doc.text(tc.ptoHours, 420, yPos);
-      doc.text(tc.holidayHours, 470, yPos);
+      doc.text(tc.timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 120, yPos);
+      doc.text(tc.timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 170, yPos);
+      doc.text(tc.lunchMinutes.toString(), 220, yPos);
+      doc.text(tc.regularHours.toFixed(2), 270, yPos);
+      doc.text(tc.overtimeHours.toFixed(2), 320, yPos);
+      doc.text(tc.miscHours.toFixed(2), 370, yPos);
+      doc.text(tc.ptoHours.toFixed(2), 420, yPos);
+      doc.text(tc.holidayHours.toFixed(2), 470, yPos);
       yPos += 15;
       
       if (yPos > 700) {

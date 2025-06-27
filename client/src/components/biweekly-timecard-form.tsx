@@ -418,6 +418,62 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                             max="24"
                           />
                         </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Overtime Hours</label>
+                          <Input
+                            type="number"
+                            value={entry.overtimeHours || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'overtimeHours', parseFloat(e.target.value) || 0)}
+                            className="mt-1"
+                            step="0.25"
+                            min="0"
+                            max="24"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">PTO Hours</label>
+                          <Input
+                            type="number"
+                            value={entry.ptoHours || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'ptoHours', parseFloat(e.target.value) || 0)}
+                            className="mt-1"
+                            step="0.25"
+                            min="0"
+                            max="24"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Holiday Hours</label>
+                          <Input
+                            type="number"
+                            value={entry.holidayHours || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'holidayHours', parseFloat(e.target.value) || 0)}
+                            className="mt-1"
+                            step="0.25"
+                            min="0"
+                            max="24"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Start Odometer</label>
+                          <Input
+                            type="number"
+                            value={entry.startOdometer || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'startOdometer', parseInt(e.target.value) || null)}
+                            className="mt-1"
+                            placeholder="Miles"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">End Odometer</label>
+                          <Input
+                            type="number"
+                            value={entry.endOdometer || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'endOdometer', parseInt(e.target.value) || null)}
+                            className="mt-1"
+                            placeholder="Miles"
+                          />
+                        </div>
                       </div>
                       <div className="mt-3">
                         <label className="text-xs text-muted-foreground">Notes</label>
@@ -597,6 +653,62 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                             step="0.25"
                             min="0"
                             max="24"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Overtime Hours</label>
+                          <Input
+                            type="number"
+                            value={entry.overtimeHours || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'overtimeHours', parseFloat(e.target.value) || 0)}
+                            className="mt-1"
+                            step="0.25"
+                            min="0"
+                            max="24"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">PTO Hours</label>
+                          <Input
+                            type="number"
+                            value={entry.ptoHours || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'ptoHours', parseFloat(e.target.value) || 0)}
+                            className="mt-1"
+                            step="0.25"
+                            min="0"
+                            max="24"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Holiday Hours</label>
+                          <Input
+                            type="number"
+                            value={entry.holidayHours || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'holidayHours', parseFloat(e.target.value) || 0)}
+                            className="mt-1"
+                            step="0.25"
+                            min="0"
+                            max="24"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Start Odometer</label>
+                          <Input
+                            type="number"
+                            value={entry.startOdometer || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'startOdometer', parseInt(e.target.value) || null)}
+                            className="mt-1"
+                            placeholder="Miles"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">End Odometer</label>
+                          <Input
+                            type="number"
+                            value={entry.endOdometer || ''}
+                            onChange={(e) => updateTimecardEntry(date, 'endOdometer', parseInt(e.target.value) || null)}
+                            className="mt-1"
+                            placeholder="Miles"
                           />
                         </div>
                       </div>

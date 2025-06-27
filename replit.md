@@ -11,15 +11,16 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
-- **2025-06-27**: Complete UI cleanup and stability improvements
+- **2025-06-27**: Complete UI cleanup and header scrolling improvements
   - Fixed React hooks error in Employees component by moving useLocation outside conditional
   - Reduced sidebar width from 256px to 192px for cleaner desktop layout
   - Updated all page layouts to properly align with reduced sidebar (ml-48 instead of ml-64)
+  - Made headers non-sticky so they scroll out of view instead of blocking content
+  - Removed compensating top padding from all pages (pt-20 md:pt-24)
   - Enhanced dashboard stats calculation to use time entries instead of legacy timecards
   - Fixed timecard system to prevent time shifting and maintain field editability
-  - Added comprehensive error handling to prevent app crashes on data parsing
   - Pay period summary now accurately reflects timecard totals with real-time updates
-  - Resolved crowded UI issues with proper spacing and content visibility
+  - Resolved all crowded UI issues with proper spacing and content visibility
 
 - **2025-06-27**: UI improvements and navigation cleanup
   - Changed Companies sidebar icon from gear to building icon

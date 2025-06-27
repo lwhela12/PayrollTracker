@@ -262,6 +262,16 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
 
   const saveTimeEntries = useMutation({
     mutationFn: async (payload: any) => {
+      // Delete existing time entries in this pay period first to avoid duplicates
+      const existingTimeForPeriod = existingEntries.filter(e => {
+        if (!e.timeIn) return false;
+        const entryDate = e.timeIn.split("T")[0];
+        return entryDate >= payload.payPeriod.start && entryDate <= payload.payPeriod.end;
+      });
+      for (const timeEntry of existingTimeForPeriod) {
+        await apiRequest("DELETE", `/api/time-entries/${timeEntry.id}`);
+      }
+
       // Save time entries for each day with shifts
       for (const day of payload.days) {
         for (const shift of day.shifts) {

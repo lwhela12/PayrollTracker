@@ -804,15 +804,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
           const empReimbs = reimbursements.filter(r => r.employeeId === emp.id);
 
-          const empTotalHours = empTimecards.reduce((sum, tc) =>
-            sum + parseFloat(tc.regularHours || '0') + parseFloat(tc.overtimeHours || '0'),
-          0);
-          const empOvertimeHours = empTimecards.reduce(
-            (sum, tc) => sum + parseFloat(tc.overtimeHours || '0'),
-            0
-          );
-          const empPto = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.ptoHours || '0'), 0);
-          const empHoliday = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.holidayHours || '0'), 0);
+          // Get time entries for this employee in the current pay period
+          const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, currentPayPeriod.startDate, currentPayPeriod.endDate);
+          
+          // Calculate total hours from time entries
+          let empTotalHours = 0;
+          let empOvertimeHours = 0;
+          
+          timeEntries.forEach(entry => {
+            if (entry.timeIn && entry.timeOut) {
+              const timeIn = new Date(entry.timeIn);
+              const timeOut = new Date(entry.timeOut);
+              const totalMinutes = (timeOut.getTime() - timeIn.getTime()) / (1000 * 60);
+              const lunchMinutes = entry.lunchMinutes || 0;
+              const workedMinutes = totalMinutes - lunchMinutes;
+              const workedHours = workedMinutes / 60;
+              
+              empTotalHours += workedHours;
+              
+              // Calculate daily overtime (over 8 hours per day)
+              if (workedHours > 8) {
+                empOvertimeHours += workedHours - 8;
+              }
+            }
+          });
+
           // Get reimbursement entries for pay period to calculate mileage and reimbursements
           const reimbursementEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
           const periodReimbEntries = reimbursementEntries.filter(r => 
@@ -847,9 +863,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const holidayNonWorked = miscEntries.filter(m => m.entryType === 'holiday' && m.entryDate >= currentPayPeriod.startDate && m.entryDate <= currentPayPeriod.endDate)
             .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
 
+          // Legacy timecard hours (if any) - combine with new entries
+          const legacyPto = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.ptoHours || '0'), 0);
+          const legacyHoliday = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.holidayHours || '0'), 0);
+
           totalHours += empTotalHours;
 
-          if (empTimecards.length === 0) {
+          // Check if employee has any time data for this period
+          const hasTimeData = timeEntries.length > 0 || periodPto > 0 || holidayWorked > 0 || holidayNonWorked > 0;
+          
+          if (!hasTimeData) {
             pendingTimecards++;
           } else if (empTimecards.every(tc => tc.isApproved)) {
             payrollReady++;
@@ -859,8 +882,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             employeeId: emp.id,
             totalHours: Number(empTotalHours.toFixed(2)),
             totalOvertimeHours: Number(empOvertimeHours.toFixed(2)),
-            ptoHours: Number((empPto + periodPto).toFixed(2)),
-            holidayHours: Number((empHoliday + holidayNonWorked).toFixed(2)),
+            ptoHours: Number((legacyPto + periodPto).toFixed(2)),
+            holidayHours: Number((legacyHoliday + holidayNonWorked).toFixed(2)),
             holidayWorkedHours: Number(holidayWorked.toFixed(2)),
             mileage: empMiles,
             reimbursements: Number(empReimbAmt.toFixed(2))

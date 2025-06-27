@@ -26,6 +26,7 @@ A comprehensive payroll tracking web application designed to streamline employee
   - Streamlined dashboard and timecard page stats by removing Total Hours and Payroll Ready cards
   - Renamed "Pending Timecards" to "Unsaved Timecards" for clarity
   - Consolidated Dashboard and Timecards into single unified Dashboard page for simplified navigation
+  - Added "Misc. Hours" field to timecard entry that adds to regular hours without affecting OT calculation
 
 - **2025-06-27**: UI improvements and navigation cleanup
   - Changed Companies sidebar icon from gear to building icon

@@ -839,21 +839,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const periodPto = ptoEntries.filter(p => p.entryDate >= currentPayPeriod.startDate && p.entryDate <= currentPayPeriod.endDate)
             .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
 
-          // Get misc hours entries for holidays
+          // Get misc hours entries for holidays and misc hours
           const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
           const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= currentPayPeriod.startDate && m.entryDate <= currentPayPeriod.endDate)
             .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
           const holidayNonWorked = miscEntries.filter(m => m.entryType === 'holiday' && m.entryDate >= currentPayPeriod.startDate && m.entryDate <= currentPayPeriod.endDate)
+            .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+          const miscHours = miscEntries.filter(m => m.entryType === 'misc' && m.entryDate >= currentPayPeriod.startDate && m.entryDate <= currentPayPeriod.endDate)
             .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
 
           // Legacy timecard hours (if any) - combine with new entries
           const legacyPto = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.ptoHours || '0'), 0);
           const legacyHoliday = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.holidayHours || '0'), 0);
 
-          totalHours += empTotalHours;
+          // Add misc hours to total hours (doesn't affect OT calculation)
+          const adjustedTotalHours = empTotalHours + miscHours;
+          totalHours += adjustedTotalHours;
 
           // Check if employee has any time data for this period
-          const hasTimeData = timeEntries.length > 0 || periodPto > 0 || holidayWorked > 0 || holidayNonWorked > 0;
+          const hasTimeData = timeEntries.length > 0 || periodPto > 0 || holidayWorked > 0 || holidayNonWorked > 0 || miscHours > 0;
           
           if (!hasTimeData) {
             pendingTimecards++;
@@ -863,7 +867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           employeeStats.push({
             employeeId: emp.id,
-            totalHours: Number(empTotalHours.toFixed(2)),
+            totalHours: Number(adjustedTotalHours.toFixed(2)),
             totalOvertimeHours: Number(empOvertimeHours.toFixed(2)),
             ptoHours: Number((legacyPto + periodPto).toFixed(2)),
             holidayHours: Number((legacyHoliday + holidayNonWorked).toFixed(2)),
@@ -1064,8 +1068,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const misc = await storage.getMiscHoursEntriesByEmployee(emp.id);
         const holidayWorked = misc.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
           .reduce((s, m) => s + parseFloat(m.hours as any), 0);
-        const holidayNon = misc.filter(m => m.entryType !== 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+        const holidayNon = misc.filter(m => m.entryType === 'holiday' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
           .reduce((s, m) => s + parseFloat(m.hours as any), 0);
+        const miscHours = misc.filter(m => m.entryType === 'misc' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+          .reduce((s, m) => s + parseFloat(m.hours as any), 0);
+        
+        // Add misc hours to regular hours (doesn't affect OT calculation)
+        const adjustedRegularHours = reg + miscHours;
 
         const reimb = await storage.getReimbursementEntriesByEmployee(emp.id);
         const reimbTotal = reimb.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
@@ -1074,7 +1083,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rows.push({
           id: emp.id,
           name: `${emp.firstName} ${emp.lastName}`,
-          regularHours: reg,
+          regularHours: adjustedRegularHours,
           overtimeHours: ot,
           ptoHours: pto,
           holidayWorkedHours: holidayWorked,
@@ -1082,7 +1091,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reimbursement: reimbTotal,
         });
 
-        totals.regularHours += reg;
+        totals.regularHours += adjustedRegularHours;
         totals.overtimeHours += ot;
         totals.ptoHours += pto;
         totals.holidayWorkedHours += holidayWorked;
@@ -1141,12 +1150,17 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
     const periodPto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
       .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
     
-    // Get misc hours entries for holidays
+    // Get misc hours entries for holidays and misc hours
     const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
     const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
     const holidayNonWorked = miscEntries.filter(m => m.entryType === 'holiday' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+    const miscHours = miscEntries.filter(m => m.entryType === 'misc' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+      .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+    
+    // Add misc hours to regular hours (doesn't affect OT calculation)
+    const adjustedRegularHours = regularHours + miscHours;
     
     // Get reimbursement entries for pay period
     const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
@@ -1156,7 +1170,7 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
     // Employee row
     doc.fontSize(9);
     doc.text(`${emp.firstName} ${emp.lastName}`, 50, yPos);
-    doc.text(regularHours.toFixed(2), 150, yPos);
+    doc.text(adjustedRegularHours.toFixed(2), 150, yPos);
     doc.text(overtimeHours.toFixed(2), 210, yPos);
     doc.text(periodPto.toFixed(2), 260, yPos);
     doc.text(holidayNonWorked.toFixed(2), 310, yPos);
@@ -1198,12 +1212,17 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
     const periodPto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
       .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
     
-    // Get misc hours entries for holidays
+    // Get misc hours entries for holidays and misc hours
     const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
     const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
     const holidayNonWorked = miscEntries.filter(m => m.entryType === 'holiday' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+    const miscHours = miscEntries.filter(m => m.entryType === 'misc' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+      .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+    
+    // Add misc hours to regular hours (doesn't affect OT calculation)
+    const adjustedRegularHours = regularHours + miscHours;
     
     // Get reimbursement entries for pay period
     const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
@@ -1213,7 +1232,7 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
     // Add employee row
     worksheet.addRow([
       `${emp.firstName} ${emp.lastName}`,
-      regularHours.toFixed(2),
+      adjustedRegularHours.toFixed(2),
       overtimeHours.toFixed(2),
       periodPto.toFixed(2),
       holidayNonWorked.toFixed(2),

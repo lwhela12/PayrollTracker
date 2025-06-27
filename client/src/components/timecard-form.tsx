@@ -220,7 +220,7 @@ export function TimecardForm({ employees, currentPayPeriod }: TimecardFormProps)
                   <FormItem>
                     <FormLabel>Time In</FormLabel>
                     <FormControl>
-                      <Input type="text" {...field} />
+                      <Input type="time" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -233,7 +233,7 @@ export function TimecardForm({ employees, currentPayPeriod }: TimecardFormProps)
                   <FormItem>
                     <FormLabel>Time Out</FormLabel>
                     <FormControl>
-                      <Input type="text" {...field} />
+                      <Input type="time" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

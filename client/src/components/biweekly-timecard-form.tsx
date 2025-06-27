@@ -284,7 +284,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                           <td className="border p-2">{getDayOfWeek(date)}</td>
                           <td className="border p-2">
                             <Input
-                              type="text"
+                              type="time"
                               placeholder="8:00"
                               value={entry.timeIn || ''}
                               onChange={(e) => updateTimecardEntry(date, 'timeIn', e.target.value)}
@@ -293,7 +293,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                           </td>
                           <td className="border p-2">
                             <Input
-                              type="text"
+                              type="time"
                               placeholder="17:00"
                               value={entry.timeOut || ''}
                               onChange={(e) => updateTimecardEntry(date, 'timeOut', e.target.value)}
@@ -385,7 +385,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                         <div>
                           <label className="text-xs text-muted-foreground">Time In</label>
                           <Input
-                            type="text"
+                            type="time"
                             placeholder="8:00"
                               value={entry.timeIn || ''}
                             onChange={(e) => updateTimecardEntry(date, 'timeIn', e.target.value)}
@@ -395,7 +395,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                         <div>
                           <label className="text-xs text-muted-foreground">Time Out</label>
                           <Input
-                            type="text"
+                            type="time"
                             placeholder="17:00"
                               value={entry.timeOut || ''}
                             onChange={(e) => updateTimecardEntry(date, 'timeOut', e.target.value)}
@@ -525,7 +525,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                           <td className="border p-2">{getDayOfWeek(date)}</td>
                           <td className="border p-2">
                             <Input
-                              type="text"
+                              type="time"
                               placeholder="8:00"
                               value={entry.timeIn || ''}
                               onChange={(e) => updateTimecardEntry(date, 'timeIn', e.target.value)}
@@ -534,7 +534,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                           </td>
                           <td className="border p-2">
                             <Input
-                              type="text"
+                              type="time"
                               placeholder="17:00"
                               value={entry.timeOut || ''}
                               onChange={(e) => updateTimecardEntry(date, 'timeOut', e.target.value)}
@@ -626,7 +626,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                         <div>
                           <label className="text-xs text-muted-foreground">Time In</label>
                           <Input
-                            type="text"
+                            type="time"
                             placeholder="8:00"
                               value={entry.timeIn || ''}
                             onChange={(e) => updateTimecardEntry(date, 'timeIn', e.target.value)}
@@ -636,7 +636,7 @@ export function BiweeklyTimecardForm({ employees, currentPayPeriod, preSelectedE
                         <div>
                           <label className="text-xs text-muted-foreground">Time Out</label>
                           <Input
-                            type="text"
+                            type="time"
                             placeholder="17:00"
                               value={entry.timeOut || ''}
                             onChange={(e) => updateTimecardEntry(date, 'timeOut', e.target.value)}

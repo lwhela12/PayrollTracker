@@ -253,7 +253,8 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod }: EmployeePayPeri
           <div className="flex justify-between"><span>Regular:</span><span>{totals.regular.toFixed(2)}h</span></div>
           <div className="flex justify-between"><span>Overtime:</span><span>{totals.overtime.toFixed(2)}h</span></div>
           <div className="flex justify-between"><span>PTO:</span><span>{ptoHours.toFixed(2)}h</span></div>
-          <div className="flex justify-between"><span>Holiday:</span><span>{(holidayNonWorked + holidayWorked).toFixed(2)}h</span></div>
+          <div className="flex justify-between"><span>Holiday:</span><span>{holidayNonWorked.toFixed(2)}h</span></div>
+          <div className="flex justify-between"><span>Holiday Worked:</span><span>{holidayWorked.toFixed(2)}h</span></div>
           <div className="flex justify-between"><span>Reimb:</span><span>${reimbAmt.toFixed(2)}</span></div>
           <div className="flex justify-between font-semibold"><span>Total:</span><span>{(totals.totalHours + ptoHours + holidayNonWorked + holidayWorked).toFixed(2)}h</span></div>
         </div>

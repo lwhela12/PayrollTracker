@@ -12,6 +12,8 @@ import Timecards from "@/pages/timecards";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 import CreateCompany from "@/pages/create-company";
+import SettingsCreateCompany from "@/pages/settings/CreateCompany";
+import CompanySettings from "@/pages/settings/CompanySettings";
 import TimecardEntry from "@/pages/timecard-entry";
 import TopSheetReport from "@/pages/reports/TopSheetReport";
 import CompaniesAdmin from "@/pages/admin/Companies";
@@ -36,6 +38,8 @@ function Router() {
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/create-company" component={CreateCompany} />
+          <Route path="/settings/create-company" component={SettingsCreateCompany} />
+          <Route path="/settings/company" component={CompanySettings} />
           <Route path="/employees" component={Employees} />
           <Route path="/timecards" component={Timecards} />
           <Route path="/timecard/employee/:employeeId/period/:start" component={TimecardEntry} />

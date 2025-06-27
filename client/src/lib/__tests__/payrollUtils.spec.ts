@@ -6,6 +6,7 @@ import {
   calculateGrossPay,
   formatCurrency,
 } from '../payrollUtils';
+import { calculateWeeklyOvertime, isHolidayEligible } from '../../../server/lib/payroll';
 
 describe('payrollUtils', () => {
   it('parseTime returns minutes since midnight or null for invalid', () => {
@@ -44,5 +45,48 @@ describe('payrollUtils', () => {
 
   it('formatCurrency formats USD amounts', () => {
     expect(formatCurrency(25)).toBe('$25.00');
+  });
+
+  it('weekly overtime respects weekStartsOn parameter', () => {
+    const makeEntry = (day: string) => ({
+      timeIn: `${day}T09:00:00Z`,
+      timeOut: `${day}T17:00:00Z`,
+      lunchMinutes: 0,
+      employeeId: 1,
+      id: 1,
+    });
+    const days = ['2025-06-07','2025-06-08','2025-06-09','2025-06-10','2025-06-11','2025-06-12','2025-06-13'];
+    const entries = days.map(makeEntry);
+
+    const satWeek = calculateWeeklyOvertime(entries as any, 6);
+    expect(satWeek.regularHours).toBe(40);
+    expect(satWeek.overtimeHours).toBe(16);
+
+    const wedWeek = calculateWeeklyOvertime(entries as any, 3);
+    expect(wedWeek.regularHours).toBe(56);
+    expect(wedWeek.overtimeHours).toBe(0);
+  });
+
+  it('minutes convert to decimal hours correctly', () => {
+    const result = calculateHoursFromTimecard('00:00', '00:45', 0);
+    expect(result.totalHours).toBeCloseTo(0.75);
+  });
+
+  it('isHolidayEligible only after 90 days', () => {
+    expect(isHolidayEligible('2025-01-01', '2025-04-05')).toBe(true);
+    expect(isHolidayEligible('2025-03-10', '2025-04-05')).toBe(false);
+  });
+
+  it('lunch not deducted for shifts under 8 hours', () => {
+    const entry = {
+      timeIn: '2025-06-25T09:00:00Z',
+      timeOut: '2025-06-25T15:00:00Z',
+      lunchMinutes: 30,
+      employeeId: 1,
+      id: 1,
+    } as any;
+    const { regularHours, overtimeHours } = calculateWeeklyOvertime([entry], 0);
+    expect(regularHours).toBeCloseTo(6);
+    expect(overtimeHours).toBe(0);
   });
 });

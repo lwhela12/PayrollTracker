@@ -10,6 +10,7 @@ import { EmployeeForm } from "@/components/employee-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -119,6 +120,7 @@ export default function Employees() {
   };
 
   if (!employers || employers.length === 0) {
+    const [, navigate] = useLocation();
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="payroll-card max-w-md mx-4">
@@ -129,7 +131,10 @@ export default function Employees() {
             <p className="text-muted-foreground mb-4">
               You need to set up your company profile first.
             </p>
-            <Button className="payroll-button-primary w-full">
+            <Button
+              className="payroll-button-primary w-full"
+              onClick={() => navigate("/settings/create-company")}
+            >
               Create Company Profile
             </Button>
           </CardContent>

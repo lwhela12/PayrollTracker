@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatDate } from "@/lib/dateUtils";
 import { useCompany } from "@/context/company";
+import { useLocation } from "wouter";
 
 export default function Reports() {
   const { user } = useAuth();
@@ -90,6 +91,7 @@ export default function Reports() {
   };
 
   if (!employers || employers.length === 0) {
+    const [, navigate] = useLocation();
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="payroll-card max-w-md mx-4">
@@ -100,7 +102,10 @@ export default function Reports() {
             <p className="text-muted-foreground mb-4">
               You need to set up your company profile first.
             </p>
-            <Button className="payroll-button-primary w-full">
+            <Button
+              className="payroll-button-primary w-full"
+              onClick={() => navigate("/settings/create-company")}
+            >
               Create Company Profile
             </Button>
           </CardContent>

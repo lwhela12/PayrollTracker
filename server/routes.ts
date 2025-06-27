@@ -1257,31 +1257,43 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
     doc.text('Date', 50, yPos);
     doc.text('Time In', 120, yPos);
     doc.text('Time Out', 170, yPos);
-    doc.text('Lunch', 220, yPos);
-    doc.text('Regular', 270, yPos);
-    doc.text('Overtime', 320, yPos);
-    doc.text('Misc', 370, yPos);
-    doc.text('PTO', 420, yPos);
-    doc.text('Holiday', 470, yPos);
+    doc.text('Lunch (min)', 220, yPos);
+    doc.text('Hours', 270, yPos);
+    doc.text('Notes', 320, yPos);
     yPos += 20;
     
     // Draw header line
     doc.moveTo(50, yPos - 5).lineTo(520, yPos - 5).stroke();
     
-    const empTimecard = timecardData.find(tc => tc.employeeId === emp.id);
-    const empTimeEntries = empTimecard?.timeEntries || [];
+    // Get time entries for this employee
+    const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
+    
+    // Calculate total hours for display
+    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, 3);
 
-    for (const tc of empTimeEntries) {
+    for (const entry of timeEntries) {
+      // Calculate hours for this entry
+      const timeIn = new Date(entry.timeIn);
+      const timeOut = entry.timeOut ? new Date(entry.timeOut) : null;
+      let entryHours = 0;
+      
+      if (timeOut) {
+        let minutes = (timeOut.getTime() - timeIn.getTime()) / 60000;
+        if (minutes < 0) minutes += 24 * 60; // Handle overnight shifts
+        if (entry.lunchMinutes && minutes / 60 >= 8) {
+          minutes -= entry.lunchMinutes;
+        }
+        if (minutes < 0) minutes = 0;
+        entryHours = Math.round((minutes / 60) * 100) / 100;
+      }
+      
       doc.fontSize(9);
-      doc.text(tc.workDate, 50, yPos);
-      doc.text(tc.timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 120, yPos);
-      doc.text(tc.timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 170, yPos);
-      doc.text(tc.lunchMinutes.toString(), 220, yPos);
-      doc.text(tc.regularHours.toFixed(2), 270, yPos);
-      doc.text(tc.overtimeHours.toFixed(2), 320, yPos);
-      doc.text(tc.miscHours.toFixed(2), 370, yPos);
-      doc.text(tc.ptoHours.toFixed(2), 420, yPos);
-      doc.text(tc.holidayHours.toFixed(2), 470, yPos);
+      doc.text(entry.timeIn.toString().split('T')[0], 50, yPos);
+      doc.text(timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 120, yPos);
+      doc.text(timeOut ? timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--', 170, yPos);
+      doc.text((entry.lunchMinutes || 0).toString(), 220, yPos);
+      doc.text(entryHours.toFixed(2), 270, yPos);
+      doc.text(entry.notes || '', 320, yPos);
       yPos += 15;
       
       if (yPos > 700) {
@@ -1289,6 +1301,14 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
         yPos = 50;
       }
     }
+    
+    // Add summary at the bottom
+    yPos += 20;
+    doc.moveTo(50, yPos - 5).lineTo(520, yPos - 5).stroke();
+    yPos += 10;
+    doc.fontSize(10).text(`Total Regular Hours: ${regularHours.toFixed(2)}`, 50, yPos);
+    yPos += 15;
+    doc.text(`Total Overtime Hours: ${overtimeHours.toFixed(2)}`, 50, yPos);
   }
   
   doc.end();

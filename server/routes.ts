@@ -907,8 +907,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const employees = await storage.getEmployeesByEmployer(employerId);
-      const timecards = await storage.getTimecardsByPayPeriod(payPeriodId);
       
+      let timecardData: any[] = [];
+
+      for (const emp of employees) {
+        const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
+        const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, employer.weekStartsOn || 0);
+        timecardData.push({
+          employeeId: emp.id,
+          regularHours,
+          overtimeHours,
+          timeEntries
+        });
+      }
+
       const fileExtension = format === 'excel' ? 'xlsx' : format;
       const fileName = `${reportType}_${payPeriod.startDate}_${payPeriod.endDate}.${fileExtension}`;
       const filePath = path.join(process.cwd(), 'reports', fileName);
@@ -921,12 +933,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (format === 'pdf') {
         if (reportType === 'individual-timecard') {
-          await generateIndividualTimecardPDFReport(employer, payPeriod, employees, timecards, filePath);
+          await generateIndividualTimecardPDFReport(employer, payPeriod, employees, timecardData, filePath);
         } else {
-          await generatePDFReport(employer, payPeriod, employees, timecards, filePath);
+          await generatePDFReport(employer, payPeriod, employees, timecardData, filePath);
         }
       } else if (format === 'excel') {
-        await generateExcelReport(employer, payPeriod, employees, timecards, filePath);
+        await generateExcelReport(employer, payPeriod, employees, timecardData, filePath);
       }
       
       // Save report record
@@ -1093,7 +1105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 }
 
 // Helper functions for report generation
-async function generatePDFReport(employer: any, payPeriod: any, employees: any[], timecards: any[], filePath: string) {
+async function generatePDFReport(employer: any, payPeriod: any, employees: any[], timecardData: any[], filePath: string) {
   const doc = new PDFDocument();
   doc.pipe(fs.createWriteStream(filePath));
   
@@ -1123,16 +1135,9 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
   doc.moveTo(50, yPos - 5).lineTo(500, yPos - 5).stroke();
   
   for (const emp of employees) {
-    // Calculate hours from timecards
-    const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
-    let regularHours = 0, overtimeHours = 0, ptoHours = 0, holidayHours = 0;
-    
-    empTimecards.forEach(tc => {
-      regularHours += parseFloat(tc.regularHours || '0');
-      overtimeHours += parseFloat(tc.overtimeHours || '0');
-      ptoHours += parseFloat(tc.ptoHours || '0');
-      holidayHours += parseFloat(tc.holidayHours || '0');
-    });
+    const empTimecard = timecardData.find(tc => tc.employeeId === emp.id);
+    let regularHours = empTimecard?.regularHours || 0;
+    let overtimeHours = empTimecard?.overtimeHours || 0;
     
     // Get PTO entries for pay period
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
@@ -1156,10 +1161,10 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
     doc.text(`${emp.firstName} ${emp.lastName}`, 50, yPos);
     doc.text(regularHours.toFixed(2), 150, yPos);
     doc.text(overtimeHours.toFixed(2), 210, yPos);
-    doc.text((ptoHours + periodPto).toFixed(2), 260, yPos);
-    doc.text((holidayHours + holidayNonWorked).toFixed(2), 310, yPos);
+    doc.text(periodPto.toFixed(2), 260, yPos);
+    doc.text(holidayNonWorked.toFixed(2), 310, yPos);
     doc.text(holidayWorked.toFixed(2), 370, yPos);
-    doc.text(`$${periodReimb.toFixed(2)}`, 440, yPos);
+    doc.text(`${periodReimb.toFixed(2)}`, 440, yPos);
     yPos += 15;
     
     if (yPos > 700) {
@@ -1171,7 +1176,7 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
   doc.end();
 }
 
-async function generateExcelReport(employer: any, payPeriod: any, employees: any[], timecards: any[], filePath: string) {
+async function generateExcelReport(employer: any, payPeriod: any, employees: any[], timecardData: any[], filePath: string) {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Payroll Report');
   
@@ -1187,16 +1192,9 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
   
   // Process each employee
   for (const emp of employees) {
-    // Calculate hours from timecards
-    const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
-    let regularHours = 0, overtimeHours = 0, ptoHours = 0, holidayHours = 0;
-    
-    empTimecards.forEach(tc => {
-      regularHours += parseFloat(tc.regularHours || '0');
-      overtimeHours += parseFloat(tc.overtimeHours || '0');
-      ptoHours += parseFloat(tc.ptoHours || '0');
-      holidayHours += parseFloat(tc.holidayHours || '0');
-    });
+    const empTimecard = timecardData.find(tc => tc.employeeId === emp.id);
+    let regularHours = empTimecard?.regularHours || 0;
+    let overtimeHours = empTimecard?.overtimeHours || 0;
     
     // Get PTO entries for pay period
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
@@ -1239,7 +1237,7 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
   await workbook.xlsx.writeFile(filePath);
 }
 
-async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any, employees: any[], timecards: any[], filePath: string) {
+async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any, employees: any[], timecardData: any[], filePath: string) {
   const doc = new PDFDocument();
   doc.pipe(fs.createWriteStream(filePath));
 
@@ -1273,9 +1271,10 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
     // Draw header line
     doc.moveTo(50, yPos - 5).lineTo(520, yPos - 5).stroke();
     
-    const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
+    const empTimecard = timecardData.find(tc => tc.employeeId === emp.id);
+    const empTimeEntries = empTimecard?.timeEntries || [];
 
-    for (const tc of empTimecards) {
+    for (const tc of empTimeEntries) {
       doc.fontSize(9);
       doc.text(tc.workDate, 50, yPos);
       doc.text(tc.timeIn, 120, yPos);

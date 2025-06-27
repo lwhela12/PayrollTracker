@@ -37,12 +37,12 @@ function Router() {
         <Route path="/" component={Landing} />
       ) : (
         <>
-          <Route path="/" component={Dashboard} />
+          <Route path="/" component={Timecards} />
           <Route path="/create-company" component={CreateCompany} />
           <Route path="/settings/create-company" component={SettingsCreateCompany} />
           <Route path="/settings/company" component={CompanySettings} />
           <Route path="/employees" component={Employees} />
-          <Route path="/timecards" component={Timecards} />
+
           <Route path="/timecard/employee/:employeeId/period/:start" component={TimecardEntry} />
           <Route path="/reports" component={Reports} />
           <Route path="/reports/top-sheet" component={TopSheetReport} />

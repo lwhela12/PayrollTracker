@@ -306,20 +306,27 @@ export class DatabaseStorage implements IStorage {
     const employer = await this.getEmployer(employerId);
     
     let startDate: Date;
+    let weekStartsOn = employer?.weekStartsOn ?? 3; // Default to Wednesday (3) if not set
     
     if (!employer?.payPeriodStartDate) {
       console.warn(
-        `Employer ${employerId} missing pay_period_start_date, defaulting to the most recent Wednesday.`
+        `Employer ${employerId} missing pay_period_start_date, defaulting to the most recent configured week start day.`
       );
-      // Find the most recent Wednesday (including today if it's Wednesday) using UTC
+      // Find the most recent configured week start day using UTC
       const today = new Date();
       const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
-      startDate = this.getMostRecentWednesday(todayUTC);
+      startDate = this.getMostRecentWeekStartDay(todayUTC, weekStartsOn);
     } else {
-      // Find the most recent Wednesday from the configured start date - parse as UTC
+      // Use the exact configured start date - parse as UTC
       const [year, month, day] = employer.payPeriodStartDate.split('-').map(Number);
-      const configuredDate = new Date(Date.UTC(year, month - 1, day));
-      startDate = this.getMostRecentWednesday(configuredDate);
+      startDate = new Date(Date.UTC(year, month - 1, day));
+      
+      // Update the weekStartsOn to match the day of week from the configured start date
+      const dayOfWeek = startDate.getUTCDay();
+      if (employer.weekStartsOn !== dayOfWeek) {
+        await this.updateEmployer(employerId, { weekStartsOn: dayOfWeek });
+        weekStartsOn = dayOfWeek;
+      }
     }
 
     // Use UTC for consistent date handling
@@ -374,26 +381,26 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  private getMostRecentWednesday(date: Date): Date {
+  private getMostRecentWeekStartDay(date: Date, weekStartsOn: number): Date {
     // Create UTC date to avoid timezone issues
     const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayOfWeek = utcDate.getUTCDay(); // Sunday = 0, Wednesday = 3
+    const dayOfWeek = utcDate.getUTCDay(); // Sunday = 0, Monday = 1, etc.
     
     let daysToSubtract: number;
-    if (dayOfWeek === 3) {
-      // It's Wednesday, use this date
+    if (dayOfWeek === weekStartsOn) {
+      // It's the configured start day, use this date
       daysToSubtract = 0;
-    } else if (dayOfWeek > 3) {
-      // It's after Wednesday (Thu, Fri, Sat), go back to this week's Wednesday
-      daysToSubtract = dayOfWeek - 3;
+    } else if (dayOfWeek > weekStartsOn) {
+      // It's after the start day, go back to this week's start day
+      daysToSubtract = dayOfWeek - weekStartsOn;
     } else {
-      // It's before Wednesday (Sun, Mon, Tue), go back to last week's Wednesday
-      daysToSubtract = dayOfWeek + 4; // (7 - 3) + dayOfWeek
+      // It's before the start day, go back to last week's start day
+      daysToSubtract = dayOfWeek + (7 - weekStartsOn);
     }
     
-    const wednesdayDate = new Date(utcDate);
-    wednesdayDate.setUTCDate(utcDate.getUTCDate() - daysToSubtract);
-    return wednesdayDate;
+    const startDate = new Date(utcDate);
+    startDate.setUTCDate(utcDate.getUTCDate() - daysToSubtract);
+    return startDate;
   }
 
   async getPayPeriod(id: number): Promise<PayPeriod | undefined> {

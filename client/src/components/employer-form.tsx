@@ -1,3 +1,4 @@
+import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { insertEmployerSchema } from "@shared/schema";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +48,23 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
       weekStartsOn: employer?.weekStartsOn?.toString() || "0",
     },
   });
+
+  // Watch for payroll start date changes to automatically update week start day
+  const payPeriodStartDate = form.watch("payPeriodStartDate");
+  
+  const getDayOfWeekName = (dayNum: number): string => {
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return days[dayNum] || "Unknown";
+  };
+
+  // Update week start day when payroll start date changes
+  React.useEffect(() => {
+    if (payPeriodStartDate) {
+      const date = new Date(payPeriodStartDate + 'T00:00:00');
+      const dayOfWeek = date.getDay();
+      form.setValue("weekStartsOn", dayOfWeek.toString());
+    }
+  }, [payPeriodStartDate, form]);
 
   const createEmployerMutation = useMutation({
     mutationFn: async (data: EmployerFormData) => {

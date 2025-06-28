@@ -1256,7 +1256,8 @@ async function generatePDFReport(
     doc.text(`$${periodReimb.toFixed(2)}`, 620, yPos);
     yPos += 15;
     
-    if (yPos > 700) {
+    // Start a new page before hitting the bottom of the page
+    if (yPos > doc.page.height - 50) {
       doc.addPage();
       yPos = addHeader();
     }

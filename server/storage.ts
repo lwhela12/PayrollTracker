@@ -577,7 +577,7 @@ export class DatabaseStorage implements IStorage {
       WITH time_entries_with_hours AS (
         SELECT
           employee_id,
-          FLOOR(EXTRACT(EPOCH FROM (time_in::date - $2::date)) / (7*24*60*60)) AS week,
+          FLOOR(EXTRACT(EPOCH FROM (time_in - $2::date)) / (7*24*60*60)) AS week,
           SUM(EXTRACT(EPOCH FROM (
             CASE WHEN time_out >= time_in
                  THEN time_out - time_in

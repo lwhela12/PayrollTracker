@@ -339,8 +339,17 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
 
   const saveTimeEntries = useMutation({
     mutationFn: async (payload: any) => {
-      const res = await apiRequest("POST", "/api/timecards/bulk-update", payload);
-      return res.json();
+      try {
+        const res = await apiRequest("POST", "/api/timecards/bulk-update", payload);
+        if (!res.ok) {
+          const errorData = await res.text();
+          throw new Error(`Server error: ${errorData}`);
+        }
+        return res.json();
+      } catch (error) {
+        console.error("Mutation error:", error);
+        throw error;
+      }
     },
     onMutate: async (newData: any) => {
       if (!employee?.employerId) return { previousStats: undefined };
@@ -390,11 +399,18 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
 
       return { previousStats };
     },
-    onError: (err, _newData, context) => {
+    onError: (err: any, _newData, context) => {
+      console.error("Save timecard error:", err);
       if (context?.previousStats && employee?.employerId) {
         queryClient.setQueryData(["/api/dashboard/stats", employee.employerId], context.previousStats);
       }
-      toast({ title: "Error", description: "Failed to save. Your changes have been reverted.", variant: "destructive" });
+      
+      const errorMessage = err?.message || "Failed to save timecard data";
+      toast({ 
+        title: "Error", 
+        description: `Failed to save. ${errorMessage}. Your changes have been reverted.`, 
+        variant: "destructive" 
+      });
     },
     onSuccess: async () => {
       toast({
@@ -448,20 +464,63 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   });
 
   const handleSubmit = async () => {
-    const payload = {
-      employeeId,
-      payPeriod,
-      days,
-      ptoHours,
-      holidayNonWorked,
-      holidayWorked,
-      milesDriven,
-      miscHours,
-      reimbursement: { amount: reimbAmt, description: reimbDesc },
-      notes,
-    };
-    
-    saveTimeEntries.mutate(payload);
+    try {
+      // Validate required fields
+      if (!employeeId) {
+        toast({ title: "Error", description: "Employee ID is required", variant: "destructive" });
+        return;
+      }
+      
+      if (!payPeriod || !payPeriod.start || !payPeriod.end) {
+        toast({ title: "Error", description: "Pay period is required", variant: "destructive" });
+        return;
+      }
+
+      // Validate time entries
+      let hasValidTimeEntries = false;
+      for (const day of days) {
+        for (const shift of day.shifts) {
+          if (shift.timeIn && shift.timeOut) {
+            hasValidTimeEntries = true;
+            // Validate time format
+            if (!/^\d{2}:\d{2}$/.test(shift.timeIn) || !/^\d{2}:\d{2}$/.test(shift.timeOut)) {
+              toast({ 
+                title: "Error", 
+                description: `Invalid time format for ${day.date}. Please use HH:MM format.`, 
+                variant: "destructive" 
+              });
+              return;
+            }
+          }
+        }
+      }
+
+      const payload = {
+        employeeId,
+        payPeriod,
+        days,
+        ptoHours: Number(ptoHours) || 0,
+        holidayNonWorked: Number(holidayNonWorked) || 0,
+        holidayWorked: Number(holidayWorked) || 0,
+        milesDriven: Number(milesDriven) || 0,
+        miscHours: Number(miscHours) || 0,
+        reimbursement: { 
+          amount: Number(reimbAmt) || 0, 
+          description: reimbDesc || "" 
+        },
+        notes: notes || "",
+      };
+      
+      console.log("Submitting payload:", payload);
+      saveTimeEntries.mutate(payload);
+    } catch (error) {
+      console.error("Submit validation error:", error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to validate timecard data. Please check your entries.", 
+        variant: "destructive" 
+      });
+    }
   };
 
   return (

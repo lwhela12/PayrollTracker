@@ -52,11 +52,11 @@ export default function Timecards() {
     enabled: !!selectedEmployerId,
   });
 
-  // Fetch dashboard stats for the selected employer
+  // Fetch dashboard stats for the selected employer and pay period
   const { data: dashboardStats = {} } = useQuery<any>({
-    queryKey: ["/api/dashboard/stats", selectedEmployerId],
-    queryFn: () => selectedEmployerId ? fetch(`/api/dashboard/stats/${selectedEmployerId}`, { credentials: 'include' }).then(res => res.json()) : Promise.resolve({}),
-    enabled: !!selectedEmployerId,
+    queryKey: ["/api/dashboard/stats", selectedEmployerId, selectedPayPeriodId],
+    queryFn: () => selectedEmployerId && selectedPayPeriodId ? fetch(`/api/dashboard/stats/${selectedEmployerId}?payPeriodId=${selectedPayPeriodId}`, { credentials: 'include' }).then(res => res.json()) : Promise.resolve({}),
+    enabled: !!selectedEmployerId && !!selectedPayPeriodId,
   });
 
   const selectedEmployer = employers.find((e: any) => e.id === selectedEmployerId);

@@ -883,6 +883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/dashboard/stats/:employerId', isAuthenticated, async (req: any, res) => {
     try {
       const employerId = parseInt(req.params.employerId);
+      const payPeriodId = req.query.payPeriodId ? parseInt(req.query.payPeriodId as string) : null;
 
       const employer = await storage.getEmployer(employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
@@ -890,20 +891,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const employees = await storage.getEmployeesByEmployer(employerId);
-      const currentPayPeriod = await storage.getCurrentPayPeriod(employerId);
+      let targetPayPeriod;
+      
+      if (payPeriodId) {
+        targetPayPeriod = await storage.getPayPeriod(payPeriodId);
+      } else {
+        targetPayPeriod = await storage.getCurrentPayPeriod(employerId);
+      }
 
-      if (!currentPayPeriod) {
+      if (!targetPayPeriod) {
         return res.json({
           totalEmployees: employees.length,
           pendingTimecards: 0,
           totalHours: 0,
           payrollReady: 0,
-          currentPayPeriod: null,
+          currentPayPeriod: await storage.getCurrentPayPeriod(employerId),
           employeeStats: []
         });
       }
 
-      const rows = await getDashboardStatsCached(employerId, currentPayPeriod.id);
+      const rows = await getDashboardStatsCached(employerId, targetPayPeriod.id);
 
       let totalHours = 0;
       let pendingTimecards = 0;
@@ -937,7 +944,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pendingTimecards,
         totalHours: Number(totalHours.toFixed(1)),
         payrollReady,
-        currentPayPeriod,
+        currentPayPeriod: await storage.getCurrentPayPeriod(employerId),
         employeeStats
       });
     } catch (error) {

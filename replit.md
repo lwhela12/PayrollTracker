@@ -11,6 +11,13 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
+- **2025-06-28**: Fixed app startup crash and pay period duplication issue
+  - Removed undefined cleanupDuplicatePayPeriods method call that was causing startup failure
+  - Fixed Drizzle schema syntax error with uniqueIndex definition
+  - Cleaned up 49 duplicate pay period records from database
+  - Created unique constraint on pay_periods table to prevent future duplicates
+  - Pay period dropdowns now display correctly without duplicate entries
+
 - **2025-06-27**: Complete UI cleanup, header scrolling, report generation, timezone fixes, and navigation consolidation
   - Fixed React hooks error in Employees component by moving useLocation outside conditional
   - Reduced sidebar width from 256px to 192px for cleaner desktop layout

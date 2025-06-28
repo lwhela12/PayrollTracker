@@ -28,6 +28,7 @@ export default function CompaniesAdmin() {
   const deleteCompanyMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/employers/${id}`);
+
       return id;
     },
     onSuccess: (_, id) => {
@@ -39,6 +40,7 @@ export default function CompaniesAdmin() {
         const nextId = remaining[0]?.id ?? null;
         setEmployerId(nextId);
       }
+
       queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
       toast({ title: "Success", description: "Company deleted successfully" });
     },

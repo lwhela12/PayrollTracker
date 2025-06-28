@@ -451,7 +451,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         });
       }
 
-      navigate("/dashboard");
+      navigate("/timecards");
 
       // Clear real-time updates
       setTimeout(() => {

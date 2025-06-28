@@ -627,22 +627,35 @@ export class DatabaseStorage implements IStorage {
         WHERE entry_date >= $2::date AND entry_date <= $3::date
           AND employee_id IN (SELECT id FROM employees WHERE employer_id=$1 AND is_active=true)
         GROUP BY employee_id
+      ),
+      timecard_totals AS (
+        SELECT employee_id,
+               SUM(regular_hours::numeric) AS regular_hours,
+               SUM(overtime_hours::numeric) AS overtime_hours,
+               SUM(pto_hours::numeric) AS pto_hours,
+               SUM(holiday_hours::numeric) AS holiday_hours,
+               SUM(total_miles::numeric) AS mileage
+        FROM timecards
+        WHERE work_date >= $2::date AND work_date <= $3::date
+          AND employee_id IN (SELECT id FROM employees WHERE employer_id=$1 AND is_active=true)
+        GROUP BY employee_id
       )
       SELECT
         e.id as "employeeId",
-        COALESCE(tt.regular_hours,0) as "regularHours",
-        COALESCE(tt.overtime_hours,0) as "overtimeHours",
-        COALESCE(pt.pto_hours,0) as "ptoHours",
-        COALESCE(mt.holiday_hours,0) as "holidayHours",
+        COALESCE(tt.regular_hours,0) + COALESCE(tc.regular_hours,0) as "regularHours",
+        COALESCE(tt.overtime_hours,0) + COALESCE(tc.overtime_hours,0) as "overtimeHours",
+        COALESCE(pt.pto_hours,0) + COALESCE(tc.pto_hours,0) as "ptoHours",
+        COALESCE(mt.holiday_hours,0) + COALESCE(tc.holiday_hours,0) as "holidayHours",
         COALESCE(mt.holiday_worked_hours,0) as "holidayWorkedHours",
         COALESCE(mt.misc_hours,0) as "miscHours",
-        COALESCE(rt.mileage,0) as "mileage",
+        COALESCE(rt.mileage,0) + COALESCE(tc.mileage,0) as "mileage",
         COALESCE(rt.reimbursements,0) as "reimbursements"
       FROM employees e
       LEFT JOIN time_totals tt ON e.id=tt.employee_id
       LEFT JOIN pto_totals pt ON e.id=pt.employee_id
       LEFT JOIN misc_totals mt ON e.id=mt.employee_id
       LEFT JOIN reimb_totals rt ON e.id=rt.employee_id
+      LEFT JOIN timecard_totals tc ON e.id=tc.employee_id
       WHERE e.employer_id = $1 AND e.is_active = true
       ORDER BY e.id;
     `;

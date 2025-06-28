@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
@@ -100,6 +101,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   const [notes, setNotes] = useState("");
 
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const { updateEmployee, clearEmployee } = useTimecardUpdates();
 
@@ -299,97 +301,120 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         const entryDate = e.timeIn.split("T")[0];
         return entryDate >= payload.payPeriod.start && entryDate <= payload.payPeriod.end;
       });
-      for (const timeEntry of existingTimeForPeriod) {
-        await apiRequest("DELETE", `/api/time-entries/${timeEntry.id}`);
-      }
+      await Promise.all(
+        existingTimeForPeriod.map(timeEntry =>
+          apiRequest("DELETE", `/api/time-entries/${timeEntry.id}`)
+        )
+      );
 
       // Save time entries for each day with shifts
+      const timeEntryPromises: Promise<any>[] = [];
       for (const day of payload.days) {
         for (const shift of day.shifts) {
           if (shift.timeIn && shift.timeOut) {
             // Create timestamps that preserve local time without timezone conversion
             const timeInLocal = `${day.date}T${shift.timeIn}:00`;
             const timeOutLocal = `${day.date}T${shift.timeOut}:00`;
-            
-            await apiRequest("POST", "/api/time-entries", {
-              employeeId: payload.employeeId,
-              timeIn: timeInLocal,
-              timeOut: timeOutLocal,
-              lunchMinutes: shift.lunch,
-              notes: payload.notes || ""
-            });
+
+            timeEntryPromises.push(
+              apiRequest("POST", "/api/time-entries", {
+                employeeId: payload.employeeId,
+                timeIn: timeInLocal,
+                timeOut: timeOutLocal,
+                lunchMinutes: shift.lunch,
+                notes: payload.notes || ""
+              })
+            );
           }
         }
       }
+      await Promise.all(timeEntryPromises);
 
       // Delete existing entries in this pay period first to avoid duplicates
       const existingPtoForPeriod = existingPtoEntries.filter(p => 
         p.entryDate >= payload.payPeriod.start && p.entryDate <= payload.payPeriod.end
       );
-      for (const pto of existingPtoForPeriod) {
-        await apiRequest("DELETE", `/api/pto-entries/${pto.id}`);
-      }
+      await Promise.all(
+        existingPtoForPeriod.map(pto =>
+          apiRequest("DELETE", `/api/pto-entries/${pto.id}`)
+        )
+      );
 
-      const existingMiscForPeriod = existingMiscEntries.filter(m => 
+      const existingMiscForPeriod = existingMiscEntries.filter(m =>
         m.entryDate >= payload.payPeriod.start && m.entryDate <= payload.payPeriod.end
       );
-      for (const misc of existingMiscForPeriod) {
-        await apiRequest("DELETE", `/api/misc-hours-entries/${misc.id}`);
-      }
+      await Promise.all(
+        existingMiscForPeriod.map(misc =>
+          apiRequest("DELETE", `/api/misc-hours-entries/${misc.id}`)
+        )
+      );
 
-      const existingReimbForPeriod = existingReimbEntries.filter(r => 
+      const existingReimbForPeriod = existingReimbEntries.filter(r =>
         r.entryDate >= payload.payPeriod.start && r.entryDate <= payload.payPeriod.end
       );
-      for (const reimb of existingReimbForPeriod) {
-        await apiRequest("DELETE", `/api/reimbursement-entries/${reimb.id}`);
-      }
+      await Promise.all(
+        existingReimbForPeriod.map(reimb =>
+          apiRequest("DELETE", `/api/reimbursement-entries/${reimb.id}`)
+        )
+      );
 
       // Save PTO entry if any
+      const entryPromises: Promise<any>[] = [];
       if (payload.ptoHours > 0) {
-        await apiRequest("POST", "/api/pto-entries", {
-          employeeId: payload.employeeId,
-          entryDate: payload.payPeriod.start,
-          hours: payload.ptoHours.toString(),
-          description: "PTO hours"
-        });
+        entryPromises.push(
+          apiRequest("POST", "/api/pto-entries", {
+            employeeId: payload.employeeId,
+            entryDate: payload.payPeriod.start,
+            hours: payload.ptoHours.toString(),
+            description: "PTO hours"
+          })
+        );
       }
 
       // Save holiday non-worked entry if any
       if (payload.holidayNonWorked > 0) {
-        await apiRequest("POST", "/api/misc-hours-entries", {
-          employeeId: payload.employeeId,
-          entryDate: payload.payPeriod.start,
-          hours: payload.holidayNonWorked.toString(),
-          entryType: "holiday",
-          description: "Holiday (non-worked)"
-        });
+        entryPromises.push(
+          apiRequest("POST", "/api/misc-hours-entries", {
+            employeeId: payload.employeeId,
+            entryDate: payload.payPeriod.start,
+            hours: payload.holidayNonWorked.toString(),
+            entryType: "holiday",
+            description: "Holiday (non-worked)"
+          })
+        );
       }
 
       // Save holiday worked entry if any
       if (payload.holidayWorked > 0) {
-        await apiRequest("POST", "/api/misc-hours-entries", {
-          employeeId: payload.employeeId,
-          entryDate: payload.payPeriod.start,
-          hours: payload.holidayWorked.toString(),
-          entryType: "holiday-worked",
-          description: "Holiday worked"
-        });
+        entryPromises.push(
+          apiRequest("POST", "/api/misc-hours-entries", {
+            employeeId: payload.employeeId,
+            entryDate: payload.payPeriod.start,
+            hours: payload.holidayWorked.toString(),
+            entryType: "holiday-worked",
+            description: "Holiday worked"
+          })
+        );
       }
 
       // Save misc hours entry if any
       if (payload.miscHours > 0) {
-        await apiRequest("POST", "/api/misc-hours-entries", {
-          employeeId: payload.employeeId,
-          entryDate: payload.payPeriod.start,
-          hours: payload.miscHours.toString(),
-          entryType: "misc",
-          description: "Misc hours"
-        });
+        entryPromises.push(
+          apiRequest("POST", "/api/misc-hours-entries", {
+            employeeId: payload.employeeId,
+            entryDate: payload.payPeriod.start,
+            hours: payload.miscHours.toString(),
+            entryType: "misc",
+            description: "Misc hours"
+          })
+        );
       }
 
       // Save combined reimbursement entry (includes mileage + other reimbursements)
+      await Promise.all(entryPromises);
+
       const mileageRate = employer ? parseFloat(employer.mileageRate || '0.655') : 0.655;
-      const mileageAmount = payload.milesDriven > 0 ? 
+      const mileageAmount = payload.milesDriven > 0 ?
         payload.milesDriven * mileageRate : 0;
       const totalReimbursement = payload.reimbursement.amount + mileageAmount;
       
@@ -411,26 +436,24 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: "Success",
         description: "Timecard data saved successfully",
       });
-      
-      // Invalidate relevant queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["/api/time-entries/employee", employeeId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pto-entries/employee", employeeId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/misc-hours-entries/employee", employeeId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/reimbursement-entries/employee", employeeId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/timecards/pay-period"] });
-      
-      // Invalidate dashboard stats to refresh pay period summary
+
+      // Prefetch updated dashboard stats for a snappier transition
       if (employee?.employerId) {
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
+        await queryClient.prefetchQuery({
+          queryKey: ["/api/dashboard/stats", employee.employerId],
+          queryFn: () =>
+            apiRequest("GET", `/api/dashboard/stats/${employee.employerId}`).then(res => res.json()),
+        });
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      
-      // Clear real-time updates after queries refresh to prevent form reset
+
+      navigate("/dashboard");
+
+      // Clear real-time updates
       setTimeout(() => {
         clearEmployee(employeeId);
       }, 100);

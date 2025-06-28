@@ -1318,41 +1318,68 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
 }
 
 async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any, employees: any[], timecardData: any[], filePath: string) {
-  const doc = new PDFDocument();
+  const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
   doc.pipe(fs.createWriteStream(filePath));
 
   for (const emp of employees) {
-    doc.addPage();
+    if (employees.indexOf(emp) > 0) doc.addPage();
+    
     // Header
-    doc.fontSize(20).text('Timecard Report', 50, 50);
+    doc.fontSize(20).text('Individual Timecard Report', 50, 50);
     doc.fontSize(14).text(`Company: ${employer.name}`, 50, 80);
-    doc.fontSize(14).text(`Employee: ${emp.firstName} ${emp.lastName}`, 50, 100);
+    doc.fontSize(14).text(`Employee: ${emp.firstName} ${emp.lastName} (ID: ${emp.employeeId || emp.id})`, 50, 100);
     doc.text(`Pay Period: ${payPeriod.startDate} to ${payPeriod.endDate}`, 50, 120);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 50, 140);
     
     // Column headers
     let yPos = 180;
-    doc.fontSize(16).text('Timecard Details', 50, yPos);
+    doc.fontSize(16).text('Daily Time Entries', 50, yPos);
     yPos += 30;
     
-    // Table headers
-    doc.fontSize(10);
+    // Table headers with landscape spacing
+    doc.fontSize(9);
     doc.text('Date', 50, yPos);
     doc.text('Time In', 120, yPos);
     doc.text('Time Out', 180, yPos);
-    doc.text('Lunch', 240, yPos);
-    doc.text('Hours', 290, yPos);
-    doc.text('Notes', 340, yPos);
+    doc.text('Lunch (min)', 240, yPos);
+    doc.text('Hours', 310, yPos);
+    doc.text('Notes', 360, yPos);
     yPos += 20;
     
     // Draw header line
-    doc.moveTo(50, yPos - 5).lineTo(520, yPos - 5).stroke();
+    doc.moveTo(50, yPos - 5).lineTo(720, yPos - 5).stroke();
     
     // Get time entries for this employee
     const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
     
     // Calculate total hours for display
-    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, 3);
+    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, payPeriod.startDate);
+    
+    // Get additional entries
+    const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
+    const periodPto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
+      .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
+    
+    const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
+    const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+      .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+    const holidayNonWorked = miscEntries.filter(m => m.entryType === 'holiday' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+      .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+    const miscHours = miscEntries.filter(m => m.entryType === 'misc' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+      .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+    
+    const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
+    const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate);
+    const totalReimbursement = periodReimb.reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
+    
+    // Extract mileage from reimbursement descriptions
+    let totalMiles = 0;
+    periodReimb.forEach(r => {
+      const mileageMatch = r.description?.match(/Mileage: (\d+(?:\.\d+)?) miles/);
+      if (mileageMatch) {
+        totalMiles += parseFloat(mileageMatch[1]) || 0;
+      }
+    });
 
     for (const entry of timeEntries) {
       // Calculate hours for this entry
@@ -1374,28 +1401,68 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
       const entryDate = new Date(entry.timeIn);
       const formattedDate = `${(entryDate.getMonth() + 1).toString().padStart(2, '0')}/${entryDate.getDate().toString().padStart(2, '0')}/${entryDate.getFullYear()}`;
       
-      doc.fontSize(9);
+      doc.fontSize(8);
       doc.text(formattedDate, 50, yPos);
       doc.text(timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 120, yPos);
       doc.text(timeOut ? timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--', 180, yPos);
       doc.text((entry.lunchMinutes || 0).toString(), 240, yPos);
-      doc.text(entryHours.toFixed(2), 290, yPos);
-      doc.text(entry.notes || '', 340, yPos);
+      doc.text(entryHours.toFixed(2), 310, yPos);
+      doc.text(entry.notes || '', 360, yPos, { width: 300, ellipsis: true });
       yPos += 15;
       
-      if (yPos > 700) {
+      if (yPos > 480) {
         doc.addPage();
         yPos = 50;
       }
     }
     
-    // Add summary at the bottom
-    yPos += 20;
-    doc.moveTo(50, yPos - 5).lineTo(520, yPos - 5).stroke();
-    yPos += 10;
-    doc.fontSize(10).text(`Total Regular Hours: ${regularHours.toFixed(2)}`, 50, yPos);
+    // Add comprehensive summary section
+    yPos += 30;
+    doc.moveTo(50, yPos - 10).lineTo(720, yPos - 10).stroke();
+    
+    doc.fontSize(14).text('Pay Period Summary', 50, yPos);
+    yPos += 25;
+    
+    // Summary in two columns
+    doc.fontSize(10);
+    
+    // Left column
+    doc.text(`Regular Hours: ${(regularHours + miscHours).toFixed(2)}`, 50, yPos);
     yPos += 15;
-    doc.text(`Total Overtime Hours: ${overtimeHours.toFixed(2)}`, 50, yPos);
+    doc.text(`Overtime Hours: ${overtimeHours.toFixed(2)}`, 50, yPos);
+    yPos += 15;
+    doc.text(`PTO Hours: ${periodPto.toFixed(2)}`, 50, yPos);
+    yPos += 15;
+    doc.text(`Holiday Hours: ${holidayNonWorked.toFixed(2)}`, 50, yPos);
+    
+    // Right column
+    yPos -= 45; // Reset to top of summary
+    doc.text(`Holiday Hours Worked: ${holidayWorked.toFixed(2)}`, 300, yPos);
+    yPos += 15;
+    doc.text(`Misc Hours: ${miscHours.toFixed(2)}`, 300, yPos);
+    yPos += 15;
+    doc.text(`Miles Driven: ${totalMiles.toFixed(1)}`, 300, yPos);
+    yPos += 15;
+    doc.text(`Total Reimbursement: $${totalReimbursement.toFixed(2)}`, 300, yPos);
+    
+    // Total hours calculation
+    yPos += 30;
+    const totalHours = regularHours + overtimeHours + miscHours + periodPto + holidayNonWorked + holidayWorked;
+    doc.fontSize(12);
+    doc.text(`Total Pay Period Hours: ${totalHours.toFixed(2)}`, 50, yPos);
+    
+    // Add reimbursement details if any
+    if (periodReimb.length > 0) {
+      yPos += 25;
+      doc.fontSize(11).text('Reimbursement Details:', 50, yPos);
+      yPos += 15;
+      doc.fontSize(9);
+      
+      periodReimb.forEach(r => {
+        doc.text(`• ${r.description}: $${parseFloat(r.amount as any).toFixed(2)}`, 60, yPos);
+        yPos += 12;
+      });
+    }
   }
   
   doc.end();

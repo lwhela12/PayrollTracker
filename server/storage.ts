@@ -34,10 +34,10 @@ import {
   type InsertReport,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, gte, lte, gt, lt, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, inArray } from "drizzle-orm";
 
 export interface IStorage {
-  // User operations (mandatory for Replit Auth)
+  // User operations
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   
@@ -49,19 +49,15 @@ export interface IStorage {
   
   // Employee operations
   createEmployee(employee: InsertEmployee): Promise<Employee>;
-  createMultipleEmployees(employees: InsertEmployee[]): Promise<{ success: number; failed: number }>;
   getEmployeesByEmployer(employerId: number): Promise<Employee[]>;
   getEmployee(id: number): Promise<Employee | undefined>;
   updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee>;
   deleteEmployee(id: number): Promise<void>;
   
   // Pay period operations
-  createPayPeriod(payPeriod: InsertPayPeriod): Promise<PayPeriod>;
   getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]>;
   getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined>;
   getPayPeriod(id: number): Promise<PayPeriod | undefined>;
-  getRelevantPayPeriods(employerId: number, date: Date): Promise<PayPeriod[]>;
-  updatePayPeriod(id: number, payPeriod: Partial<InsertPayPeriod>): Promise<PayPeriod>;
   clearAndRegeneratePayPeriods(employerId: number): Promise<void>;
   
   // Timecard operations
@@ -106,7 +102,6 @@ export interface IStorage {
   // Report operations
   createReport(report: InsertReport): Promise<Report>;
   getReportsByEmployer(employerId: number): Promise<Report[]>;
-  cleanupDuplicatePayPeriods(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -133,11 +128,7 @@ export class DatabaseStorage implements IStorage {
 
   // Employer operations
   async createEmployer(employer: InsertEmployer): Promise<Employer> {
-    const employerData = {
-      ...employer,
-      mileageRate: employer.mileageRate?.toString() || "0.655",
-    };
-    const [newEmployer] = await db.insert(employers).values(employerData).returning();
+    const [newEmployer] = await db.insert(employers).values(employer).returning();
     return newEmployer;
   }
 
@@ -151,48 +142,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEmployer(id: number, employer: Partial<InsertEmployer>): Promise<Employer> {
-    const employerData: any = { ...employer };
-    if (employer.mileageRate !== undefined && employer.mileageRate !== null) {
-      employerData.mileageRate = employer.mileageRate.toString();
-    }
+    const needsPayPeriodReset = employer.payPeriodStartDate && employer.payPeriodStartDate !== (await this.getEmployer(id))?.payPeriodStartDate;
+
     const [updated] = await db
       .update(employers)
-      .set(employerData)
+      .set(employer)
       .where(eq(employers.id, id))
       .returning();
+
+    if (needsPayPeriodReset) {
+      await this.clearAndRegeneratePayPeriods(id);
+    }
+
     return updated;
   }
 
   // Employee operations
   async createEmployee(employee: InsertEmployee): Promise<Employee> {
-    // Convert Date objects to strings if present and remove obsolete fields
-    const employeeData: any = { ...employee };
-    if (employeeData.hireDate && employeeData.hireDate instanceof Date) {
-      employeeData.hireDate = employeeData.hireDate.toISOString().split('T')[0];
-    }
-    // Remove any obsolete mileageRate field
-    delete employeeData.mileageRate;
-    
-    const [newEmployee] = await db.insert(employees).values(employeeData).returning();
+    const [newEmployee] = await db.insert(employees).values(employee).returning();
     return newEmployee;
-  }
-
-  async createMultipleEmployees(employeeList: InsertEmployee[]): Promise<{ success: number; failed: number }> {
-    if (employeeList.length === 0) return { success: 0, failed: 0 };
-    
-    // Clean up each employee data object
-    const cleanedEmployees = employeeList.map(emp => {
-      const employeeData: any = { ...emp };
-      if (employeeData.hireDate && employeeData.hireDate instanceof Date) {
-        employeeData.hireDate = employeeData.hireDate.toISOString().split('T')[0];
-      }
-      // Remove any obsolete mileageRate field
-      delete employeeData.mileageRate;
-      return employeeData;
-    });
-    
-    const inserted = await db.insert(employees).values(cleanedEmployees).returning();
-    return { success: inserted.length, failed: employeeList.length - inserted.length };
   }
 
   async getEmployeesByEmployer(employerId: number): Promise<Employee[]> {
@@ -209,17 +177,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee> {
-    // Convert Date objects to strings if present
-    const updateData: any = { ...employee };
-    if (updateData.hireDate && updateData.hireDate instanceof Date) {
-      updateData.hireDate = updateData.hireDate.toISOString().split('T')[0];
-    }
-    // Remove any obsolete mileageRate field
-    delete updateData.mileageRate;
-    
     const [updated] = await db
       .update(employees)
-      .set(updateData)
+      .set(employee)
       .where(eq(employees.id, id))
       .returning();
     return updated;
@@ -229,33 +189,8 @@ export class DatabaseStorage implements IStorage {
     await db.update(employees).set({ isActive: false }).where(eq(employees.id, id));
   }
 
-  // Pay period operations
-  async createPayPeriod(payPeriod: InsertPayPeriod): Promise<PayPeriod> {
-    // If creating an active pay period, deactivate all existing ones for this employer
-    if (payPeriod.isActive) {
-      await db
-        .update(payPeriods)
-        .set({ isActive: false })
-        .where(eq(payPeriods.employerId, payPeriod.employerId));
-    }
-    
-    const [newPayPeriod] = await db.insert(payPeriods).values(payPeriod).returning();
-    return newPayPeriod;
-  }
-
-  async getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]> {
-    return await db
-      .select()
-      .from(payPeriods)
-      .where(eq(payPeriods.employerId, employerId))
-      .orderBy(desc(payPeriods.startDate));
-  }
-
-  async getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined> {
-    const relevant = await this.getRelevantPayPeriods(employerId, new Date());
-    return relevant[0];
-  }
-
+  // Pay Period Operations
+  
   private getMostRecentWednesday(date: Date): Date {
     const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
     const dayOfWeek = utcDate.getUTCDay(); // Sunday = 0, Wednesday = 3
@@ -264,19 +199,12 @@ export class DatabaseStorage implements IStorage {
     return utcDate;
   }
 
-  async getPayPeriod(id: number): Promise<PayPeriod | undefined> {
-    const [payPeriod] = await db.select().from(payPeriods).where(eq(payPeriods.id, id));
-    return payPeriod;
-  }
-
   async getRelevantPayPeriods(employerId: number, referenceDate: Date): Promise<PayPeriod[]> {
     const employer = await this.getEmployer(employerId);
     if (!employer || !employer.payPeriodStartDate) {
-      // Cannot generate periods without a start date
       return [];
     }
 
-    // 1. Determine the correct current pay period start date
     let currentStartDate = this.getMostRecentWednesday(new Date(employer.payPeriodStartDate));
     const refDateUTC = new Date(Date.UTC(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()));
 
@@ -284,17 +212,15 @@ export class DatabaseStorage implements IStorage {
       const endDate = new Date(currentStartDate);
       endDate.setUTCDate(endDate.getUTCDate() + 13);
       if (currentStartDate <= refDateUTC && refDateUTC <= endDate) {
-        break; // Found the current period
+        break;
       }
       if (currentStartDate > refDateUTC) {
-        // This can happen if the start date was moved. Let's find the period that *would* contain today.
         currentStartDate.setUTCDate(currentStartDate.getUTCDate() - 14);
       } else {
         currentStartDate.setUTCDate(currentStartDate.getUTCDate() + 14);
       }
     }
 
-    // 2. Define the three target pay periods
     const targetPeriods = [-2, -1, 0].map(offset => {
       const startDate = new Date(currentStartDate);
       startDate.setUTCDate(startDate.getUTCDate() + (offset * 14));
@@ -308,7 +234,6 @@ export class DatabaseStorage implements IStorage {
 
     const targetStartDates = targetPeriods.map(p => p.startDate);
 
-    // 3. Check which ones already exist
     const existingPeriods = await db.select().from(payPeriods).where(and(
       eq(payPeriods.employerId, employerId),
       inArray(payPeriods.startDate, targetStartDates)
@@ -316,7 +241,6 @@ export class DatabaseStorage implements IStorage {
 
     const existingDates = new Set(existingPeriods.map(p => p.startDate));
 
-    // 4. Create any missing periods
     const periodsToCreate = targetPeriods
       .filter(p => !existingDates.has(p.startDate))
       .map(p => ({
@@ -329,7 +253,6 @@ export class DatabaseStorage implements IStorage {
       await db.insert(payPeriods).values(periodsToCreate);
     }
 
-    // 5. Return the definitive list of 3 periods
     const finalPeriods = await db.select().from(payPeriods).where(and(
       eq(payPeriods.employerId, employerId),
       inArray(payPeriods.startDate, targetStartDates)
@@ -338,13 +261,36 @@ export class DatabaseStorage implements IStorage {
     return finalPeriods;
   }
 
-  async updatePayPeriod(id: number, payPeriod: Partial<InsertPayPeriod>): Promise<PayPeriod> {
-    const [updated] = await db
-      .update(payPeriods)
-      .set(payPeriod)
-      .where(eq(payPeriods.id, id))
-      .returning();
-    return updated;
+  async getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]> {
+    return this.getRelevantPayPeriods(employerId, new Date());
+  }
+
+  async getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined> {
+    const relevant = await this.getRelevantPayPeriods(employerId, new Date());
+    return relevant[0];
+  }
+
+  async getPayPeriod(id: number): Promise<PayPeriod | undefined> {
+    const [payPeriod] = await db.select().from(payPeriods).where(eq(payPeriods.id, id));
+    return payPeriod;
+  }
+
+  async clearAndRegeneratePayPeriods(employerId: number): Promise<void> {
+    const payPeriodIds = await db
+      .select({ id: payPeriods.id })
+      .from(payPeriods)
+      .where(eq(payPeriods.employerId, employerId));
+    
+    const ppIds = payPeriodIds.map(p => p.id);
+
+    if (ppIds.length > 0) {
+      await db.delete(timecards).where(inArray(timecards.payPeriodId, ppIds));
+      await db.delete(reports).where(inArray(reports.payPeriodId, ppIds));
+    }
+
+    await db.delete(payPeriods).where(eq(payPeriods.employerId, employerId));
+
+    await this.getRelevantPayPeriods(employerId, new Date());
   }
 
   // Timecard operations
@@ -550,90 +496,6 @@ export class DatabaseStorage implements IStorage {
       .from(reports)
       .where(eq(reports.employerId, employerId))
       .orderBy(desc(reports.createdAt));
-  }
-
-  async cleanupDuplicatePayPeriods(): Promise<void> {
-    const duplicates: {
-      start_date: string;
-      employer_id: number;
-      count: string;
-    }[] = await db.execute(sql`
-      SELECT
-        "start_date",
-        "employer_id",
-        COUNT(*)
-      FROM
-        "pay_periods"
-      GROUP BY
-        "start_date",
-        "employer_id"
-      HAVING
-        COUNT(*) > 1
-    `);
-
-    for (const dupe of duplicates) {
-      const periodsToDelete = await db
-        .select({ id: payPeriods.id })
-        .from(payPeriods)
-        .where(
-          and(
-            eq(payPeriods.startDate, dupe.start_date),
-            eq(payPeriods.employerId, dupe.employer_id)
-          )
-        )
-        .orderBy(asc(payPeriods.id))
-        .limit(parseInt(dupe.count) - 1);
-
-      if (periodsToDelete.length > 0) {
-        const idsToDelete = periodsToDelete.map((p) => p.id);
-        await db.delete(payPeriods).where(inArray(payPeriods.id, idsToDelete));
-      }
-    }
-  }
-
-  async clearAndRegeneratePayPeriods(employerId: number): Promise<void> {
-    // Get all employee IDs for this employer
-    const employeeIds = await db
-      .select({ id: employees.id })
-      .from(employees)
-      .where(eq(employees.employerId, employerId));
-    
-    const empIds = employeeIds.map(e => e.id);
-
-    // Get all pay period IDs for this employer
-    const payPeriodIds = await db
-      .select({ id: payPeriods.id })
-      .from(payPeriods)
-      .where(eq(payPeriods.employerId, employerId));
-    
-    const ppIds = payPeriodIds.map(p => p.id);
-
-    // Delete all time entries for employees of this employer
-    if (empIds.length > 0) {
-      for (const empId of empIds) {
-        await db.delete(timeEntries).where(eq(timeEntries.employeeId, empId));
-        await db.delete(ptoEntries).where(eq(ptoEntries.employeeId, empId));
-        await db.delete(reimbursementEntries).where(eq(reimbursementEntries.employeeId, empId));
-        await db.delete(miscHoursEntries).where(eq(miscHoursEntries.employeeId, empId));
-      }
-    }
-
-    // Delete all related data for pay periods of this employer
-    if (ppIds.length > 0) {
-      for (const ppId of ppIds) {
-        // Delete reports first (they reference pay periods)
-        await db.delete(reports).where(eq(reports.payPeriodId, ppId));
-        // Delete timecards and reimbursements
-        await db.delete(timecards).where(eq(timecards.payPeriodId, ppId));
-        await db.delete(reimbursements).where(eq(reimbursements.payPeriodId, ppId));
-      }
-    }
-
-    // Delete all pay periods for this employer
-    await db.delete(payPeriods).where(eq(payPeriods.employerId, employerId));
-
-    // Regenerate pay periods with updated company settings
-    await this.ensurePayPeriodsExist(employerId);
   }
 }
 

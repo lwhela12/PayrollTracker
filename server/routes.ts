@@ -1196,34 +1196,24 @@ async function generatePDFReport(
     headerY += 20;
 
     doc.moveTo(50, headerY - 5).lineTo(720, headerY - 5).stroke();
-    return headerY;
+
+    // Set the Y position for the content to start after the header
+    doc.y = headerY;
   };
 
-  function drawTableRow(doc: PDFKit.PDFDocument, y: number, rowData: string[]) {
-    const rowHeight = 15;
-    const columnPositions = [50, 220, 300, 370, 440, 520, 620];
+  // Register the event listener for new pages
+  doc.on('pageAdded', addHeader);
 
-    rowData.forEach((text, i) => {
-      doc.text(text, columnPositions[i], y, {
-        width: (columnPositions[i + 1] || 720) - columnPositions[i] - 10,
-        align: 'left',
-        ellipsis: true
-      });
-    });
-
-    return y + rowHeight;
-  }
-
-  let yPos = addHeader();
+  // Manually add the header for the FIRST page
+  addHeader();
 
   for (const emp of employees) {
-    const pageBottom = doc.page.height - doc.page.margins.bottom;
-
-    if (yPos + 15 > pageBottom - 20) {
-      doc.addPage();
-      yPos = addHeader();
+    // Check if a new page is needed BEFORE drawing the row
+    if (doc.y + 15 > doc.page.height - doc.page.margins.bottom) {
+        doc.addPage();
     }
 
+    // --- Data Calculation (remains the same) ---
     const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
     const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, payPeriod.startDate);
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
@@ -1241,17 +1231,16 @@ async function generatePDFReport(
     const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
       .reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
 
-    const rowData = [
-      `${emp.firstName} ${emp.lastName}`,
-      adjustedRegularHours.toFixed(2),
-      overtimeHours.toFixed(2),
-      periodPto.toFixed(2),
-      holidayNonWorked.toFixed(2),
-      holidayWorked.toFixed(2),
-      `$${periodReimb.toFixed(2)}`
-    ];
-
-    yPos = drawTableRow(doc, yPos, rowData);
+    // --- Draw the row at the current Y position ---
+    const currentY = doc.y;
+    doc.fontSize(9);
+    doc.text(`${emp.firstName} ${emp.lastName}`, 50, currentY, { width: 160, ellipsis: true });
+    doc.text(adjustedRegularHours.toFixed(2), 220, currentY);
+    doc.text(overtimeHours.toFixed(2), 300, currentY);
+    doc.text(periodPto.toFixed(2), 370, currentY);
+    doc.text(holidayNonWorked.toFixed(2), 440, currentY);
+    doc.text(holidayWorked.toFixed(2), 520, currentY);
+    doc.text(`$${periodReimb.toFixed(2)}`, 620, currentY);
   }
 
   doc.end();

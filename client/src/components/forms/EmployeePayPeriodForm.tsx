@@ -266,16 +266,28 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     }, 0);
   };
 
-  // Calculate total hours from all days first
-  const totalWorkedHours = days.reduce((sum, d) => sum + calculateDayTotal(d), 0);
+  // Split days into two 7-day weeks and calculate overtime separately for each week
+  const week1Days = days.slice(0, 7);
+  const week2Days = days.slice(7, 14);
   
-  // Calculate weekly overtime (anything over 40 hours)
-  const weeklyOvertimeHours = Math.max(0, totalWorkedHours - 40);
-  const regularHours = Math.min(totalWorkedHours, 40);
+  const calculateWeeklyHours = (weekDays: DayEntry[]) => {
+    const weekTotalHours = weekDays.reduce((sum, d) => sum + calculateDayTotal(d), 0);
+    return {
+      regularHours: Math.min(weekTotalHours, 40),
+      overtimeHours: Math.max(0, weekTotalHours - 40)
+    };
+  };
+  
+  const week1 = calculateWeeklyHours(week1Days);
+  const week2 = calculateWeeklyHours(week2Days);
+  
+  const totalRegularHours = week1.regularHours + week2.regularHours;
+  const totalOvertimeHours = week1.overtimeHours + week2.overtimeHours;
+  const totalWorkedHours = totalRegularHours + totalOvertimeHours;
   
   const totals = {
-    regular: regularHours + miscHours, // Add misc hours to regular hours
-    overtime: weeklyOvertimeHours,
+    regular: totalRegularHours + miscHours, // Add misc hours to regular hours
+    overtime: totalOvertimeHours,
     totalHours: totalWorkedHours + miscHours
   };
 

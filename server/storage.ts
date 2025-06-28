@@ -148,11 +148,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEmployer(id: number, employer: Partial<InsertEmployer>): Promise<Employer> {
-    const employerData = {
-      ...employer,
-      ...(employer.mileageRate !== undefined && employer.mileageRate !== null && 
-          { mileageRate: employer.mileageRate.toString() }),
-    };
+    const employerData: any = { ...employer };
+    if (employer.mileageRate !== undefined && employer.mileageRate !== null) {
+      employerData.mileageRate = employer.mileageRate.toString();
+    }
     const [updated] = await db
       .update(employers)
       .set(employerData)

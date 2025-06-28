@@ -92,16 +92,10 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
   });
 
   const onSubmit = (data: EmployerFormData) => {
-    const submissionData = {
-      ...data,
-      mileageRate: data.mileageRate || "0.655",
-      weekStartsOn: data.weekStartsOn ? data.weekStartsOn.toString() : "0",
-    };
-    
     if (isEditing) {
-      updateEmployerMutation.mutate(submissionData);
+      updateEmployerMutation.mutate(data);
     } else {
-      createEmployerMutation.mutate(submissionData);
+      createEmployerMutation.mutate(data);
     }
   };
 

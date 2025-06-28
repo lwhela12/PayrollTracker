@@ -33,7 +33,7 @@ import {
   type Report,
   type InsertReport,
 } from "@shared/schema";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, and, desc, asc, gte, lte, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -103,6 +103,9 @@ export interface IStorage {
   // Report operations
   createReport(report: InsertReport): Promise<Report>;
   getReportsByEmployer(employerId: number): Promise<Report[]>;
+
+  // Dashboard stats
+  getDashboardStats(employerId: number, payPeriodId: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -538,6 +541,67 @@ export class DatabaseStorage implements IStorage {
       .from(reports)
       .where(eq(reports.employerId, employerId))
       .orderBy(desc(reports.createdAt));
+  }
+
+  async getDashboardStats(employerId: number, payPeriodId: number): Promise<any[]> {
+    const payPeriod = await this.getPayPeriod(payPeriodId);
+    if (!payPeriod) return [];
+
+    const query = `
+      SELECT e.id as "employeeId",
+             COALESCE(te.total_hours, 0) as "totalHours",
+             COALESCE(pto.pto_hours, 0) as "ptoHours",
+             COALESCE(mhe.holiday_hours, 0) as "holidayHours",
+             COALESCE(mhe.holiday_worked_hours, 0) as "holidayWorkedHours",
+             COALESCE(mhe.misc_hours, 0) as "miscHours",
+             COALESCE(re.mileage, 0) as "mileage",
+             COALESCE(re.reimbursements, 0) as "reimbursements",
+             COALESCE(tc.timecard_count, 0) as "timecardCount",
+             COALESCE(tc.approved_count, 0) as "approvedCount"
+      FROM employees e
+        LEFT JOIN (
+          SELECT employee_id,
+                 SUM(EXTRACT(EPOCH FROM time_out - time_in)/3600 - COALESCE(lunch_minutes,0)/60) AS total_hours
+          FROM time_entries
+          WHERE time_in >= $2 AND time_in <= $3
+          GROUP BY employee_id
+        ) te ON te.employee_id = e.id
+        LEFT JOIN (
+          SELECT employee_id, SUM(hours) AS pto_hours
+          FROM pto_entries
+          WHERE entry_date >= $2 AND entry_date <= $3
+          GROUP BY employee_id
+        ) pto ON pto.employee_id = e.id
+        LEFT JOIN (
+          SELECT employee_id,
+                 SUM(CASE WHEN entry_type='holiday' THEN hours ELSE 0 END) AS holiday_hours,
+                 SUM(CASE WHEN entry_type='holiday-worked' THEN hours ELSE 0 END) AS holiday_worked_hours,
+                 SUM(CASE WHEN entry_type='misc' THEN hours ELSE 0 END) AS misc_hours
+          FROM misc_hours_entries
+          WHERE entry_date >= $2 AND entry_date <= $3
+          GROUP BY employee_id
+        ) mhe ON mhe.employee_id = e.id
+        LEFT JOIN (
+          SELECT employee_id,
+                 SUM(amount) AS reimbursements,
+                 SUM(CASE WHEN description ~ 'Mileage: ([0-9.]+) miles' THEN (regexp_matches(description, 'Mileage: ([0-9.]+) miles'))[1]::numeric ELSE 0 END) AS mileage
+          FROM reimbursement_entries
+          WHERE entry_date >= $2 AND entry_date <= $3
+          GROUP BY employee_id
+        ) re ON re.employee_id = e.id
+        LEFT JOIN (
+          SELECT employee_id,
+                 COUNT(*) AS timecard_count,
+                 SUM(CASE WHEN is_approved THEN 1 ELSE 0 END) AS approved_count
+          FROM timecards
+          WHERE pay_period_id = $1
+          GROUP BY employee_id
+        ) tc ON tc.employee_id = e.id
+      WHERE e.employer_id = $4 AND e.is_active = true
+      ORDER BY e.id`;
+
+    const { rows } = await pool.query(query, [payPeriodId, payPeriod.startDate, payPeriod.endDate, employerId]);
+    return rows as any[];
   }
 }
 

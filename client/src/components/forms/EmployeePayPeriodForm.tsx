@@ -450,6 +450,41 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         });
       }
     },
+    onMutate: async (newData: any) => {
+      if (!employee?.employerId) return { previousStats: undefined };
+      await queryClient.cancelQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
+      const previousStats = queryClient.getQueryData<any>(["/api/dashboard/stats", employee.employerId]);
+      if (previousStats) {
+        const mileageRate = employer ? parseFloat(employer.mileageRate || '0.655') : 0.655;
+        const optimistic = {
+          employeeId,
+          totalHours: totals.totalHours,
+          totalOvertimeHours: totals.overtime,
+          ptoHours,
+          holidayHours: holidayNonWorked,
+          holidayWorkedHours: holidayWorked,
+          mileage: milesDriven,
+          reimbursements: reimbAmt + milesDriven * mileageRate,
+        };
+        queryClient.setQueryData<any>(["/api/dashboard/stats", employee.employerId], (old: any) => {
+          if (!old) return old;
+          const idx = old.employeeStats?.findIndex((s: any) => s.employeeId === employeeId);
+          if (idx != null && idx >= 0) {
+            old.employeeStats[idx] = optimistic;
+          } else if (old.employeeStats) {
+            old.employeeStats.push(optimistic);
+          }
+          return { ...old };
+        });
+      }
+      return { previousStats };
+    },
+    onError: (err, _newData, context) => {
+      if (context?.previousStats && employee?.employerId) {
+        queryClient.setQueryData(["/api/dashboard/stats", employee.employerId], context.previousStats);
+      }
+      toast({ title: "Error", description: "Failed to save. Your changes have been reverted.", variant: "destructive" });
+    },
     onSuccess: async () => {
       toast({
         title: "Success",
@@ -476,12 +511,10 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         clearEmployee(employeeId);
       }, 100);
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save timecard data",
-        variant: "destructive",
-      });
+    onSettled: () => {
+      if (employee?.employerId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
+      }
     },
   });
 

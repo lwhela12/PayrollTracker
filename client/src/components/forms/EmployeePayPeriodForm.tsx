@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { calculateHoursFromTimecard } from "@/lib/payrollUtils";
 import { getDayOfWeek } from "@/lib/dateUtils";
@@ -261,6 +262,19 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     );
   };
 
+  const removeShift = (date: string, index: number) => {
+    setDays((prev) =>
+      prev.map((d) => {
+        if (d.date !== date) return d;
+        const shifts = d.shifts.filter((_, i) => i !== index);
+        return {
+          ...d,
+          shifts: shifts.length > 0 ? shifts : [{ timeIn: "", timeOut: "", lunch: 0 }],
+        };
+      })
+    );
+  };
+
   const calculateDayTotal = (day: DayEntry) => {
     return day.shifts.reduce((sum, s) => {
       const hrs = calculateHoursFromTimecard(s.timeIn, s.timeOut, s.lunch).totalHours;
@@ -497,14 +511,15 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                 + Add Shift
               </Button>
             </div>
-            <div className="grid grid-cols-4 gap-2 text-xs font-medium text-muted-foreground mb-1">
+            <div className="grid grid-cols-5 gap-2 text-xs font-medium text-muted-foreground mb-1">
               <span>Time In</span>
               <span>Time Out</span>
               <span>Lunch</span>
               <span>Total</span>
+              <span></span>
             </div>
             {day.shifts.map((shift, idx) => (
-              <div key={idx} className="grid grid-cols-4 gap-2 mb-2">
+              <div key={idx} className="grid grid-cols-5 gap-2 mb-2">
                 <Input
                   type="time"
                   value={shift.timeIn}
@@ -521,8 +536,11 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                   onChange={(e) => updateShift(day.date, idx, "lunch", parseInt(e.target.value) || 0)}
                   placeholder="Lunch"
                 />
-                <div className="flex items-center text-sm">
-                  {calculateHoursFromTimecard(shift.timeIn, shift.timeOut, shift.lunch).totalHours.toFixed(2)}h
+                <div className="flex items-center justify-between text-sm">
+                  <span>{calculateHoursFromTimecard(shift.timeIn, shift.timeOut, shift.lunch).totalHours.toFixed(2)}h</span>
+                  <Button size="sm" variant="ghost" onClick={() => removeShift(day.date, idx)} className="text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))}

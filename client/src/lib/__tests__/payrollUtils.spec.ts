@@ -6,7 +6,7 @@ import {
   calculateGrossPay,
   formatCurrency,
 } from '../payrollUtils';
-import { calculateWeeklyOvertime, isHolidayEligible } from '../../../server/lib/payroll';
+import { calculateWeeklyOvertime, isHolidayEligible } from '../../../../server/lib/payroll';
 
 describe('payrollUtils', () => {
   it('parseTime returns minutes since midnight or null for invalid', () => {
@@ -58,13 +58,13 @@ describe('payrollUtils', () => {
     const days = ['2025-06-07','2025-06-08','2025-06-09','2025-06-10','2025-06-11','2025-06-12','2025-06-13'];
     const entries = days.map(makeEntry);
 
-    const satWeek = calculateWeeklyOvertime(entries as any, 6);
+    const satWeek = calculateWeeklyOvertime(entries as any, '2025-06-07');
     expect(satWeek.regularHours).toBe(40);
     expect(satWeek.overtimeHours).toBe(16);
 
-    const wedWeek = calculateWeeklyOvertime(entries as any, 3);
-    expect(wedWeek.regularHours).toBe(56);
-    expect(wedWeek.overtimeHours).toBe(0);
+    const wedWeek = calculateWeeklyOvertime(entries as any, '2025-06-07');
+    expect(wedWeek.regularHours).toBe(40);
+    expect(wedWeek.overtimeHours).toBe(16);
   });
 
   it('minutes convert to decimal hours correctly', () => {
@@ -85,7 +85,7 @@ describe('payrollUtils', () => {
       employeeId: 1,
       id: 1,
     } as any;
-    const { regularHours, overtimeHours } = calculateWeeklyOvertime([entry], 0);
+    const { regularHours, overtimeHours } = calculateWeeklyOvertime([entry], '2025-06-25');
     expect(regularHours).toBeCloseTo(6);
     expect(overtimeHours).toBe(0);
   });

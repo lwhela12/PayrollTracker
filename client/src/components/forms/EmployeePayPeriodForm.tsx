@@ -79,7 +79,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   const { data: existingReimbEntries = [] } = useQuery<any[]>({
     queryKey: ["/api/reimbursement-entries/employee", employeeId],
     queryFn: () =>
-      apiRequest("GET", `/api/reimbursement-entries/employee/${employeeId}`).then("res) => res.json()),
+      apiRequest("GET", `/api/reimbursement-entries/employee/${employeeId}`).then((res) => res.json()),
     enabled: !!employeeId,
     staleTime: 60000, // Cache for 1 minute
   });

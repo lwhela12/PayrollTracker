@@ -13,7 +13,11 @@ import {
   insertReimbursementEntrySchema,
   insertMiscHoursEntrySchema,
   insertReimbursementSchema,
-  payPeriods
+  payPeriods,
+  timeEntries,
+  ptoEntries,
+  miscHoursEntries,
+  reimbursementEntries
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -24,7 +28,7 @@ import { parseString } from "@fast-csv/parse";
 import fs from "fs";
 import path from "path";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
 import memoize from "memoizee";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -680,6 +684,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk timecard update
+  app.post('/api/timecards/bulk-update', isAuthenticated, async (req: any, res) => {
+    try {
+      const payload = req.body as any;
+      const { employeeId, payPeriod } = payload;
+
+      const employee = await storage.getEmployee(employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+      const employer = await storage.getEmployer(employee.employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
+
+      await db.transaction(async (tx) => {
+        await tx
+          .delete(timeEntries)
+          .where(
+            and(
+              eq(timeEntries.employeeId, employeeId),
+              gte(timeEntries.timeIn, new Date(payPeriod.start)),
+              lte(timeEntries.timeIn, new Date(payPeriod.end))
+            )
+          );
+
+        await tx
+          .delete(ptoEntries)
+          .where(
+            and(
+              eq(ptoEntries.employeeId, employeeId),
+              gte(ptoEntries.entryDate, payPeriod.start as any),
+              lte(ptoEntries.entryDate, payPeriod.end as any)
+            )
+          );
+
+        await tx
+          .delete(miscHoursEntries)
+          .where(
+            and(
+              eq(miscHoursEntries.employeeId, employeeId),
+              gte(miscHoursEntries.entryDate, payPeriod.start as any),
+              lte(miscHoursEntries.entryDate, payPeriod.end as any)
+            )
+          );
+
+        await tx
+          .delete(reimbursementEntries)
+          .where(
+            and(
+              eq(reimbursementEntries.employeeId, employeeId),
+              gte(reimbursementEntries.entryDate, payPeriod.start as any),
+              lte(reimbursementEntries.entryDate, payPeriod.end as any)
+            )
+          );
+
+        const entries: any[] = [];
+        for (const day of payload.days || []) {
+          for (const shift of day.shifts || []) {
+            if (shift.timeIn && shift.timeOut) {
+              entries.push(
+                insertTimeEntrySchema.parse({
+                  employeeId,
+                  timeIn: `${day.date}T${shift.timeIn}:00`,
+                  timeOut: `${day.date}T${shift.timeOut}:00`,
+                  lunchMinutes: shift.lunch,
+                  notes: payload.notes || ''
+                })
+              );
+            }
+          }
+        }
+        if (entries.length > 0) {
+          await tx.insert(timeEntries).values(entries);
+        }
+
+        if (payload.ptoHours > 0) {
+          await tx.insert(ptoEntries).values({
+            employeeId,
+            entryDate: payPeriod.start,
+            hours: payload.ptoHours.toString()
+          });
+        }
+
+        if (payload.holidayNonWorked > 0) {
+          await tx.insert(miscHoursEntries).values({
+            employeeId,
+            entryDate: payPeriod.start,
+            hours: payload.holidayNonWorked.toString(),
+            entryType: 'holiday'
+          });
+        }
+
+        if (payload.holidayWorked > 0) {
+          await tx.insert(miscHoursEntries).values({
+            employeeId,
+            entryDate: payPeriod.start,
+            hours: payload.holidayWorked.toString(),
+            entryType: 'holiday-worked'
+          });
+        }
+
+        if (payload.miscHours > 0) {
+          await tx.insert(miscHoursEntries).values({
+            employeeId,
+            entryDate: payPeriod.start,
+            hours: payload.miscHours.toString(),
+            entryType: 'misc'
+          });
+        }
+
+        const mileageRate = parseFloat(employer.mileageRate || '0.655');
+        const mileageAmount = payload.milesDriven > 0 ? payload.milesDriven * mileageRate : 0;
+        const totalReimbursement = payload.reimbursement.amount + mileageAmount;
+
+        if (totalReimbursement > 0) {
+          let description = '';
+          if (payload.milesDriven > 0) {
+            description += `Mileage: ${payload.milesDriven} miles ($${mileageAmount.toFixed(2)})`;
+          }
+          if (payload.reimbursement.amount > 0) {
+            if (description) description += '; ';
+            description += payload.reimbursement.description || 'Other reimbursement';
+          }
+
+          await tx.insert(reimbursementEntries).values({
+            employeeId,
+            entryDate: payPeriod.start,
+            amount: totalReimbursement.toString(),
+            description: description || 'Reimbursement'
+          });
+        }
+      });
+
+      getDashboardStatsCached.clear();
+      res.json({ message: 'Updated' });
+    } catch (error: any) {
+      console.error('Error bulk updating timecards:', error);
+      res.status(500).json({ message: 'Failed to update timecards' });
+    }
+  });
+
   // PTO entry routes
   app.post('/api/pto-entries', isAuthenticated, async (req: any, res) => {
     try {
@@ -899,85 +1041,7 @@ app.get("/api/dashboard/stats/:employerId", async (req, res) => {
       }
 
       const employees = await storage.getEmployeesByEmployer(employerId);
-      const employeeStats: any[] = [];
-
-      for (const emp of employees) {
-        // Get time entries and calculate weekly overtime using the same logic as frontend
-        const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
-
-        // Calculate hours using the same logic as the frontend timecard form
-        const payPeriodStart = new Date(payPeriod.startDate);
-        const week1Entries: any[] = [];
-        const week2Entries: any[] = [];
-
-        timeEntries.forEach(entry => {
-          if (!entry.timeIn || !entry.timeOut) return;
-
-          const entryDate = new Date(entry.timeIn);
-          const daysDiff = Math.floor((entryDate.getTime() - payPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
-
-          // Calculate hours for this entry (properly handling lunch)
-          let minutes = (new Date(entry.timeOut).getTime() - new Date(entry.timeIn).getTime()) / 60000;
-          if (minutes < 0) minutes += 24 * 60; // Handle overnight shifts
-          if (entry.lunchMinutes) minutes -= entry.lunchMinutes; // Always subtract lunch if specified
-          if (minutes < 0) minutes = 0;
-          const hours = Math.round((minutes / 60) * 100) / 100;
-
-          if (daysDiff < 7) {
-            week1Entries.push({ hours });
-          } else {
-            week2Entries.push({ hours });
-          }
-        });
-
-        // Calculate weekly totals and overtime
-        const week1Hours = week1Entries.reduce((sum, e) => sum + e.hours, 0);
-        const week2Hours = week2Entries.reduce((sum, e) => sum + e.hours, 0);
-
-        const week1Regular = Math.min(week1Hours, 40);
-        const week1Overtime = Math.max(0, week1Hours - 40);
-        const week2Regular = Math.min(week2Hours, 40);
-        const week2Overtime = Math.max(0, week2Hours - 40);
-
-        const totalRegularHours = week1Regular + week2Regular;
-        const totalOvertimeHours = week1Overtime + week2Overtime;
-
-        const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
-        const periodPto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
-          .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
-        const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
-        const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
-          .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
-        const holidayNonWorked = miscEntries.filter(m => m.entryType === 'holiday' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
-          .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
-        const miscHours = miscEntries.filter(m => m.entryType === 'misc' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
-          .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
-        const adjustedRegularHours = totalRegularHours + miscHours;
-        const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
-        const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
-          .reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
-
-        // Extract mileage from reimbursement descriptions
-        let totalMiles = 0;
-        const reimbEntriesToCheck = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate);
-        reimbEntriesToCheck.forEach((r: any) => {
-          const mileageMatch = r.description?.match(/Mileage: (\d+(?:\.\d+)?) miles/);
-          if (mileageMatch) {
-            totalMiles += parseFloat(mileageMatch[1]) || 0;
-          }
-        });
-
-        employeeStats.push({
-          employeeId: emp.id,
-          totalHours: adjustedRegularHours + totalOvertimeHours,
-          totalOvertimeHours: totalOvertimeHours,
-          ptoHours: periodPto,
-          holidayHours: holidayNonWorked,
-          holidayWorkedHours: holidayWorked,
-          mileage: totalMiles,
-          reimbursements: periodReimb
-        });
-      }
+      const employeeStats = await getDashboardStatsCached(employerId, payPeriod.id);
 
       let totalHours = 0;
       let pendingTimecards = 0;

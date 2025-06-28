@@ -18,7 +18,7 @@ describe('calculateWeeklyOvertime', () => {
       timeIn: new Date(`2024-06-${i+1}T08:00:00Z`).toISOString(),
       timeOut: new Date(`2024-06-${i+1}T16:30:00Z`).toISOString(),
     }))
-    const result = calculateWeeklyOvertime(entries as any, 0)
+    const result = calculateWeeklyOvertime(entries as any, '2024-06-01')
     expect(result.regularHours).toBeCloseTo(40)
     expect(result.overtimeHours).toBe(0)
   })
@@ -30,7 +30,7 @@ describe('calculateWeeklyOvertime', () => {
       timeIn: new Date(`2024-06-${i+1}T08:00:00Z`).toISOString(),
       timeOut: new Date(`2024-06-${i+1}T17:00:00Z`).toISOString(),
     }))
-    const result = calculateWeeklyOvertime(entries as any, 0)
+    const result = calculateWeeklyOvertime(entries as any, '2024-06-01')
     expect(result.regularHours).toBeCloseTo(40)
     expect(result.overtimeHours).toBeCloseTo(4)
   })

@@ -123,7 +123,6 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
     
     const submissionData = {
       ...data,
-      mileageRate: data.mileageRate ? parseFloat(data.mileageRate) : 0.655,
     };
     console.log('Final submission data:', submissionData);
 
@@ -227,25 +226,7 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="mileageRate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Mileage Rate (per mile)</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number" 
-                  step="0.001" 
-                  placeholder="0.655" 
-                  {...field} 
-                  value={field.value || ""}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
 
         <div className="flex justify-end space-x-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>

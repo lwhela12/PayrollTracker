@@ -38,6 +38,14 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
 
   const employee = propEmployee || fetchedEmployee;
 
+  // Fetch employer data to get company-level mileage rate
+  const { data: employer } = useQuery<any>({
+    queryKey: ["/api/employers", employee?.employerId],
+    queryFn: () =>
+      apiRequest("GET", `/api/employers/${employee?.employerId}`).then((res) => res.json()),
+    enabled: !!employee?.employerId,
+  });
+
   const { data: existingEntries = [] } = useQuery<any[]>({
     queryKey: ["/api/time-entries/employee", employeeId, start, end],
     queryFn: () =>
@@ -218,8 +226,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
 
   // Real-time updates to pay period summary when mileage/reimbursement changes
   useEffect(() => {
-    if (employee) {
-      const mileageAmount = milesDriven > 0 ? milesDriven * parseFloat(employee.mileageRate || '0') : 0;
+    if (employee && employer) {
+      const mileageRate = parseFloat(employer.mileageRate || '0.655');
+      const mileageAmount = milesDriven > 0 ? milesDriven * mileageRate : 0;
       const totalReimbursement = reimbAmt + mileageAmount;
       
       updateEmployee(employeeId, {
@@ -230,7 +239,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         holidayWorkedHours: holidayWorked
       });
     }
-  }, [milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, employee, employeeId, updateEmployee]);
+  }, [milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, employee, employer, employeeId, updateEmployee]);
 
   const addShift = (date: string) => {
     setDays((prev) =>

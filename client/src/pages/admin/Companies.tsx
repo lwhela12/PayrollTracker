@@ -10,9 +10,11 @@ import { Plus, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useCompany } from "@/context/company";
 
 export default function CompaniesAdmin() {
   const { user } = useAuth();
+  const { employerId, setEmployerId } = useCompany();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -26,8 +28,19 @@ export default function CompaniesAdmin() {
   const deleteCompanyMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/employers/${id}`);
+
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      // Remove company from cache immediately
+      const remaining = (queryClient.getQueryData<any[]>(["/api/employers"]) || []).filter((e) => e.id !== id);
+      queryClient.setQueryData(["/api/employers"], remaining);
+      // Update selected employer if it was deleted
+      if (employerId === id) {
+        const nextId = remaining[0]?.id ?? null;
+        setEmployerId(nextId);
+      }
+
       queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
       toast({ title: "Success", description: "Company deleted successfully" });
     },

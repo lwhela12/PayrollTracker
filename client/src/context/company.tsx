@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 interface CompanyContextProps {
   employerId: number | null;
-  setEmployerId: (id: number) => void;
+  setEmployerId: (id: number | null) => void;
 }
 
 const CompanyContext = createContext<CompanyContextProps | undefined>(undefined);
@@ -15,9 +15,13 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     if (stored) setEmployerIdState(parseInt(stored));
   }, []);
 
-  const setEmployerId = (id: number) => {
+  const setEmployerId = (id: number | null) => {
     setEmployerIdState(id);
-    localStorage.setItem("employerId", id.toString());
+    if (id === null) {
+      localStorage.removeItem("employerId");
+    } else {
+      localStorage.setItem("employerId", id.toString());
+    }
   };
 
   return (

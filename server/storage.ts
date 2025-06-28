@@ -49,6 +49,7 @@ export interface IStorage {
   
   // Employee operations
   createEmployee(employee: InsertEmployee): Promise<Employee>;
+  createMultipleEmployees(employees: InsertEmployee[]): Promise<{ success: number; failed: number; employees: Employee[] }>;
   getEmployeesByEmployer(employerId: number): Promise<Employee[]>;
   getEmployee(id: number): Promise<Employee | undefined>;
   updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee>;
@@ -167,6 +168,29 @@ export class DatabaseStorage implements IStorage {
     
     const [newEmployee] = await db.insert(employees).values(insertData as any).returning();
     return newEmployee;
+  }
+
+  async createMultipleEmployees(employees: InsertEmployee[]): Promise<{ success: number; failed: number; employees: Employee[] }> {
+    const createdEmployees: Employee[] = [];
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (const employee of employees) {
+      try {
+        const created = await this.createEmployee(employee);
+        createdEmployees.push(created);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to create employee ${employee.firstName} ${employee.lastName}:`, error);
+        failedCount++;
+      }
+    }
+
+    return {
+      success: successCount,
+      failed: failedCount,
+      employees: createdEmployees
+    };
   }
 
   async getEmployeesByEmployer(employerId: number): Promise<Employee[]> {

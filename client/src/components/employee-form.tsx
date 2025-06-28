@@ -18,7 +18,6 @@ interface EmployeeFormProps {
 }
 
 const employeeFormSchema = insertEmployeeSchema.extend({
-  mileageRate: z.string().optional(),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
   position: z.string().optional(),
@@ -40,7 +39,6 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
       email: employee?.email || "",
       phone: employee?.phone || "",
       position: employee?.position || "",
-      mileageRate: employee?.mileageRate?.toString() || "0.655",
       hireDate: employee?.hireDate || new Date().toISOString().split('T')[0],
       isActive: employee?.isActive ?? true,
       employerId,

@@ -51,6 +51,7 @@ export const employers = pgTable("employers", {
   taxId: varchar("tax_id", { length: 50 }),
   weekStartsOn: integer("week_starts_on").notNull().default(0),
   payPeriodStartDate: date("pay_period_start_date"),
+  mileageRate: decimal("mileage_rate", { precision: 10, scale: 4 }).default("0.655"), // IRS standard rate
   ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -63,7 +64,6 @@ export const employees = pgTable("employees", {
   email: varchar("email", { length: 255 }),
   phone: varchar("phone", { length: 20 }),
   position: varchar("position", { length: 100 }),
-  mileageRate: decimal("mileage_rate", { precision: 10, scale: 4 }).default("0.655"), // IRS standard rate
   hireDate: date("hire_date").notNull(),
   isActive: boolean("is_active").default(true),
   employerId: integer("employer_id").notNull().references(() => employers.id, { onDelete: "cascade" }),

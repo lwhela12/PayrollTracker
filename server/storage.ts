@@ -154,21 +154,13 @@ export class DatabaseStorage implements IStorage {
 
   // Employee operations
   async createEmployee(employee: InsertEmployee): Promise<Employee> {
-    const employeeData = {
-      ...employee,
-      mileageRate: employee.mileageRate?.toString() || "0.655"
-    };
-    const [newEmployee] = await db.insert(employees).values(employeeData).returning();
+    const [newEmployee] = await db.insert(employees).values(employee).returning();
     return newEmployee;
   }
 
   async createMultipleEmployees(employeeList: InsertEmployee[]): Promise<{ success: number; failed: number }> {
     if (employeeList.length === 0) return { success: 0, failed: 0 };
-    const values = employeeList.map(emp => ({
-      ...emp,
-      mileageRate: emp.mileageRate?.toString() || "0.655"
-    }));
-    const inserted = await db.insert(employees).values(values).returning();
+    const inserted = await db.insert(employees).values(employeeList).returning();
     return { success: inserted.length, failed: employeeList.length - inserted.length };
   }
 

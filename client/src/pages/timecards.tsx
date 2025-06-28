@@ -44,19 +44,18 @@ export default function Timecards() {
   });
 
   const { data: payPeriods = [] } = useQuery<any[]>({
-    queryKey: ["/api/pay-periods", selectedEmployerId],
+    queryKey: ["/api/pay-periods/relevant", selectedEmployerId],
     queryFn: () =>
-      selectedEmployerId ? fetch(`/api/pay-periods/${selectedEmployerId}`, { credentials: "include" }).then((r) => r.json()) : Promise.resolve([]),
+      selectedEmployerId
+        ? fetch(`/api/pay-periods/${selectedEmployerId}/relevant`, { credentials: "include" }).then((r) => r.json())
+        : Promise.resolve([]),
     enabled: !!selectedEmployerId,
   });
 
   useEffect(() => {
     if (payPeriods.length > 0 && !selectedPayPeriodId) {
-      // Always default to the current active pay period
-      const current = payPeriods.find((p: any) => p.isActive);
-      if (current) {
-        setSelectedPayPeriodId(current.id.toString());
-      }
+      // Default to the most recent pay period, which will be the first in the sorted list
+      setSelectedPayPeriodId(payPeriods[0].id.toString());
     }
   }, [payPeriods, selectedPayPeriodId]);
 
@@ -138,10 +137,10 @@ export default function Timecards() {
                     <SelectValue placeholder="Select a pay period" />
                   </SelectTrigger>
                   <SelectContent>
-                    {payPeriods.map((pp: any) => (
+                    {payPeriods.map((pp: any, index: number) => (
                       <SelectItem key={pp.id} value={pp.id.toString()}>
                         {formatDate(pp.startDate)} - {formatDate(pp.endDate)}
-                        {pp.isActive && " (Current)"}
+                        {index === 0 && " (Current)"}
                       </SelectItem>
                     ))}
                   </SelectContent>

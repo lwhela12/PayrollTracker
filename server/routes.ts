@@ -322,6 +322,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/pay-periods/:employerId/relevant', isAuthenticated, async (req: any, res) => {
+    try {
+      const employerId = parseInt(req.params.employerId);
+      const date = req.query.date ? new Date(req.query.date as string) : new Date();
+      
+      // Verify employer ownership
+      const employer = await storage.getEmployer(employerId);
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const relevantPayPeriods = await storage.getRelevantPayPeriods(employerId, date);
+      res.json(relevantPayPeriods);
+    } catch (error) {
+      console.error("Error fetching relevant pay periods:", error);
+      res.status(500).json({ message: "Failed to fetch relevant pay periods" });
+    }
+  });
+
   app.get('/api/pay-periods/:employerId/current', isAuthenticated, async (req: any, res) => {
     try {
       const employerId = parseInt(req.params.employerId);

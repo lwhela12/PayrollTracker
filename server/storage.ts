@@ -60,6 +60,7 @@ export interface IStorage {
   getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]>;
   getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined>;
   getPayPeriod(id: number): Promise<PayPeriod | undefined>;
+  getRelevantPayPeriods(employerId: number, date: Date): Promise<PayPeriod[]>;
   updatePayPeriod(id: number, payPeriod: Partial<InsertPayPeriod>): Promise<PayPeriod>;
   
   // Timecard operations
@@ -342,6 +343,54 @@ export class DatabaseStorage implements IStorage {
   async getPayPeriod(id: number): Promise<PayPeriod | undefined> {
     const [payPeriod] = await db.select().from(payPeriods).where(eq(payPeriods.id, id));
     return payPeriod;
+  }
+
+  async getRelevantPayPeriods(employerId: number, date: Date): Promise<PayPeriod[]> {
+    const dateStr = date.toISOString().split('T')[0];
+
+    // Find the pay period containing the given date
+    const [currentPeriod] = await db
+      .select()
+      .from(payPeriods)
+      .where(
+        and(
+          eq(payPeriods.employerId, employerId),
+          lte(payPeriods.startDate, dateStr),
+          gte(payPeriods.endDate, dateStr)
+        )
+      )
+      .limit(1);
+
+    if (!currentPeriod) {
+      // If no period contains the date, it might be before the first or after the last.
+      // For simplicity, return the 3 most recent periods.
+      return await db
+        .select()
+        .from(payPeriods)
+        .where(eq(payPeriods.employerId, employerId))
+        .orderBy(desc(payPeriods.startDate))
+        .limit(3);
+    }
+
+    // Find the two pay periods immediately preceding the current one
+    const previousPeriods = await db
+      .select()
+      .from(payPeriods)
+      .where(
+        and(
+          eq(payPeriods.employerId, employerId),
+          lt(payPeriods.startDate, currentPeriod.startDate)
+        )
+      )
+      .orderBy(desc(payPeriods.startDate))
+      .limit(2);
+
+    // Combine and sort the results
+    const result = [currentPeriod, ...previousPeriods].sort(
+      (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+    );
+
+    return result;
   }
 
   async updatePayPeriod(id: number, payPeriod: Partial<InsertPayPeriod>): Promise<PayPeriod> {

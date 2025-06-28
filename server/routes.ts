@@ -1172,7 +1172,6 @@ async function generatePDFReport(
 ) {
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
   doc.pipe(fs.createWriteStream(filePath));
-  let bottomThreshold = doc.page.height - 50;
 
   const addHeader = () => {
     // Report title and meta
@@ -1240,10 +1239,11 @@ async function generatePDFReport(
     doc.text(`$${periodReimb.toFixed(2)}`, 620, yPos);
     yPos += 15;
     
-    // Start a new page before hitting the bottom of the page
-    if (yPos > bottomThreshold) {
-      doc.addPage({ size: 'A4', layout: 'landscape' });
-      bottomThreshold = doc.page.height - 50;
+    const pageBottom = doc.page.height - doc.page.margins.bottom;
+
+    // Check if the next line will overflow, leaving a small buffer (e.g., 20 points)
+    if (yPos + 15 > pageBottom - 20) {
+      doc.addPage();
       yPos = addHeader();
     }
   }

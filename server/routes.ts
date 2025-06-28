@@ -1176,7 +1176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 // Helper functions for report generation
 async function generatePDFReport(employer: any, payPeriod: any, employees: any[], timecardData: any[], filePath: string) {
-  const doc = new PDFDocument();
+  const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
   doc.pipe(fs.createWriteStream(filePath));
   
   // Header
@@ -1190,19 +1190,19 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
   doc.fontSize(16).text('Employee Summary', 50, yPos);
   yPos += 30;
   
-  // Table headers
+  // Table headers with better spacing for landscape mode
   doc.fontSize(10);
-  doc.text('Employee', 50, yPos);
-  doc.text('Regular Hrs', 150, yPos);
-  doc.text('OT Hrs', 210, yPos);
-  doc.text('PTO Hrs', 260, yPos);
-  doc.text('Holiday Hrs', 310, yPos);
-  doc.text('Holiday Worked', 370, yPos);
-  doc.text('Reimbursement', 440, yPos);
+  doc.text('Employee Name', 50, yPos);
+  doc.text('Regular Hrs', 220, yPos);
+  doc.text('OT Hrs', 300, yPos);
+  doc.text('PTO Hrs', 370, yPos);
+  doc.text('Holiday Hrs', 440, yPos);
+  doc.text('Holiday Worked', 520, yPos);
+  doc.text('Reimbursement', 620, yPos);
   yPos += 20;
   
   // Draw header line
-  doc.moveTo(50, yPos - 5).lineTo(500, yPos - 5).stroke();
+  doc.moveTo(50, yPos - 5).lineTo(720, yPos - 5).stroke();
   
   for (const emp of employees) {
     // Get time entries for the pay period and calculate hours
@@ -1231,15 +1231,15 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
     const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
       .reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
     
-    // Employee row
+    // Employee row with better spacing for landscape mode
     doc.fontSize(9);
-    doc.text(`${emp.firstName} ${emp.lastName}`, 50, yPos);
-    doc.text(adjustedRegularHours.toFixed(2), 150, yPos);
-    doc.text(overtimeHours.toFixed(2), 210, yPos);
-    doc.text(periodPto.toFixed(2), 260, yPos);
-    doc.text(holidayNonWorked.toFixed(2), 310, yPos);
-    doc.text(holidayWorked.toFixed(2), 370, yPos);
-    doc.text(`${periodReimb.toFixed(2)}`, 440, yPos);
+    doc.text(`${emp.firstName} ${emp.lastName}`, 50, yPos, { width: 160, ellipsis: true });
+    doc.text(adjustedRegularHours.toFixed(2), 220, yPos);
+    doc.text(overtimeHours.toFixed(2), 300, yPos);
+    doc.text(periodPto.toFixed(2), 370, yPos);
+    doc.text(holidayNonWorked.toFixed(2), 440, yPos);
+    doc.text(holidayWorked.toFixed(2), 520, yPos);
+    doc.text(`$${periodReimb.toFixed(2)}`, 620, yPos);
     yPos += 15;
     
     if (yPos > 700) {

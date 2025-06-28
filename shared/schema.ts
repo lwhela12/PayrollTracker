@@ -5,6 +5,7 @@ import {
   timestamp,
   jsonb,
   index,
+  uniqueIndex,
   serial,
   decimal,
   integer,
@@ -80,12 +81,12 @@ export const payPeriods = pgTable("pay_periods", {
   createdAt: timestamp("created_at").defaultNow(),
 },
 // ensure no duplicate pay period per employer+start date
-(table) => [
-  index("IDX_pay_periods_employer_start", { unique: true }).on(
+(table) => ({
+  employerStartDateIdx: uniqueIndex("IDX_pay_periods_employer_start").on(
     table.employerId,
     table.startDate,
   ),
-]);
+}));
 
 // Timecards table
 export const timecards = pgTable("timecards", {

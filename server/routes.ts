@@ -1446,7 +1446,6 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
       doc.fontSize(8);
       doc.text(formattedDate, 50, yPos);
       doc.text(timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 120, yPos);
-```tool_code
       doc.text(timeOut ? timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--', 180, yPos);
       doc.text((entry.lunchMinutes || 0).toString(), 240, yPos);
       doc.text(entryHours.toFixed(2), 310, yPos);

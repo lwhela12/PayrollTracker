@@ -9,6 +9,17 @@ import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CompanySettingsFormProps {
   employer: any;
@@ -29,6 +40,8 @@ type CompanySettingsFormData = z.infer<typeof companySettingsSchema>;
 export function CompanySettingsForm({ employer, onSuccess, onCancel }: CompanySettingsFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [showPayrollWarning, setShowPayrollWarning] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<CompanySettingsFormData | null>(null);
 
   const form = useForm<CompanySettingsFormData>({
     resolver: zodResolver(companySettingsSchema),
@@ -53,9 +66,47 @@ export function CompanySettingsForm({ employer, onSuccess, onCancel }: CompanySe
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/employers", employer.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pay-periods", employer.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employer.id] });
       toast({
         title: "Success",
         description: "Company settings updated successfully",
+      });
+      onSuccess();
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update company settings",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateCompanyWithPayrollChangeMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("PUT", `/api/employers/${employer.id}/reset-payroll`, data);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/employers", employer.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pay-periods", employer.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employer.id] });
+      toast({
+        title: "Success",
+        description: "Company settings updated and pay periods regenerated",
       });
       onSuccess();
     },
@@ -84,7 +135,33 @@ export function CompanySettingsForm({ employer, onSuccess, onCancel }: CompanySe
       ...data,
       mileageRate: parseFloat(data.mileageRate),
     };
-    updateCompanyMutation.mutate(submissionData);
+
+    // Check if payroll start date has changed
+    const payrollDateChanged = employer?.payPeriodStartDate !== data.payPeriodStartDate;
+    
+    if (payrollDateChanged) {
+      setPendingFormData(data); // Store original form data, not converted
+      setShowPayrollWarning(true);
+    } else {
+      updateCompanyMutation.mutate(submissionData);
+    }
+  };
+
+  const handleConfirmPayrollChange = () => {
+    if (pendingFormData) {
+      const submissionData = {
+        ...pendingFormData,
+        mileageRate: parseFloat(pendingFormData.mileageRate),
+      };
+      updateCompanyWithPayrollChangeMutation.mutate(submissionData);
+    }
+    setShowPayrollWarning(false);
+    setPendingFormData(null);
+  };
+
+  const handleCancelPayrollChange = () => {
+    setShowPayrollWarning(false);
+    setPendingFormData(null);
   };
 
   return (
@@ -197,6 +274,26 @@ export function CompanySettingsForm({ employer, onSuccess, onCancel }: CompanySe
           </Button>
         </div>
       </form>
+
+      <AlertDialog open={showPayrollWarning} onOpenChange={setShowPayrollWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Warning: Payroll Date Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              You changed the payroll date so any existing entries for this payroll will be cleared. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelPayrollChange}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmPayrollChange}
+              disabled={updateCompanyWithPayrollChangeMutation.isPending}
+            >
+              {updateCompanyWithPayrollChangeMutation.isPending ? "Updating..." : "Yes, Continue"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Form>
   );
 }

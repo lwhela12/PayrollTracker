@@ -33,7 +33,7 @@ export default function TopSheetReport() {
     const headers = ["Employee Name","Regular","Overtime","PTO","Holiday Non-Worked","Holiday Worked","Reimbursement"];
     const rows = report.rows.map((r:any) => [r.name,r.regularHours,r.overtimeHours,r.ptoHours,r.holidayNonWorkedHours,r.holidayWorkedHours,r.reimbursement]);
     rows.push(["Totals",report.totals.regularHours,report.totals.overtimeHours,report.totals.ptoHours,report.totals.holidayNonWorkedHours,report.totals.holidayWorkedHours,report.totals.reimbursement]);
-    const csv = [headers.join(','),...rows.map(r=>r.join(','))].join('\n');
+    const csv = [headers.join(','),...rows.map((r: any[])=>r.join(','))].join('\n');
     const blob = new Blob([csv],{type:'text/csv'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

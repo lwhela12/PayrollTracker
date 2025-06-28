@@ -52,20 +52,6 @@ export default function Timecards() {
     enabled: !!selectedEmployerId,
   });
 
-  useEffect(() => {
-    if (payPeriods.length > 0 && !selectedPayPeriodId) {
-      // Default to the most recent pay period, which will be the first in the sorted list
-      setSelectedPayPeriodId(payPeriods[0].id.toString());
-    }
-  }, [payPeriods, selectedPayPeriodId]);
-
-  const { data: timecards = [] } = useQuery<any[]>({
-    queryKey: ["/api/timecards/pay-period", selectedPayPeriodId],
-    queryFn: () =>
-      selectedPayPeriodId ? fetch(`/api/timecards/pay-period/${selectedPayPeriodId}`, { credentials: "include" }).then((r) => r.json()) : Promise.resolve([]),
-    enabled: !!selectedPayPeriodId,
-  });
-
   // Fetch dashboard stats for the selected employer
   const { data: dashboardStats = {} } = useQuery<any>({
     queryKey: ["/api/dashboard/stats", selectedEmployerId],
@@ -76,6 +62,13 @@ export default function Timecards() {
   const selectedEmployer = employers.find((e: any) => e.id === selectedEmployerId);
   const selectedPayPeriod = payPeriods.find((p: any) => p.id.toString() === selectedPayPeriodId);
   const currentPayPeriod = dashboardStats?.currentPayPeriod;
+
+  useEffect(() => {
+    if (payPeriods.length > 0 && !selectedPayPeriodId) {
+      // Default to the most recent pay period, which will be the first in the sorted list
+      setSelectedPayPeriodId(payPeriods[0].id.toString());
+    }
+  }, [payPeriods, selectedPayPeriodId]);
 
   useEffect(() => {
     if (payPeriods.length > 0 && !selectedPayPeriodId && currentPayPeriod) {
@@ -313,7 +306,10 @@ export default function Timecards() {
                     </>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
-                      No employees found. Add employees to start tracking timecards.
+                      No employees found. 
+                      <Link href="/employees" className="text-primary hover:underline ml-1">
+                        Add your first employee
+                      </Link>
                     </div>
                   )}
                 </CardContent>

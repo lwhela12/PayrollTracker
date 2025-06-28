@@ -34,7 +34,7 @@ import {
   type InsertReport,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, gte, lte, gt, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, gt, lt, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)

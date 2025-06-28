@@ -64,11 +64,11 @@ export default function Timecards() {
   const currentPayPeriod = dashboardStats?.currentPayPeriod;
 
   useEffect(() => {
-    if (payPeriods.length > 0) {
+    if (payPeriods.length > 0 && !selectedPayPeriodId) {
       const defaultPeriod = currentPayPeriod ?? payPeriods[0];
       setSelectedPayPeriodId(defaultPeriod.id.toString());
     }
-  }, [payPeriods, currentPayPeriod]);
+  }, [payPeriods, currentPayPeriod, selectedPayPeriodId]);
 
   const { data: timecards = [] } = useQuery<any[]>({
     queryKey: ["/api/timecards/pay-period", selectedPayPeriodId],

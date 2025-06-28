@@ -18,9 +18,6 @@ interface EmployeeFormProps {
 }
 
 const employeeFormSchema = insertEmployeeSchema.extend({
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().optional(),
-  position: z.string().optional(),
   hireDate: z.string().min(1, "Hire date is required"),
 });
 
@@ -36,9 +33,6 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
     defaultValues: {
       firstName: employee?.firstName || "",
       lastName: employee?.lastName || "",
-      email: employee?.email || "",
-      phone: employee?.phone || "",
-      position: employee?.position || "",
       hireDate: employee?.hireDate || new Date().toISOString().split('T')[0],
       isActive: employee?.isActive ?? true,
       employerId,

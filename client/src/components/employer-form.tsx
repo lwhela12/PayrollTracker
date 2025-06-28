@@ -21,6 +21,7 @@ const employerFormSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
   taxId: z.string().optional(),
+  mileageRate: z.string().min(1, "Mileage rate is required"),
   payPeriodStartDate: z.string().optional(),
   weekStartsOn: z.string().optional(),
 });
@@ -40,6 +41,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
       phone: employer?.phone || "",
       email: employer?.email || "",
       taxId: employer?.taxId || "",
+      mileageRate: employer?.mileageRate?.toString() || "0.655",
       payPeriodStartDate: employer?.payPeriodStartDate || "",
       weekStartsOn: employer?.weekStartsOn?.toString() || "0",
     },
@@ -90,10 +92,16 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
   });
 
   const onSubmit = (data: EmployerFormData) => {
+    const submissionData = {
+      ...data,
+      mileageRate: parseFloat(data.mileageRate),
+      weekStartsOn: parseInt(data.weekStartsOn || "0"),
+    };
+    
     if (isEditing) {
-      updateEmployerMutation.mutate(data);
+      updateEmployerMutation.mutate(submissionData);
     } else {
-      createEmployerMutation.mutate(data);
+      createEmployerMutation.mutate(submissionData);
     }
   };
 
@@ -165,19 +173,41 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="taxId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tax ID / EIN</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="12-3456789" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="taxId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tax ID / EIN</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="12-3456789" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="mileageRate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Mileage Rate (per mile) *</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    step="0.001" 
+                    placeholder="0.655" 
+                    {...field} 
+                    value={field.value || ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <FormField
           control={form.control}

@@ -572,65 +572,100 @@ export class DatabaseStorage implements IStorage {
     const payPeriod = await this.getPayPeriod(payPeriodId);
     if (!payPeriod) return [];
 
-    const query = `
-      SELECT e.id as "employeeId",
-             COALESCE(te.total_hours, 0) as "totalHours",
-             COALESCE(pto.pto_hours, 0) as "ptoHours",
-             COALESCE(mhe.holiday_hours, 0) as "holidayHours",
-             COALESCE(mhe.holiday_worked_hours, 0) as "holidayWorkedHours",
-             COALESCE(mhe.misc_hours, 0) as "miscHours",
-             COALESCE(re.mileage, 0) as "mileage",
-             COALESCE(re.reimbursements, 0) as "reimbursements",
-             COALESCE(tc.timecard_count, 0) as "timecardCount",
-             COALESCE(tc.approved_count, 0) as "approvedCount"
-      FROM employees e
-        LEFT JOIN (
-          SELECT employee_id,
-                 SUM(EXTRACT(EPOCH FROM time_out - time_in)/3600 - COALESCE(lunch_minutes,0)/60) AS total_hours
-          FROM time_entries
-          WHERE time_in >= $2 AND time_in <= $3
-          GROUP BY employee_id
-        ) te ON te.employee_id = e.id
-        LEFT JOIN (
-          SELECT employee_id, SUM(hours) AS pto_hours
-          FROM pto_entries
-          WHERE entry_date >= $2 AND entry_date <= $3
-          GROUP BY employee_id
-        ) pto ON pto.employee_id = e.id
-        LEFT JOIN (
-          SELECT employee_id,
-                 SUM(CASE WHEN entry_type='holiday' THEN hours ELSE 0 END) AS holiday_hours,
-                 SUM(CASE WHEN entry_type='holiday-worked' THEN hours ELSE 0 END) AS holiday_worked_hours,
-                 SUM(CASE WHEN entry_type='misc' THEN hours ELSE 0 END) AS misc_hours
-          FROM misc_hours_entries
-          WHERE entry_date >= $2 AND entry_date <= $3
-          GROUP BY employee_id
-        ) mhe ON mhe.employee_id = e.id
-        LEFT JOIN (
-          SELECT employee_id,
-                 SUM(amount) AS reimbursements,
-                 SUM(CASE 
-                   WHEN description ~ 'Mileage: ([0-9.]+) miles' THEN 
-                     COALESCE((SELECT (regexp_matches(description, 'Mileage: ([0-9.]+) miles'))[1]::numeric), 0)
-                   ELSE 0 
-                 END) AS mileage
-          FROM reimbursement_entries
-          WHERE entry_date >= $2 AND entry_date <= $3
-          GROUP BY employee_id
-        ) re ON re.employee_id = e.id
-        LEFT JOIN (
-          SELECT employee_id,
-                 COUNT(*) AS timecard_count,
-                 SUM(CASE WHEN is_approved THEN 1 ELSE 0 END) AS approved_count
-          FROM timecards
-          WHERE pay_period_id = $1
-          GROUP BY employee_id
-        ) tc ON tc.employee_id = e.id
-      WHERE e.employer_id = $4 AND e.is_active = true
-      ORDER BY e.id`;
+    // Get all employees for this employer
+    const employees = await this.getEmployeesByEmployer(employerId);
+    const results = [];
 
-    const { rows } = await pool.query(query, [payPeriodId, payPeriod.startDate, payPeriod.endDate, employerId]);
-    return rows as any[];
+    for (const employee of employees) {
+      // Get time entries and calculate weekly overtime using the same logic as frontend
+      const timeEntries = await this.getTimeEntriesByEmployee(employee.id, payPeriod.startDate, payPeriod.endDate);
+      
+      // Calculate hours using the same logic as the frontend
+      const payPeriodStart = new Date(payPeriod.startDate);
+      const week1Entries: any[] = [];
+      const week2Entries: any[] = [];
+      
+      timeEntries.forEach(entry => {
+        if (!entry.timeIn || !entry.timeOut) return;
+        
+        const entryDate = new Date(entry.timeIn);
+        const daysDiff = Math.floor((entryDate.getTime() - payPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Calculate hours for this entry (properly handling lunch)
+        let minutes = (new Date(entry.timeOut).getTime() - new Date(entry.timeIn).getTime()) / 60000;
+        if (minutes < 0) minutes += 24 * 60; // Handle overnight shifts
+        if (entry.lunchMinutes) minutes -= entry.lunchMinutes; // Always subtract lunch if specified
+        if (minutes < 0) minutes = 0;
+        const hours = Math.round((minutes / 60) * 100) / 100;
+        
+        if (daysDiff < 7) {
+          week1Entries.push({ hours });
+        } else {
+          week2Entries.push({ hours });
+        }
+      });
+      
+      // Calculate weekly totals and overtime
+      const week1Hours = week1Entries.reduce((sum, e) => sum + e.hours, 0);
+      const week2Hours = week2Entries.reduce((sum, e) => sum + e.hours, 0);
+      
+      const week1Regular = Math.min(week1Hours, 40);
+      const week1Overtime = Math.max(0, week1Hours - 40);
+      const week2Regular = Math.min(week2Hours, 40);
+      const week2Overtime = Math.max(0, week2Hours - 40);
+      
+      const totalRegularHours = week1Regular + week2Regular;
+      const totalOvertimeHours = week1Overtime + week2Overtime;
+      
+      // Get other entries
+      const ptoEntries = await this.getPtoEntriesByEmployee(employee.id);
+      const ptoHours = ptoEntries
+        .filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
+        .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
+      
+      const miscEntries = await this.getMiscHoursEntriesByEmployee(employee.id);
+      const holidayHours = miscEntries
+        .filter(m => m.entryType === 'holiday' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+        .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+      const holidayWorkedHours = miscEntries
+        .filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+        .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+      const miscHours = miscEntries
+        .filter(m => m.entryType === 'misc' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+        .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+      
+      const reimbEntries = await this.getReimbursementEntriesByEmployee(employee.id);
+      const reimbursements = reimbEntries
+        .filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
+        .reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
+      
+      // Extract mileage from reimbursement descriptions
+      let mileage = 0;
+      reimbEntries
+        .filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
+        .forEach(r => {
+          const mileageMatch = r.description?.match(/Mileage: (\d+(?:\.\d+)?) miles/);
+          if (mileageMatch) {
+            mileage += parseFloat(mileageMatch[1]) || 0;
+          }
+        });
+      
+      results.push({
+        employeeId: employee.id,
+        totalHours: Math.round((totalRegularHours + totalOvertimeHours + miscHours) * 100) / 100,
+        totalOvertimeHours: Math.round(totalOvertimeHours * 100) / 100,
+        ptoHours: Math.round(ptoHours * 100) / 100,
+        holidayHours: Math.round(holidayHours * 100) / 100,
+        holidayWorkedHours: Math.round(holidayWorkedHours * 100) / 100,
+        miscHours: Math.round(miscHours * 100) / 100,
+        mileage: Math.round(mileage * 100) / 100,
+        reimbursements: Math.round(reimbursements * 100) / 100,
+        timecardCount: 0,
+        approvedCount: 0
+      });
+    }
+
+    return results;
   }
 }
 

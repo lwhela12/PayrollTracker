@@ -609,7 +609,11 @@ export class DatabaseStorage implements IStorage {
         LEFT JOIN (
           SELECT employee_id,
                  SUM(amount) AS reimbursements,
-                 SUM(CASE WHEN description ~ 'Mileage: ([0-9.]+) miles' THEN (regexp_matches(description, 'Mileage: ([0-9.]+) miles'))[1]::numeric ELSE 0 END) AS mileage
+                 SUM(CASE 
+                   WHEN description ~ 'Mileage: ([0-9.]+) miles' THEN 
+                     COALESCE((SELECT (regexp_matches(description, 'Mileage: ([0-9.]+) miles'))[1]::numeric), 0)
+                   ELSE 0 
+                 END) AS mileage
           FROM reimbursement_entries
           WHERE entry_date >= $2 AND entry_date <= $3
           GROUP BY employee_id

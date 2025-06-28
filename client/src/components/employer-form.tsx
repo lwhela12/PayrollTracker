@@ -183,7 +183,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
     setPendingFormData(null);
   };
 
-  const isLoading = createEmployerMutation.isPending || updateEmployerMutation.isPending;
+  const isLoading = createEmployerMutation.isPending || updateEmployerMutation.isPending || updateEmployerWithPayrollChangeMutation.isPending;
 
   return (
     <Form {...form}>
@@ -353,6 +353,26 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
           </Button>
         </div>
       </form>
+
+      <AlertDialog open={showPayrollWarning} onOpenChange={setShowPayrollWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Warning: Payroll Date Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              You changed the payroll date so any existing entries for this payroll will be cleared. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelPayrollChange}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmPayrollChange}
+              disabled={updateEmployerWithPayrollChangeMutation.isPending}
+            >
+              {updateEmployerWithPayrollChangeMutation.isPending ? "Updating..." : "Yes, Continue"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Form>
   );
 }

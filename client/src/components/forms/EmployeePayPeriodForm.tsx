@@ -456,12 +456,16 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         description: "Timecard data saved successfully",
       });
 
-      // Prefetch updated dashboard stats for a snappier transition
       if (employee?.employerId) {
+        // Ensure dashboard stats refresh when returning to the main page
+        await queryClient.invalidateQueries({
+          queryKey: ["/api/dashboard/stats", employee.employerId],
+        });
+
         await queryClient.prefetchQuery({
           queryKey: ["/api/dashboard/stats", employee.employerId],
           queryFn: () =>
-            apiRequest("GET", `/api/dashboard/stats/${employee.employerId}`).then(res => res.json()),
+            apiRequest("GET", `/api/dashboard/stats/${employee.employerId}`).then((res) => res.json()),
         });
       }
 

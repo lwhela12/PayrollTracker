@@ -1,0 +1,17 @@
+Warning: Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.%s 
+    at EmployeePayPeriodForm (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/src/components/forms/EmployeePayPeriodForm.tsx:29:41)
+    at main
+    at div
+    at div
+    at TimecardEntry (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/src/pages/timecard-entry.tsx:27:20)
+    at Route (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=0dddc75e:323:16)
+    at CompanySetupGuard (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/src/components/company-setup-guard.tsx:20:37)
+    at Switch (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=0dddc75e:379:17)
+    at Router (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/src/App.tsx?v=jY6DmNm2l33e2_T0e5xFw:42:42)
+    at ErrorBoundary (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/src/components/ErrorBoundary.tsx:7:5)
+    at Provider (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-E7IAXTU4.js?v=0dddc75e:38:15)
+    at TooltipProvider (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=0dddc75e:61:5)
+    at TimecardUpdatesProvider (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/src/context/timecard-updates.tsx:20:43)
+    at CompanyProvider (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/src/context/company.tsx:20:35)
+    at QueryClientProvider (https://effe08da-15ff-44a8-812f-beb55affdaf2-00-2u537jculdtdv.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=0dddc75e:2805:3)
+    at App

@@ -1199,19 +1199,36 @@ async function generatePDFReport(
     return headerY;
   };
 
+  function drawTableRow(doc: PDFKit.PDFDocument, y: number, rowData: string[]) {
+    const rowHeight = 15;
+    const columnPositions = [50, 220, 300, 370, 440, 520, 620];
+
+    rowData.forEach((text, i) => {
+      doc.text(text, columnPositions[i], y, {
+        width: (columnPositions[i + 1] || 720) - columnPositions[i] - 10,
+        align: 'left',
+        ellipsis: true
+      });
+    });
+
+    return y + rowHeight;
+  }
+
   let yPos = addHeader();
-  
+
   for (const emp of employees) {
-    // Get time entries for the pay period and calculate hours
+    const pageBottom = doc.page.height - doc.page.margins.bottom;
+
+    if (yPos + 15 > pageBottom - 20) {
+      doc.addPage();
+      yPos = addHeader();
+    }
+
     const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
     const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, payPeriod.startDate);
-    
-    // Get PTO entries for pay period
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
     const periodPto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
       .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
-    
-    // Get misc hours entries for holidays and misc hours
     const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
     const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
@@ -1219,33 +1236,22 @@ async function generatePDFReport(
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
     const miscHours = miscEntries.filter(m => m.entryType === 'misc' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
-    
-    // Add misc hours to regular hours (doesn't affect OT calculation)
     const adjustedRegularHours = regularHours + miscHours;
-    
-    // Get reimbursement entries for pay period
     const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
     const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
       .reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
-    
-    // Employee row with better spacing for landscape mode
-    doc.fontSize(9);
-    doc.text(`${emp.firstName} ${emp.lastName}`, 50, yPos, { width: 160, ellipsis: true });
-    doc.text(adjustedRegularHours.toFixed(2), 220, yPos);
-    doc.text(overtimeHours.toFixed(2), 300, yPos);
-    doc.text(periodPto.toFixed(2), 370, yPos);
-    doc.text(holidayNonWorked.toFixed(2), 440, yPos);
-    doc.text(holidayWorked.toFixed(2), 520, yPos);
-    doc.text(`$${periodReimb.toFixed(2)}`, 620, yPos);
-    yPos += 15;
-    
-    const pageBottom = doc.page.height - doc.page.margins.bottom;
 
-    // Check if the next line will overflow, leaving a small buffer (e.g., 20 points)
-    if (yPos + 15 > pageBottom - 20) {
-      doc.addPage();
-      yPos = addHeader();
-    }
+    const rowData = [
+      `${emp.firstName} ${emp.lastName}`,
+      adjustedRegularHours.toFixed(2),
+      overtimeHours.toFixed(2),
+      periodPto.toFixed(2),
+      holidayNonWorked.toFixed(2),
+      holidayWorked.toFixed(2),
+      `$${periodReimb.toFixed(2)}`
+    ];
+
+    yPos = drawTableRow(doc, yPos, rowData);
   }
 
   doc.end();

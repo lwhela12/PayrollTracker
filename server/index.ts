@@ -7,6 +7,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Disable caching for API responses to avoid 304 errors when the client
+// re-fetches data after mutations. Returning stale responses caused JSON
+// parsing failures on the frontend, resulting in a blank screen.
+app.set('etag', false);
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    res.set('Cache-Control', 'no-store');
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

@@ -9,12 +9,12 @@ export default function CreateCompany() {
   const [, setLocation] = useLocation();
 
   const handleSuccess = () => {
-    // Navigate back to dashboard after successful creation
+    // Navigate back to the home page after successful creation
     setLocation("/");
   };
 
   const handleCancel = () => {
-    // Navigate back to dashboard
+    // Navigate back to the home page
     setLocation("/");
   };
 
@@ -28,7 +28,7 @@ export default function CreateCompany() {
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            Back to Home
           </Button>
         </div>
 

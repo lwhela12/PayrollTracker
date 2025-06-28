@@ -163,23 +163,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteEmployer(id: number): Promise<void> {
-    // Remove dependent records not covered by cascade constraints
-    const empIds = await db
-      .select({ id: employees.id })
-      .from(employees)
-      .where(eq(employees.employerId, id));
-    const employeeIds = empIds.map(e => e.id);
+    await db.transaction(async (tx) => {
+      // Remove dependent records not covered by cascade constraints
+      const empIds = await tx
+        .select({ id: employees.id })
+        .from(employees)
+        .where(eq(employees.employerId, id));
+      const employeeIds = empIds.map((e) => e.id);
 
-    if (employeeIds.length > 0) {
-      await db.delete(timeEntries).where(inArray(timeEntries.employeeId, employeeIds));
-      await db.delete(ptoEntries).where(inArray(ptoEntries.employeeId, employeeIds));
-      await db.delete(reimbursementEntries).where(inArray(reimbursementEntries.employeeId, employeeIds));
-      await db.delete(miscHoursEntries).where(inArray(miscHoursEntries.employeeId, employeeIds));
-    }
+      if (employeeIds.length > 0) {
+        await tx.delete(timeEntries).where(inArray(timeEntries.employeeId, employeeIds));
+        await tx.delete(ptoEntries).where(inArray(ptoEntries.employeeId, employeeIds));
+        await tx
+          .delete(reimbursementEntries)
+          .where(inArray(reimbursementEntries.employeeId, employeeIds));
+        await tx.delete(miscHoursEntries).where(inArray(miscHoursEntries.employeeId, employeeIds));
+      }
 
-    await db.delete(reports).where(eq(reports.employerId, id));
+      await tx.delete(reports).where(eq(reports.employerId, id));
 
-    await db.delete(employers).where(eq(employers.id, id));
+      await tx.delete(employers).where(eq(employers.id, id));
+    });
   }
 
   // Employee operations

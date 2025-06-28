@@ -7,7 +7,6 @@ import {
   insertEmployerSchema,
   insertEmployeeSchema,
   insertPayPeriodSchema,
-  insertTimecardSchema,
   insertTimeEntrySchema,
   insertPtoEntrySchema,
   insertReimbursementEntrySchema,
@@ -458,132 +457,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Timecard routes
-  app.post('/api/timecards', isAuthenticated, async (req: any, res) => {
-    try {
-      const timecardData = insertTimecardSchema.parse(req.body);
-      
-      // Verify employee belongs to user's employer
-      const employee = await storage.getEmployee(timecardData.employeeId);
-      if (!employee) {
-        return res.status(404).json({ message: "Employee not found" });
-      }
-      
-      const employer = await storage.getEmployer(employee.employerId);
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const timecard = await storage.createTimecard(timecardData);
-      res.json(timecard);
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
-        return res.status(400).json({ message: fromZodError(error).toString() });
-      }
-      console.error("Error creating timecard:", error);
-      res.status(500).json({ message: "Failed to create timecard" });
-    }
-  });
-
-  app.get('/api/timecards/employee/:employeeId', isAuthenticated, async (req: any, res) => {
-    try {
-      const employeeId = parseInt(req.params.employeeId);
-      const payPeriodId = req.query.payPeriodId ? parseInt(req.query.payPeriodId as string) : undefined;
-      
-      // Verify employee belongs to user's employer
-      const employee = await storage.getEmployee(employeeId);
-      if (!employee) {
-        return res.status(404).json({ message: "Employee not found" });
-      }
-      
-      const employer = await storage.getEmployer(employee.employerId);
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const timecards = await storage.getTimecardsByEmployee(employeeId, payPeriodId);
-      res.json(timecards);
-    } catch (error) {
-      console.error("Error fetching timecards:", error);
-      res.status(500).json({ message: "Failed to fetch timecards" });
-    }
-  });
-
-  app.get('/api/timecards/pay-period/:payPeriodId', isAuthenticated, async (req: any, res) => {
-    try {
-      const payPeriodId = parseInt(req.params.payPeriodId);
-      
-      // Verify pay period belongs to user's employer
-      const payPeriod = await storage.getPayPeriod(payPeriodId);
-      if (!payPeriod) {
-        return res.status(404).json({ message: "Pay period not found" });
-      }
-      
-      const employer = await storage.getEmployer(payPeriod.employerId);
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const timecards = await storage.getTimecardsByPayPeriod(payPeriodId);
-      res.json(timecards);
-    } catch (error) {
-      console.error("Error fetching timecards:", error);
-      res.status(500).json({ message: "Failed to fetch timecards" });
-    }
-  });
-
-  // Get timecards for a specific employee
-  app.get('/api/timecards/employee/:employeeId', isAuthenticated, async (req: any, res) => {
-    try {
-      const employeeId = parseInt(req.params.employeeId);
-      const payPeriodId = req.query.payPeriodId ? parseInt(req.query.payPeriodId) : undefined;
-      
-      // Verify employee belongs to user's employer
-      const employee = await storage.getEmployee(employeeId);
-      if (!employee) {
-        return res.status(404).json({ message: "Employee not found" });
-      }
-      
-      const employer = await storage.getEmployer(employee.employerId);
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const timecards = await storage.getTimecardsByEmployee(employeeId, payPeriodId);
-      res.json(timecards);
-    } catch (error) {
-      console.error("Error fetching employee timecards:", error);
-      res.status(500).json({ message: "Failed to fetch employee timecards" });
-    }
-  });
-
-  app.put('/api/timecards/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const timecardId = parseInt(req.params.id);
-      const timecard = await storage.getTimecard(timecardId);
-      
-      if (!timecard) {
-        return res.status(404).json({ message: "Timecard not found" });
-      }
-      
-      // Verify timecard belongs to user's employer
-      const employee = await storage.getEmployee(timecard.employeeId);
-      const employer = await storage.getEmployer(employee!.employerId);
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const updateData = insertTimecardSchema.partial().parse(req.body);
-      const updated = await storage.updateTimecard(timecardId, updateData);
-      res.json(updated);
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
-        return res.status(400).json({ message: fromZodError(error).toString() });
-      }
-      console.error("Error updating timecard:", error);
-      res.status(500).json({ message: "Failed to update timecard" });
-    }
-  });
 
   // Time entry routes
   app.post('/api/time-entries', isAuthenticated, async (req: any, res) => {
@@ -862,11 +735,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let payrollReady = 0;
 
       if (currentPayPeriod) {
-        const timecards = await storage.getTimecardsByPayPeriod(currentPayPeriod.id);
         const reimbursements = await storage.getReimbursementsByPayPeriod(currentPayPeriod.id);
 
         for (const emp of employees) {
-          const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
           const empReimbs = reimbursements.filter(r => r.employeeId === emp.id);
 
           // Get time entries for this employee in the current pay period
@@ -912,9 +783,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const miscHours = miscEntries.filter(m => m.entryType === 'misc' && m.entryDate >= currentPayPeriod.startDate && m.entryDate <= currentPayPeriod.endDate)
             .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
 
-          // Legacy timecard hours (if any) - combine with new entries
-          const legacyPto = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.ptoHours || '0'), 0);
-          const legacyHoliday = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.holidayHours || '0'), 0);
+          // Legacy timecard hours no longer used
+          const legacyPto = 0;
+          const legacyHoliday = 0;
 
           // Add misc hours to total hours (doesn't affect OT calculation)
           const adjustedTotalHours = empTotalHours + miscHours;
@@ -925,7 +796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (!hasTimeData) {
             pendingTimecards++;
-          } else if (empTimecards.every(tc => tc.isApproved)) {
+          } else {
             payrollReady++;
           }
 

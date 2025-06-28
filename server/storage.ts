@@ -3,7 +3,6 @@ import {
   employers,
   employees,
   payPeriods,
-  timecards,
   timeEntries,
   ptoEntries,
   reimbursementEntries,
@@ -18,8 +17,6 @@ import {
   type InsertEmployee,
   type PayPeriod,
   type InsertPayPeriod,
-  type Timecard,
-  type InsertTimecard,
   type InsertTimeEntry,
   type TimeEntry,
   type InsertPtoEntry,
@@ -60,14 +57,6 @@ export interface IStorage {
   getPayPeriod(id: number): Promise<PayPeriod | undefined>;
   clearAndRegeneratePayPeriods(employerId: number): Promise<void>;
   
-  // Timecard operations
-  createTimecard(timecard: InsertTimecard): Promise<Timecard>;
-  getTimecardsByPayPeriod(payPeriodId: number): Promise<Timecard[]>;
-  getTimecardsByEmployee(employeeId: number, payPeriodId?: number): Promise<Timecard[]>;
-  getTimecard(id: number): Promise<Timecard | undefined>;
-  updateTimecard(id: number, timecard: Partial<InsertTimecard>): Promise<Timecard>;
-  deleteTimecard(id: number): Promise<void>;
-
   // Time entry operations
   createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry>;
   getTimeEntriesByEmployee(employeeId: number, start?: string, end?: string): Promise<TimeEntry[]>;
@@ -302,58 +291,12 @@ export class DatabaseStorage implements IStorage {
     const ppIds = payPeriodIds.map(p => p.id);
 
     if (ppIds.length > 0) {
-      await db.delete(timecards).where(inArray(timecards.payPeriodId, ppIds));
       await db.delete(reports).where(inArray(reports.payPeriodId, ppIds));
     }
 
     await db.delete(payPeriods).where(eq(payPeriods.employerId, employerId));
 
     await this.getRelevantPayPeriods(employerId, new Date());
-  }
-
-  // Timecard operations
-  async createTimecard(timecard: InsertTimecard): Promise<Timecard> {
-    const [newTimecard] = await db.insert(timecards).values(timecard).returning();
-    return newTimecard;
-  }
-
-  async getTimecardsByPayPeriod(payPeriodId: number): Promise<Timecard[]> {
-    return await db
-      .select()
-      .from(timecards)
-      .where(eq(timecards.payPeriodId, payPeriodId))
-      .orderBy(asc(timecards.workDate));
-  }
-
-  async getTimecardsByEmployee(employeeId: number, payPeriodId?: number): Promise<Timecard[]> {
-    const conditions = [eq(timecards.employeeId, employeeId)];
-    if (payPeriodId) {
-      conditions.push(eq(timecards.payPeriodId, payPeriodId));
-    }
-    
-    return await db
-      .select()
-      .from(timecards)
-      .where(and(...conditions))
-      .orderBy(asc(timecards.workDate));
-  }
-
-  async getTimecard(id: number): Promise<Timecard | undefined> {
-    const [timecard] = await db.select().from(timecards).where(eq(timecards.id, id));
-    return timecard;
-  }
-
-  async updateTimecard(id: number, timecard: Partial<InsertTimecard>): Promise<Timecard> {
-    const [updated] = await db
-      .update(timecards)
-      .set({ ...timecard, updatedAt: new Date() })
-      .where(eq(timecards.id, id))
-      .returning();
-    return updated;
-  }
-
-  async deleteTimecard(id: number): Promise<void> {
-    await db.delete(timecards).where(eq(timecards.id, id));
   }
 
   // Time entry operations

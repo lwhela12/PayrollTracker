@@ -88,27 +88,6 @@ export const payPeriods = pgTable("pay_periods", {
   ),
 }));
 
-// Timecards table
-export const timecards = pgTable("timecards", {
-  id: serial("id").primaryKey(),
-  employeeId: integer("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
-  payPeriodId: integer("pay_period_id").notNull().references(() => payPeriods.id, { onDelete: "cascade" }),
-  workDate: date("work_date").notNull(),
-  timeIn: time("time_in"),
-  timeOut: time("time_out"),
-  lunchMinutes: integer("lunch_minutes").default(0),
-  regularHours: decimal("regular_hours", { precision: 5, scale: 2 }).default("0"),
-  overtimeHours: decimal("overtime_hours", { precision: 5, scale: 2 }).default("0"),
-  ptoHours: decimal("pto_hours", { precision: 5, scale: 2 }).default("0"),
-  holidayHours: decimal("holiday_hours", { precision: 5, scale: 2 }).default("0"),
-  startOdometer: integer("start_odometer"),
-  endOdometer: integer("end_odometer"),
-  totalMiles: integer("total_miles").default(0),
-  notes: text("notes"),
-  isApproved: boolean("is_approved").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 // New table for granular time entry records
 export const timeEntries = pgTable('time_entries', {
@@ -192,11 +171,6 @@ export const insertPayPeriodSchema = createInsertSchema(payPeriods).omit({
   createdAt: true,
 });
 
-export const insertTimecardSchema = createInsertSchema(timecards).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
 
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({
   id: true,
@@ -244,8 +218,6 @@ export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 export type Employee = typeof employees.$inferSelect;
 export type InsertPayPeriod = z.infer<typeof insertPayPeriodSchema>;
 export type PayPeriod = typeof payPeriods.$inferSelect;
-export type InsertTimecard = z.infer<typeof insertTimecardSchema>;
-export type Timecard = typeof timecards.$inferSelect;
 export type InsertReimbursement = z.infer<typeof insertReimbursementSchema>;
 export type Reimbursement = typeof reimbursements.$inferSelect;
 export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;

@@ -8,7 +8,6 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Employees from "@/pages/employees";
-import Timecards from "@/pages/timecards";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 import CreateCompany from "@/pages/create-company";
@@ -39,7 +38,7 @@ function Router() {
       ) : (
         <CompanySetupGuard>
           <>
-            <Route path="/" component={Timecards} />
+            <Route path="/" component={Dashboard} />
             <Route path="/create-company" component={CreateCompany} />
             <Route path="/settings/create-company" component={SettingsCreateCompany} />
             <Route path="/settings/company" component={CompanySettings} />

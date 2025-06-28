@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { insertEmployerSchema } from "@shared/schema";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
@@ -39,6 +40,8 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEditing = !!employer;
+  const [showPayrollWarning, setShowPayrollWarning] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<EmployerFormData | null>(null);
 
   const form = useForm<EmployerFormData>({
     resolver: zodResolver(employerFormSchema),
@@ -115,12 +118,69 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
     },
   });
 
+  const updateEmployerWithPayrollChangeMutation = useMutation({
+    mutationFn: async (data: EmployerFormData) => {
+      const response = await apiRequest("PUT", `/api/employers/${employer.id}/reset-payroll`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Company profile updated and pay periods regenerated",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pay-periods", employer.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employer.id] });
+      onSuccess();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: EmployerFormData) => {
+    console.log('=== EMPLOYER FORM SUBMIT HANDLER CALLED ===');
+    console.log('Form data:', data);
+    console.log('Current employer:', employer);
+    
     if (isEditing) {
-      updateEmployerMutation.mutate(data);
+      // Check if payroll start date has changed
+      const payrollDateChanged = employer?.payPeriodStartDate !== data.payPeriodStartDate;
+      
+      console.log('Payroll date comparison:', {
+        original: employer?.payPeriodStartDate,
+        new: data.payPeriodStartDate,
+        changed: payrollDateChanged
+      });
+      
+      if (payrollDateChanged) {
+        console.log('=== PAYROLL DATE CHANGED - SHOWING WARNING ===');
+        setPendingFormData(data);
+        setShowPayrollWarning(true);
+      } else {
+        console.log('=== NO PAYROLL CHANGE - NORMAL UPDATE ===');
+        updateEmployerMutation.mutate(data);
+      }
     } else {
       createEmployerMutation.mutate(data);
     }
+  };
+
+  const handleConfirmPayrollChange = () => {
+    if (pendingFormData) {
+      updateEmployerWithPayrollChangeMutation.mutate(pendingFormData);
+    }
+    setShowPayrollWarning(false);
+    setPendingFormData(null);
+  };
+
+  const handleCancelPayrollChange = () => {
+    setShowPayrollWarning(false);
+    setPendingFormData(null);
   };
 
   const isLoading = createEmployerMutation.isPending || updateEmployerMutation.isPending;

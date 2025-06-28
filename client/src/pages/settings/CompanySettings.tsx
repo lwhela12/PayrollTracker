@@ -129,21 +129,27 @@ export default function CompanySettings() {
   });
 
   const onSubmit = (values: FormData) => {
+    console.log('=== FORM SUBMIT HANDLER CALLED ===');
+    console.log('Form values:', values);
+    console.log('Current employer data:', employer);
+    
     // Check if payroll start date has changed
     const payrollDateChanged = employer?.payPeriodStartDate !== values.payPeriodStartDate;
     
-    console.log('Payroll date check:', {
+    console.log('Payroll date comparison:', {
       original: employer?.payPeriodStartDate,
+      originalType: typeof employer?.payPeriodStartDate,
       new: values.payPeriodStartDate,
+      newType: typeof values.payPeriodStartDate,
       changed: payrollDateChanged
     });
     
     if (payrollDateChanged) {
-      console.log('Showing payroll warning dialog');
+      console.log('=== PAYROLL DATE CHANGED - SHOWING WARNING ===');
       setPendingFormData(values);
       setShowPayrollWarning(true);
     } else {
-      console.log('No payroll date change, updating normally');
+      console.log('=== NO PAYROLL CHANGE - NORMAL UPDATE ===');
       updateCompanyMutation.mutate(values);
     }
   };

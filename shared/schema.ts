@@ -170,14 +170,12 @@ export const insertEmployerSchema = createInsertSchema(employers).omit({
   createdAt: true,
 }).extend({
   weekStartsOn: z.coerce.number().min(0).max(6).default(0),
-  mileageRate: z.coerce.number().min(0).max(5).default(0.655),
 });
 
 export const insertEmployeeSchema = createInsertSchema(employees).omit({
   id: true,
   createdAt: true,
 }).extend({
-  mileageRate: z.coerce.number().min(0).max(5).default(0.655),
   hireDate: z.coerce.date(),
 });
 

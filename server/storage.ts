@@ -130,7 +130,11 @@ export class DatabaseStorage implements IStorage {
 
   // Employer operations
   async createEmployer(employer: InsertEmployer): Promise<Employer> {
-    const [newEmployer] = await db.insert(employers).values(employer).returning();
+    const employerData = {
+      ...employer,
+      mileageRate: employer.mileageRate?.toString() || "0.655",
+    };
+    const [newEmployer] = await db.insert(employers).values(employerData).returning();
     return newEmployer;
   }
 
@@ -144,9 +148,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEmployer(id: number, employer: Partial<InsertEmployer>): Promise<Employer> {
+    const employerData = {
+      ...employer,
+      ...(employer.mileageRate !== undefined && employer.mileageRate !== null && 
+          { mileageRate: employer.mileageRate.toString() }),
+    };
     const [updated] = await db
       .update(employers)
-      .set(employer)
+      .set(employerData)
       .where(eq(employers.id, id))
       .returning();
     return updated;

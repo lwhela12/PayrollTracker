@@ -446,36 +446,36 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(1);
 
-    if (!currentPeriod) {
-      // If no period contains the date, it might be before the first or after the last.
-      // For simplicity, return the 3 most recent periods.
-      return await db
+    // If a current period is found, fetch it and the two prior periods.
+    if (currentPeriod) {
+      const results = await db
         .select()
         .from(payPeriods)
-        .where(eq(payPeriods.employerId, employerId))
+        .where(
+          and(
+            eq(payPeriods.employerId, employerId),
+            lte(payPeriods.startDate, currentPeriod.startDate)
+          )
+        )
         .orderBy(desc(payPeriods.startDate))
         .limit(3);
-    }
-
-    // Find the two pay periods immediately preceding the current one
-    const previousPeriods = await db
-      .select()
-      .from(payPeriods)
-      .where(
-        and(
-          eq(payPeriods.employerId, employerId),
-          lt(payPeriods.startDate, currentPeriod.startDate)
+      return results;
+    } else {
+      // If no period contains the current date (e.g., we are between periods),
+      // find the most recent past period and return it and the two before it.
+      const results = await db
+        .select()
+        .from(payPeriods)
+        .where(
+          and(
+            eq(payPeriods.employerId, employerId),
+            lte(payPeriods.startDate, dateStr) // Find all periods that have already started
+          )
         )
-      )
-      .orderBy(desc(payPeriods.startDate))
-      .limit(2);
-
-    // Combine and sort the results
-    const result = [currentPeriod, ...previousPeriods].sort(
-      (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
-    );
-
-    return result;
+        .orderBy(desc(payPeriods.startDate)) // Get the most recent ones
+        .limit(3); // Get the top 3
+      return results;
+    }
   }
 
   async updatePayPeriod(id: number, payPeriod: Partial<InsertPayPeriod>): Promise<PayPeriod> {

@@ -488,37 +488,6 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         description: "Timecard data saved successfully",
       });
 
-      // Invalidate and refetch time entries for this employee
-      await queryClient.invalidateQueries({
-        queryKey: ["/api/time-entries/employee", employeeId],
-      });
-      
-      // Invalidate related queries
-      await queryClient.invalidateQueries({
-        queryKey: ["/api/pto-entries/employee", employeeId],
-      });
-      
-      await queryClient.invalidateQueries({
-        queryKey: ["/api/misc-hours-entries/employee", employeeId],
-      });
-      
-      await queryClient.invalidateQueries({
-        queryKey: ["/api/reimbursement-entries/employee", employeeId],
-      });
-
-      if (employee?.employerId) {
-        // Ensure dashboard stats refresh when returning to the main page
-        await queryClient.invalidateQueries({
-          queryKey: ["/api/dashboard/stats", employee.employerId],
-        });
-
-        await queryClient.prefetchQuery({
-          queryKey: ["/api/dashboard/stats", employee.employerId],
-          queryFn: () =>
-            apiRequest("GET", `/api/dashboard/stats/${employee.employerId}`).then((res) => res.json()),
-        });
-      }
-
       // Store the current pay period for restoration
       if (payPeriod && payPeriod.start) {
         sessionStorage.setItem('selected-pay-period-start', payPeriod.start);
@@ -527,8 +496,35 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       // Clear real-time updates immediately to avoid stale data
       clearEmployee(employeeId);
 
-      // Navigate immediately without waiting
+      // Navigate immediately - don't wait for query invalidations
       navigate("/");
+
+      // Perform invalidations in background after navigation
+      setTimeout(async () => {
+        // Only invalidate the queries we actually need
+        if (employee?.employerId) {
+          await queryClient.invalidateQueries({
+            queryKey: ["/api/dashboard/stats", employee.employerId],
+          });
+        }
+
+        // Remove specific employee queries to force fresh data on next visit
+        queryClient.removeQueries({
+          queryKey: ["/api/time-entries/employee", employeeId],
+        });
+        
+        queryClient.removeQueries({
+          queryKey: ["/api/pto-entries/employee", employeeId],
+        });
+        
+        queryClient.removeQueries({
+          queryKey: ["/api/misc-hours-entries/employee", employeeId],
+        });
+        
+        queryClient.removeQueries({
+          queryKey: ["/api/reimbursement-entries/employee", employeeId],
+        });
+      }, 100);
     },
     onSettled: () => {
       if (employee?.employerId) {

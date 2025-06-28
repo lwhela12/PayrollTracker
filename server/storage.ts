@@ -33,22 +33,28 @@ import {
   type Report,
   type InsertReport,
 } from "@shared/schema";
-import { db, pool } from "./db";
-import { eq, and, desc, asc, gte, lte, inArray } from "drizzle-orm";
+import { db } from "./db";
+import { 
+  employees, employers, timeEntries, ptoEntries, miscHoursEntries, 
+  reimbursementEntries, payPeriods, reports, reimbursements 
+} from "../shared/schema";
+import { eq, and, gte, lte, desc, asc, between } from "drizzle-orm";
+import { pool } from "./db";
 import { calculateWeeklyOvertime } from "./lib/payroll";
+import { inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  
+
   // Employer operations
   createEmployer(employer: InsertEmployer): Promise<Employer>;
   getEmployersByOwner(ownerId: string): Promise<Employer[]>;
   getEmployer(id: number): Promise<Employer | undefined>;
   updateEmployer(id: number, employer: Partial<InsertEmployer>): Promise<Employer>;
   deleteEmployer(id: number): Promise<void>;
-  
+
   // Employee operations
   createEmployee(employee: InsertEmployee): Promise<Employee>;
   createMultipleEmployees(employees: InsertEmployee[]): Promise<{ success: number; failed: number; employees: Employee[] }>;
@@ -56,13 +62,13 @@ export interface IStorage {
   getEmployee(id: number): Promise<Employee | undefined>;
   updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee>;
   deleteEmployee(id: number): Promise<void>;
-  
+
   // Pay period operations
   getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]>;
   getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined>;
   getPayPeriod(id: number): Promise<PayPeriod | undefined>;
   clearAndRegeneratePayPeriods(employerId: number): Promise<void>;
-  
+
   // Timecard operations
   createTimecard(timecard: InsertTimecard): Promise<Timecard>;
   getTimecardsByPayPeriod(payPeriodId: number): Promise<Timecard[]>;
@@ -94,14 +100,14 @@ export interface IStorage {
   getMiscHoursEntriesByEmployee(employeeId: number): Promise<MiscHoursEntry[]>;
   updateMiscHoursEntry(id: number, entry: Partial<InsertMiscHoursEntry>): Promise<MiscHoursEntry>;
   deleteMiscHoursEntry(id: number): Promise<void>;
-  
+
   // Reimbursement operations
   createReimbursement(reimbursement: InsertReimbursement): Promise<Reimbursement>;
   getReimbursementsByPayPeriod(payPeriodId: number): Promise<Reimbursement[]>;
   getReimbursementsByEmployee(employeeId: number): Promise<Reimbursement[]>;
   updateReimbursement(id: number, reimbursement: Partial<InsertReimbursement>): Promise<Reimbursement>;
   deleteReimbursement(id: number): Promise<void>;
-  
+
   // Report operations
   createReport(report: InsertReport): Promise<Report>;
   getReportsByEmployer(employerId: number): Promise<Report[]>;
@@ -194,7 +200,7 @@ export class DatabaseStorage implements IStorage {
     if (insertData.hireDate instanceof Date) {
       (insertData as any).hireDate = insertData.hireDate.toISOString().split('T')[0];
     }
-    
+
     const [newEmployee] = await db.insert(employees).values(insertData as any).returning();
     return newEmployee;
   }
@@ -241,7 +247,7 @@ export class DatabaseStorage implements IStorage {
     if (updateData.hireDate instanceof Date) {
       (updateData as any).hireDate = updateData.hireDate.toISOString().split('T')[0];
     }
-    
+
     const [updated] = await db
       .update(employees)
       .set(updateData as any)
@@ -255,7 +261,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Pay Period Operations
-  
+
   private getPayPeriodStartDate(employer: Employer): Date {
     if (!employer.payPeriodStartDate) {
       throw new Error('Pay period start date is required');
@@ -328,7 +334,7 @@ export class DatabaseStorage implements IStorage {
       eq(payPeriods.employerId, employerId),
       inArray(payPeriods.startDate, targetStartDates)
     )).orderBy(desc(payPeriods.startDate));
-    
+
     return finalPeriods;
   }
 
@@ -351,7 +357,7 @@ export class DatabaseStorage implements IStorage {
       .select({ id: payPeriods.id })
       .from(payPeriods)
       .where(eq(payPeriods.employerId, employerId));
-    
+
     const ppIds = payPeriodIds.map(p => p.id);
 
     if (ppIds.length > 0) {
@@ -383,7 +389,7 @@ export class DatabaseStorage implements IStorage {
     if (payPeriodId) {
       conditions.push(eq(timecards.payPeriodId, payPeriodId));
     }
-    
+
     return await db
       .select()
       .from(timecards)

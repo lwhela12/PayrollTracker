@@ -684,141 +684,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bulk timecard update
   app.post('/api/timecards/bulk-update', isAuthenticated, async (req: any, res) => {
     try {
-      const payload = req.body as any;
-      const { employeeId, payPeriod } = payload;
+      const {
+        employeeId,
+        payPeriod,
+        days,
+        ptoHours,
+        holidayNonWorked,
+        holidayWorked,
+        milesDriven,
+        miscHours,
+        reimbursement,
+        notes
+      } = req.body;
 
+      // Validate employee access
       const employee = await storage.getEmployee(employeeId);
       if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
       const employer = await storage.getEmployer(employee.employerId);
-      if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
 
-      await db.transaction(async (tx) => {
-        await tx
-          .delete(timeEntries)
-          .where(
-            and(
-              eq(timeEntries.employeeId, employeeId),
-              gte(timeEntries.timeIn, new Date(payPeriod.start)),
-              lte(timeEntries.timeIn, new Date(payPeriod.end))
-            )
-          );
+      // Get or create pay period
+      const startDate = new Date(payPeriod.start);
+      const endDate = new Date(payPeriod.end);
+      let period = await storage.getPayPeriodByDates(employee.employerId, startDate, endDate);
+      if (!period) {
+        period = await storage.createPayPeriod({
+          employerId: employee.employerId,
+          startDate: payPeriod.start,
+          endDate: payPeriod.end,
+        });
+      }
 
-        await tx
-          .delete(ptoEntries)
-          .where(
-            and(
-              eq(ptoEntries.employeeId, employeeId),
-              gte(ptoEntries.entryDate, payPeriod.start as any),
-              lte(ptoEntries.entryDate, payPeriod.end as any)
-            )
-          );
-
-        await tx
-          .delete(miscHoursEntries)
-          .where(
-            and(
-              eq(miscHoursEntries.employeeId, employeeId),
-              gte(miscHoursEntries.entryDate, payPeriod.start as any),
-              lte(miscHoursEntries.entryDate, payPeriod.end as any)
-            )
-          );
-
-        await tx
-          .delete(reimbursementEntries)
-          .where(
-            and(
-              eq(reimbursementEntries.employeeId, employeeId),
-              gte(reimbursementEntries.entryDate, payPeriod.start as any),
-              lte(reimbursementEntries.entryDate, payPeriod.end as any)
-            )
-          );
-
-        const entries: any[] = [];
-        for (const day of payload.days || []) {
-          for (const shift of day.shifts || []) {
-            if (shift.timeIn && shift.timeOut) {
-              entries.push(
-                insertTimeEntrySchema.parse({
-                  employeeId,
-                  timeIn: `${day.date}T${shift.timeIn}:00`,
-                  timeOut: `${day.date}T${shift.timeOut}:00`,
-                  lunchMinutes: shift.lunch,
-                  notes: payload.notes || ''
-                })
-              );
-            }
-          }
-        }
-        if (entries.length > 0) {
-          await tx.insert(timeEntries).values(entries);
-        }
-
-        if (payload.ptoHours > 0) {
-          await tx.insert(ptoEntries).values({
-            employeeId,
-            entryDate: payPeriod.start,
-            hours: payload.ptoHours.toString()
-          });
-        }
-
-        if (payload.holidayNonWorked > 0) {
-          await tx.insert(miscHoursEntries).values({
-            employeeId,
-            entryDate: payPeriod.start,
-            hours: payload.holidayNonWorked.toString(),
-            entryType: 'holiday'
-          });
-        }
-
-        if (payload.holidayWorked > 0) {
-          await tx.insert(miscHoursEntries).values({
-            employeeId,
-            entryDate: payPeriod.start,
-            hours: payload.holidayWorked.toString(),
-            entryType: 'holiday-worked'
-          });
-        }
-
-        if (payload.miscHours > 0) {
-          await tx.insert(miscHoursEntries).values({
-            employeeId,
-            entryDate: payPeriod.start,
-            hours: payload.miscHours.toString(),
-            entryType: 'misc'
-          });
-        }
-
-        const mileageRate = parseFloat(employer.mileageRate || '0.655');
-        const mileageAmount = payload.milesDriven > 0 ? payload.milesDriven * mileageRate : 0;
-        const totalReimbursement = payload.reimbursement.amount + mileageAmount;
-
-        if (totalReimbursement > 0) {
-          let description = '';
-          if (payload.milesDriven > 0) {
-            description += `Mileage: ${payload.milesDriven} miles ($${mileageAmount.toFixed(2)})`;
-          }
-          if (payload.reimbursement.amount > 0) {
-            if (description) description += '; ';
-            description += payload.reimbursement.description || 'Other reimbursement';
-          }
-
-          await tx.insert(reimbursementEntries).values({
-            employeeId,
-            entryDate: payPeriod.start,
-            amount: totalReimbursement.toString(),
-            description: description || 'Reimbursement'
-          });
-        }
+      // Use batch operations for better performance
+      await storage.bulkUpdateTimecardData({
+        employeeId,
+        payPeriodId: period.id,
+        payPeriodStart: payPeriod.start,
+        payPeriodEnd: payPeriod.end,
+        days,
+        ptoHours,
+        holidayNonWorked,
+        holidayWorked,
+        milesDriven,
+        miscHours,
+        reimbursement,
+        employer
       });
 
+      // Clear dashboard stats cache
       getDashboardStatsCached.clear();
+
       res.json({ message: 'Updated' });
-    } catch (error: any) {
-      console.error('Error bulk updating timecards:', error);
-      res.status(500).json({ message: 'Failed to update timecards' });
+    } catch (error) {
+      console.error('Bulk update error:', error);
+      res.status(500).json({ message: 'Failed to update timecard data' });
     }
   });
 
@@ -1022,7 +946,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard stats endpoint
-  
+
 app.get("/api/dashboard/stats/:employerId", async (req, res) => {
     try {
       const employerId = parseInt(req.params.employerId);
@@ -1522,6 +1446,7 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
       doc.fontSize(8);
       doc.text(formattedDate, 50, yPos);
       doc.text(timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 120, yPos);
+```tool_code
       doc.text(timeOut ? timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--', 180, yPos);
       doc.text((entry.lunchMinutes || 0).toString(), 240, yPos);
       doc.text(entryHours.toFixed(2), 310, yPos);

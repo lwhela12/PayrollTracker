@@ -1258,7 +1258,7 @@ async function generatePDFReport(
     
     // Start a new page before hitting the bottom of the page
     if (yPos > doc.page.height - 50) {
-      doc.addPage();
+      doc.addPage({ size: 'A4', layout: 'landscape' });
       yPos = addHeader();
     }
   }
@@ -1337,7 +1337,7 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
   doc.pipe(fs.createWriteStream(filePath));
 
   for (const emp of employees) {
-    if (employees.indexOf(emp) > 0) doc.addPage();
+    if (employees.indexOf(emp) > 0) doc.addPage({ size: 'A4', layout: 'landscape' });
     
     // Header
     doc.fontSize(20).text('Individual Timecard Report', 50, 50);
@@ -1426,7 +1426,7 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
       yPos += 15;
       
       if (yPos > 480) {
-        doc.addPage();
+        doc.addPage({ size: 'A4', layout: 'landscape' });
         yPos = 50;
       }
     }

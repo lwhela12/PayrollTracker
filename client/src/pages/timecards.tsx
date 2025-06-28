@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
@@ -25,7 +25,6 @@ export default function Timecards() {
   const { employerId: selectedEmployerId, setEmployerId: setSelectedEmployerId } = useCompany();
   const { getEmployeeUpdate } = useTimecardUpdates();
   const [selectedPayPeriodId, setSelectedPayPeriodId] = useState<string>("");
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: employers = [] } = useQuery<any[]>({
     queryKey: ["/api/employers"],
@@ -75,11 +74,14 @@ export default function Timecards() {
   // Restore scroll position when returning from timecard form
   useEffect(() => {
     const savedScrollPosition = sessionStorage.getItem('timecards-scroll-position');
-    if (savedScrollPosition && scrollContainerRef.current) {
+    if (savedScrollPosition) {
       const scrollTop = parseInt(savedScrollPosition, 10);
-      scrollContainerRef.current.scrollTop = scrollTop;
-      // Clear the saved position after restoring
-      sessionStorage.removeItem('timecards-scroll-position');
+      // Use setTimeout to ensure DOM is fully rendered
+      setTimeout(() => {
+        window.scrollTo(0, scrollTop);
+        // Clear the saved position after restoring
+        sessionStorage.removeItem('timecards-scroll-position');
+      }, 100);
     }
   }, []);
 
@@ -96,9 +98,7 @@ export default function Timecards() {
     if (!selectedPayPeriod) return;
     
     // Save current scroll position
-    if (scrollContainerRef.current) {
-      sessionStorage.setItem('timecards-scroll-position', scrollContainerRef.current.scrollTop.toString());
-    }
+    sessionStorage.setItem('timecards-scroll-position', window.scrollY.toString());
     
     setLocation(
       `/timecard/employee/${employeeId}/period/${selectedPayPeriod.startDate}`,
@@ -135,7 +135,7 @@ export default function Timecards() {
           user={user}
         />
         
-        <main className="p-4 md:p-6" ref={scrollContainerRef}>
+        <main className="p-4 md:p-6">
           <div className="w-full">
             {/* Pay Period Selector */}
             {payPeriods.length > 0 && (

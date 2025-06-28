@@ -659,16 +659,23 @@ export class DatabaseStorage implements IStorage {
           const { shifts } = dayData as any;
           if (shifts && Array.isArray(shifts)) {
             for (const shift of shifts) {
-              if (shift.timeIn && shift.timeOut) {
-                const timeInDate = new Date(`${date}T${shift.timeIn}:00`);
-                const timeOutDate = new Date(`${date}T${shift.timeOut}:00`);
+              if (shift.timeIn && shift.timeOut && shift.timeIn.trim() !== '' && shift.timeOut.trim() !== '') {
+                // Ensure time format is HH:MM
+                const timeInFormatted = shift.timeIn.includes(':') ? shift.timeIn : `${shift.timeIn}:00`;
+                const timeOutFormatted = shift.timeOut.includes(':') ? shift.timeOut : `${shift.timeOut}:00`;
                 
-                timeEntriesToInsert.push({
-                  employeeId,
-                  timeIn: timeInDate,
-                  timeOut: timeOutDate,
-                  lunchMinutes: shift.lunch || 0,
-                });
+                const timeInDate = new Date(`${date}T${timeInFormatted}:00`);
+                const timeOutDate = new Date(`${date}T${timeOutFormatted}:00`);
+                
+                // Validate dates before inserting
+                if (!isNaN(timeInDate.getTime()) && !isNaN(timeOutDate.getTime())) {
+                  timeEntriesToInsert.push({
+                    employeeId,
+                    timeIn: timeInDate,
+                    timeOut: timeOutDate,
+                    lunchMinutes: shift.lunch || 0,
+                  });
+                }
               }
             }
           }

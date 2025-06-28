@@ -46,6 +46,7 @@ export interface IStorage {
   getEmployersByOwner(ownerId: string): Promise<Employer[]>;
   getEmployer(id: number): Promise<Employer | undefined>;
   updateEmployer(id: number, employer: Partial<InsertEmployer>): Promise<Employer>;
+  deleteEmployer(id: number): Promise<void>;
   
   // Employee operations
   createEmployee(employee: InsertEmployee): Promise<Employee>;
@@ -159,6 +160,26 @@ export class DatabaseStorage implements IStorage {
     }
 
     return updated;
+  }
+
+  async deleteEmployer(id: number): Promise<void> {
+    // Remove dependent records not covered by cascade constraints
+    const empIds = await db
+      .select({ id: employees.id })
+      .from(employees)
+      .where(eq(employees.employerId, id));
+    const employeeIds = empIds.map(e => e.id);
+
+    if (employeeIds.length > 0) {
+      await db.delete(timeEntries).where(inArray(timeEntries.employeeId, employeeIds));
+      await db.delete(ptoEntries).where(inArray(ptoEntries.employeeId, employeeIds));
+      await db.delete(reimbursementEntries).where(inArray(reimbursementEntries.employeeId, employeeIds));
+      await db.delete(miscHoursEntries).where(inArray(miscHoursEntries.employeeId, employeeIds));
+    }
+
+    await db.delete(reports).where(eq(reports.employerId, id));
+
+    await db.delete(employers).where(eq(employers.id, id));
   }
 
   // Employee operations

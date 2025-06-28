@@ -56,7 +56,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         `/api/time-entries/employee/${employeeId}?start=${start}&end=${end}`
       ).then((res) => res.json()),
     enabled: !!employeeId && !!start && !!end,
-    staleTime: 0, // Always refetch to ensure fresh data
+    staleTime: 30000, // Cache for 30 seconds to reduce redundant calls
     refetchOnMount: true,
   });
 
@@ -65,6 +65,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     queryFn: () =>
       apiRequest("GET", `/api/pto-entries/employee/${employeeId}`).then((res) => res.json()),
     enabled: !!employeeId,
+    staleTime: 60000, // Cache for 1 minute
   });
 
   const { data: existingMiscEntries = [] } = useQuery<any[]>({
@@ -72,13 +73,15 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     queryFn: () =>
       apiRequest("GET", `/api/misc-hours-entries/employee/${employeeId}`).then((res) => res.json()),
     enabled: !!employeeId,
+    staleTime: 60000, // Cache for 1 minute
   });
 
   const { data: existingReimbEntries = [] } = useQuery<any[]>({
     queryKey: ["/api/reimbursement-entries/employee", employeeId],
     queryFn: () =>
-      apiRequest("GET", `/api/reimbursement-entries/employee/${employeeId}`).then((res) => res.json()),
+      apiRequest("GET", `/api/reimbursement-entries/employee/${employeeId}`).then("res) => res.json()),
     enabled: !!employeeId,
+    staleTime: 60000, // Cache for 1 minute
   });
 
   const generateDays = useCallback(() => {
@@ -518,21 +521,14 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
 
       // Store the current pay period for restoration
       if (payPeriod && payPeriod.start) {
-        const startDate = new Date(payPeriod.start);
-        const endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + 13);
-        
-        // Find the pay period ID that matches this date range
-        // We need to store enough info to restore the selection
         sessionStorage.setItem('selected-pay-period-start', payPeriod.start);
       }
 
-      navigate("/");
+      // Clear real-time updates immediately to avoid stale data
+      clearEmployee(employeeId);
 
-      // Clear real-time updates
-      setTimeout(() => {
-        clearEmployee(employeeId);
-      }, 100);
+      // Navigate immediately without waiting
+      navigate("/");
     },
     onSettled: () => {
       if (employee?.employerId) {
@@ -752,8 +748,13 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
             className="payroll-button-primary"
             disabled={saveTimeEntries.isPending}
           >
-            {saveTimeEntries.isPending ? "Saving..." : "Save"}
+            {saveTimeEntries.isPending ? "Saving & Returning..." : "Save"}
           </Button>
+          {saveTimeEntries.isPending && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Please wait while we save your timecard data...
+            </p>
+          )}
         </div>
       </div>
       <div className="w-48 sticky top-20 h-fit border p-3 rounded-md bg-muted">

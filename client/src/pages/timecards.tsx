@@ -238,42 +238,38 @@ export default function Timecards() {
 
                               const handleMouseEnter = () => {
                                 if (!selectedPayPeriod) return;
-                                queryClient.prefetchQuery({
-                                  queryKey: [
-                                    "/api/time-entries/employee",
-                                    employee.id,
-                                    selectedPayPeriod.startDate,
-                                    selectedPayPeriod.endDate,
-                                  ],
-                                  queryFn: () =>
-                                    apiRequest(
-                                      "GET",
-                                      `/api/time-entries/employee/${employee.id}?start=${selectedPayPeriod.startDate}&end=${selectedPayPeriod.endDate}`,
-                                    ).then((res) => res.json()),
-                                });
+                                
+                                // Only prefetch if data isn't already cached
+                                const timeEntriesKey = ["/api/time-entries/employee", employee.id, selectedPayPeriod.startDate, selectedPayPeriod.endDate];
+                                if (!queryClient.getQueryData(timeEntriesKey)) {
+                                  queryClient.prefetchQuery({
+                                    queryKey: timeEntriesKey,
+                                    queryFn: () =>
+                                      apiRequest(
+                                        "GET",
+                                        `/api/time-entries/employee/${employee.id}?start=${selectedPayPeriod.startDate}&end=${selectedPayPeriod.endDate}`,
+                                      ).then((res) => res.json()),
+                                    staleTime: 30000, // Cache for 30 seconds
+                                  });
+                                }
 
-                                queryClient.prefetchQuery({
-                                  queryKey: ["/api/pto-entries/employee", employee.id],
-                                  queryFn: () =>
-                                    apiRequest("GET", `/api/pto-entries/employee/${employee.id}`).then((res) => res.json()),
-                                });
+                                // Batch the remaining employee data calls with longer cache time
+                                const employeeDataKeys = [
+                                  ["/api/pto-entries/employee", employee.id],
+                                  ["/api/misc-hours-entries/employee", employee.id],
+                                  ["/api/reimbursement-entries/employee", employee.id],
+                                  ["/api/employees", employee.id]
+                                ];
 
-                                queryClient.prefetchQuery({
-                                  queryKey: ["/api/misc-hours-entries/employee", employee.id],
-                                  queryFn: () =>
-                                    apiRequest("GET", `/api/misc-hours-entries/employee/${employee.id}`).then((res) => res.json()),
-                                });
-
-                                queryClient.prefetchQuery({
-                                  queryKey: ["/api/reimbursement-entries/employee", employee.id],
-                                  queryFn: () =>
-                                    apiRequest("GET", `/api/reimbursement-entries/employee/${employee.id}`).then((res) => res.json()),
-                                });
-
-                                queryClient.prefetchQuery({
-                                  queryKey: ["/api/employees", employee.id],
-                                  queryFn: () =>
-                                    apiRequest("GET", `/api/employees/${employee.id}`).then((res) => res.json()),
+                                employeeDataKeys.forEach(key => {
+                                  if (!queryClient.getQueryData(key)) {
+                                    const endpoint = key[0].replace("/employee", `/employee/${employee.id}`);
+                                    queryClient.prefetchQuery({
+                                      queryKey: key,
+                                      queryFn: () => apiRequest("GET", endpoint).then((res) => res.json()),
+                                      staleTime: 60000, // Cache for 1 minute
+                                    });
+                                  }
                                 });
                               };
                               
@@ -323,42 +319,38 @@ export default function Timecards() {
 
                           const handleMouseEnter = () => {
                             if (!selectedPayPeriod) return;
-                            queryClient.prefetchQuery({
-                              queryKey: [
-                                "/api/time-entries/employee",
-                                employee.id,
-                                selectedPayPeriod.startDate,
-                                selectedPayPeriod.endDate,
-                              ],
-                              queryFn: () =>
-                                apiRequest(
-                                  "GET",
-                                  `/api/time-entries/employee/${employee.id}?start=${selectedPayPeriod.startDate}&end=${selectedPayPeriod.endDate}`,
-                                ).then((res) => res.json()),
-                            });
+                            
+                            // Only prefetch if data isn't already cached
+                            const timeEntriesKey = ["/api/time-entries/employee", employee.id, selectedPayPeriod.startDate, selectedPayPeriod.endDate];
+                            if (!queryClient.getQueryData(timeEntriesKey)) {
+                              queryClient.prefetchQuery({
+                                queryKey: timeEntriesKey,
+                                queryFn: () =>
+                                  apiRequest(
+                                    "GET",
+                                    `/api/time-entries/employee/${employee.id}?start=${selectedPayPeriod.startDate}&end=${selectedPayPeriod.endDate}`,
+                                  ).then((res) => res.json()),
+                                staleTime: 30000, // Cache for 30 seconds
+                              });
+                            }
 
-                            queryClient.prefetchQuery({
-                              queryKey: ["/api/pto-entries/employee", employee.id],
-                              queryFn: () =>
-                                apiRequest("GET", `/api/pto-entries/employee/${employee.id}`).then((res) => res.json()),
-                            });
+                            // Batch the remaining employee data calls with longer cache time
+                            const employeeDataKeys = [
+                              ["/api/pto-entries/employee", employee.id],
+                              ["/api/misc-hours-entries/employee", employee.id],
+                              ["/api/reimbursement-entries/employee", employee.id],
+                              ["/api/employees", employee.id]
+                            ];
 
-                            queryClient.prefetchQuery({
-                              queryKey: ["/api/misc-hours-entries/employee", employee.id],
-                              queryFn: () =>
-                                apiRequest("GET", `/api/misc-hours-entries/employee/${employee.id}`).then((res) => res.json()),
-                            });
-
-                            queryClient.prefetchQuery({
-                              queryKey: ["/api/reimbursement-entries/employee", employee.id],
-                              queryFn: () =>
-                                apiRequest("GET", `/api/reimbursement-entries/employee/${employee.id}`).then((res) => res.json()),
-                            });
-
-                            queryClient.prefetchQuery({
-                              queryKey: ["/api/employees", employee.id],
-                              queryFn: () =>
-                                apiRequest("GET", `/api/employees/${employee.id}`).then((res) => res.json()),
+                            employeeDataKeys.forEach(key => {
+                              if (!queryClient.getQueryData(key)) {
+                                const endpoint = key[0].replace("/employee", `/employee/${employee.id}`);
+                                queryClient.prefetchQuery({
+                                  queryKey: key,
+                                  queryFn: () => apiRequest("GET", endpoint).then((res) => res.json()),
+                                  staleTime: 60000, // Cache for 1 minute
+                                });
+                              }
                             });
                           };
                           

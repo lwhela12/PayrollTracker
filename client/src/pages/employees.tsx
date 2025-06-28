@@ -70,11 +70,19 @@ export default function Employees() {
 
 
   // Filter employees
-  const filteredEmployees = employees?.filter((emp: any) =>
-    `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (emp.position || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (emp.email || "").toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredEmployees = Array.isArray(employees)
+    ? employees.filter((emp: any) =>
+        `${emp.firstName} ${emp.lastName}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (emp.position || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        (emp.email || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
+      )
+    : [];
 
   const handleEdit = (employee: any) => {
     setEditingEmployee(employee);

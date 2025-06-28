@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -10,27 +10,70 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useLocation } from "wouter";
 import { useCompany } from "@/context/company";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const schema = z.object({
   name: z.string().min(1, "Company name is required"),
-  weekStartsOn: z.coerce.number().min(0).max(6)
+  weekStartsOn: z.coerce.number().min(0).max(6),
+  payPeriodStartDate: z.string().min(1, "Payroll start date is required"),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  taxId: z.string().optional(),
+  mileageRate: z.string().min(1, "Mileage rate is required"),
 });
 
 type FormData = z.infer<typeof schema>;
+
+function getDayOfWeekName(dayNumber: number): string {
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  return days[dayNumber] || "";
+}
 
 export default function CompanySettings() {
   const [, navigate] = useLocation();
   const { employerId } = useCompany();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showPayrollWarning, setShowPayrollWarning] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
 
-  const { data } = useQuery<any | null>({
-    queryKey: employerId ? ["/api/employers/" + employerId] : null,
+  const { data } = useQuery<any>({
+    queryKey: ["/api/employers", employerId],
     enabled: !!employerId
   });
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    values: data ? { name: data.name || "", weekStartsOn: data.weekStartsOn || 0 } : { name: "", weekStartsOn: 0 }
+    values: data ? { 
+      name: data.name || "", 
+      weekStartsOn: data.weekStartsOn || 0,
+      payPeriodStartDate: data.payPeriodStartDate || "",
+      address: data.address || "",
+      phone: data.phone || "",
+      email: data.email || "",
+      taxId: data.taxId || "",
+      mileageRate: data.mileageRate?.toString() || "0.655"
+    } : { 
+      name: "", 
+      weekStartsOn: 0, 
+      payPeriodStartDate: "",
+      address: "",
+      phone: "",
+      email: "",
+      taxId: "",
+      mileageRate: "0.655"
+    }
   });
 
   const mutation = useMutation({

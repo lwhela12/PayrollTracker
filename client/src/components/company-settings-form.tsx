@@ -58,6 +58,12 @@ export function CompanySettingsForm({ employer, onSuccess, onCancel }: CompanySe
     },
   });
 
+  console.log('Form initialized with employer data:', {
+    employerId: employer?.id,
+    originalPayPeriodStartDate: employer?.payPeriodStartDate,
+    employer: employer
+  });
+
   const updateCompanyMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("PUT", `/api/employers/${employer.id}`, data);
@@ -139,10 +145,18 @@ export function CompanySettingsForm({ employer, onSuccess, onCancel }: CompanySe
     // Check if payroll start date has changed
     const payrollDateChanged = employer?.payPeriodStartDate !== data.payPeriodStartDate;
     
+    console.log('Payroll date check:', {
+      original: employer?.payPeriodStartDate,
+      new: data.payPeriodStartDate,
+      changed: payrollDateChanged
+    });
+    
     if (payrollDateChanged) {
+      console.log('Showing payroll warning dialog');
       setPendingFormData(data); // Store original form data, not converted
       setShowPayrollWarning(true);
     } else {
+      console.log('No payroll date change, updating normally');
       updateCompanyMutation.mutate(submissionData);
     }
   };
@@ -267,10 +281,10 @@ export function CompanySettingsForm({ employer, onSuccess, onCancel }: CompanySe
           </Button>
           <Button 
             type="submit" 
-            disabled={updateCompanyMutation.isPending}
+            disabled={updateCompanyMutation.isPending || updateCompanyWithPayrollChangeMutation.isPending}
             className="payroll-button-primary"
           >
-            {updateCompanyMutation.isPending ? "Saving..." : "Save Settings"}
+            {(updateCompanyMutation.isPending || updateCompanyWithPayrollChangeMutation.isPending) ? "Saving..." : "Save Settings"}
           </Button>
         </div>
       </form>

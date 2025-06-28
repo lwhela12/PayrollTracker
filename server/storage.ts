@@ -650,9 +650,12 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Delete all timecards and reimbursements for pay periods of this employer
+    // Delete all related data for pay periods of this employer
     if (ppIds.length > 0) {
       for (const ppId of ppIds) {
+        // Delete reports first (they reference pay periods)
+        await db.delete(reports).where(eq(reports.payPeriodId, ppId));
+        // Delete timecards and reimbursements
         await db.delete(timecards).where(eq(timecards.payPeriodId, ppId));
         await db.delete(reimbursements).where(eq(reimbursements.payPeriodId, ppId));
       }

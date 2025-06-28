@@ -263,6 +263,38 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingReimbEntries?.length, start, end]);
 
+  const calculateDayTotal = (day: DayEntry) => {
+    return day.shifts.reduce((sum, s) => {
+      const hrs = calculateHoursFromTimecard(s.timeIn, s.timeOut, s.lunch).totalHours;
+      return sum + hrs;
+    }, 0);
+  };
+
+  // Split days into two 7-day weeks and calculate overtime separately for each week
+  const week1Days = days.slice(0, 7);
+  const week2Days = days.slice(7, 14);
+  
+  const calculateWeeklyHours = (weekDays: DayEntry[]) => {
+    const weekTotalHours = weekDays.reduce((sum, d) => sum + calculateDayTotal(d), 0);
+    return {
+      regularHours: Math.min(weekTotalHours, 40),
+      overtimeHours: Math.max(0, weekTotalHours - 40)
+    };
+  };
+  
+  const week1 = calculateWeeklyHours(week1Days);
+  const week2 = calculateWeeklyHours(week2Days);
+  
+  const totalRegularHours = week1.regularHours + week2.regularHours;
+  const totalOvertimeHours = week1.overtimeHours + week2.overtimeHours;
+  const totalWorkedHours = totalRegularHours + totalOvertimeHours;
+  
+  const totals = {
+    regular: totalRegularHours + miscHours, // Add misc hours to regular hours
+    overtime: totalOvertimeHours,
+    totalHours: totalWorkedHours + miscHours
+  };
+
   // Real-time updates to pay period summary when any values change
   useEffect(() => {
     if (employee && employer) {
@@ -312,38 +344,6 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         };
       })
     );
-  };
-
-  const calculateDayTotal = (day: DayEntry) => {
-    return day.shifts.reduce((sum, s) => {
-      const hrs = calculateHoursFromTimecard(s.timeIn, s.timeOut, s.lunch).totalHours;
-      return sum + hrs;
-    }, 0);
-  };
-
-  // Split days into two 7-day weeks and calculate overtime separately for each week
-  const week1Days = days.slice(0, 7);
-  const week2Days = days.slice(7, 14);
-  
-  const calculateWeeklyHours = (weekDays: DayEntry[]) => {
-    const weekTotalHours = weekDays.reduce((sum, d) => sum + calculateDayTotal(d), 0);
-    return {
-      regularHours: Math.min(weekTotalHours, 40),
-      overtimeHours: Math.max(0, weekTotalHours - 40)
-    };
-  };
-  
-  const week1 = calculateWeeklyHours(week1Days);
-  const week2 = calculateWeeklyHours(week2Days);
-  
-  const totalRegularHours = week1.regularHours + week2.regularHours;
-  const totalOvertimeHours = week1.overtimeHours + week2.overtimeHours;
-  const totalWorkedHours = totalRegularHours + totalOvertimeHours;
-  
-  const totals = {
-    regular: totalRegularHours + miscHours, // Add misc hours to regular hours
-    overtime: totalOvertimeHours,
-    totalHours: totalWorkedHours + miscHours
   };
 
   const saveTimeEntries = useMutation({

@@ -186,7 +186,7 @@ export default function Timecards() {
                           <thead className="bg-gray-50">
                             <tr>
                               <th className="p-2 text-left">Employee</th>
-                              <th className="p-2 text-right">Total Hours</th>
+                              <th className="p-2 text-right">Regular Hours</th>
                               <th className="p-2 text-right">OT Hours</th>
                               <th className="p-2 text-right">PTO</th>
                               <th className="p-2 text-right">Holiday</th>
@@ -209,6 +209,9 @@ export default function Timecards() {
                                 holidayHours: updates?.holidayHours ?? stats.holidayHours ?? 0,
                                 holidayWorkedHours: updates?.holidayWorkedHours ?? stats.holidayWorkedHours ?? 0
                               };
+                              const regularHours =
+                                (displayStats.totalHours ?? 0) -
+                                (displayStats.totalOvertimeHours ?? 0);
                               
                               return (
                                 <tr
@@ -220,7 +223,7 @@ export default function Timecards() {
                                     <div className="font-medium">{employee.firstName} {employee.lastName}</div>
                                     <div className="text-xs text-muted-foreground">{employee.position}</div>
                                   </td>
-                                  <td className="p-2 text-right">{displayStats.totalHours?.toFixed?.(2) ?? '0.00'}</td>
+                                  <td className="p-2 text-right">{regularHours.toFixed(2)}</td>
                                   <td className="p-2 text-right text-orange-600 font-medium">{displayStats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}</td>
                                   <td className="p-2 text-right">{displayStats.ptoHours?.toFixed?.(2) ?? '0.00'}h</td>
                                   <td className="p-2 text-right">{displayStats.holidayHours?.toFixed?.(2) ?? '0.00'}h</td>
@@ -249,6 +252,9 @@ export default function Timecards() {
                             holidayHours: updates?.holidayHours ?? stats.holidayHours ?? 0,
                             holidayWorkedHours: updates?.holidayWorkedHours ?? stats.holidayWorkedHours ?? 0
                           };
+                          const regularHours =
+                            (displayStats.totalHours ?? 0) -
+                            (displayStats.totalOvertimeHours ?? 0);
                           
                           return (
                             <Card 
@@ -268,6 +274,10 @@ export default function Timecards() {
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Reg:</span>
+                                    <span>{regularHours.toFixed(2)}h</span>
+                                  </div>
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">OT:</span>
                                     <span className="text-orange-600 font-medium">{displayStats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}h</span>

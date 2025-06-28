@@ -32,6 +32,15 @@ export function EmployeeTimecardStatus({ employees, currentPayPeriod }: Employee
     enabled: !!currentPayPeriod?.id,
   });
 
+  // Fetch employee stats for selected employee when modal is open
+  const { data: selectedEmployeeStats } = useQuery({
+    queryKey: ["/api/dashboard/stats", selectedEmployee?.employerId, selectedEmployee?.id],
+    queryFn: () => selectedEmployee?.employerId ? 
+      fetch(`/api/dashboard/stats/${selectedEmployee.employerId}`, { credentials: 'include' }).then(res => res.json()) : 
+      Promise.resolve(null),
+    enabled: !!selectedEmployee?.employerId && showTimecardModal,
+  });
+
   const getEmployeeTimecardStatus = (employeeId: number) => {
     const employeeTimecards = timecards.filter((tc: any) => tc.employeeId === employeeId);
     
@@ -208,6 +217,7 @@ export function EmployeeTimecardStatus({ employees, currentPayPeriod }: Employee
           employee={selectedEmployee}
           timecards={timecards.filter((tc: any) => tc.employeeId === selectedEmployee.id)}
           payPeriod={currentPayPeriod}
+          employeeStats={selectedEmployeeStats?.employees?.find((emp: any) => emp.id === selectedEmployee.id)}
         />
       )}
     </>

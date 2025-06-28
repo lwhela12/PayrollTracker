@@ -18,16 +18,22 @@ interface TimecardModalProps {
   employee: any;
   timecards: any[];
   payPeriod: any;
+  employeeStats?: any;
 }
 
-export function TimecardModal({ isOpen, onClose, employee, timecards, payPeriod }: TimecardModalProps) {
+export function TimecardModal({ isOpen, onClose, employee, timecards, payPeriod, employeeStats }: TimecardModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isApproving, setIsApproving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingTimecard, setEditingTimecard] = useState<any>(null);
 
-  const weeklyTotals = calculateWeeklyHours(timecards);
+  // Use correct backend calculation from employeeStats instead of broken frontend calculation
+  const weeklyTotals = employeeStats ? {
+    totalRegularHours: employeeStats.regularHours || 0,
+    totalOvertimeHours: employeeStats.overtimeHours || 0,
+    totalHours: (employeeStats.regularHours || 0) + (employeeStats.overtimeHours || 0)
+  } : calculateWeeklyHours(timecards);
 
   const approveTimecardsMutation = useMutation({
     mutationFn: async () => {

@@ -1207,7 +1207,7 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
   for (const emp of employees) {
     // Get time entries for the pay period and calculate hours
     const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
-    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, 3); // Wednesday = 3
+    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, payPeriod.startDate);
     
     // Get PTO entries for pay period
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
@@ -1269,7 +1269,7 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
   for (const emp of employees) {
     // Get time entries for the pay period and calculate hours
     const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
-    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, 3); // Wednesday = 3
+    const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, payPeriod.startDate);
     
     // Get PTO entries for pay period
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);

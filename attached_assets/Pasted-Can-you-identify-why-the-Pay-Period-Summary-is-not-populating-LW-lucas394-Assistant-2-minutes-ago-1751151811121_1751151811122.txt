@@ -1,0 +1,44 @@
+Can you identify why the Pay Period Summary is not populating?
+
+LW
+
+lucas394
+Assistant
+2 minutes ago
+Looking at the error logs, I can see the issue with the Pay Period Summary not populating. The problem is in the PostgreSQL query in the getDashboardStats function in server/storage.ts.
+
+The error message shows:
+
+Error fetching dashboard stats: error: function pg_catalog.extract(unknown, integer) does not exist
+This is happening because the query is trying to use EXTRACT on date calculations that result in integers, but PostgreSQL expects specific data types. Let me fix this:
+
+server/storage.ts
+The issue was that the EXTRACT(EPOCH FROM ...) function needs to work on interval types, not on direct date arithmetic. By casting the date arithmetic results to ::interval, PostgreSQL can properly extract the epoch values.
+
+This should fix the "Maximum update depth exceeded" warning in the React component as well, since that was likely caused by the failed dashboard stats query causing the component to continuously re-render due to error states.
+
+Checkpoint made
+Fix PostgreSQL query type casting issue
+2 minutes ago
+•
+Can you identify why the pay period summary is still not populating?
+
+LW
+
+lucas394
+Assistant
+just now
+Looking at the console logs, I can see the issue with the Pay Period Summary not populating. The error is:
+
+Error fetching dashboard stats: error: cannot cast type integer to interval
+This is happening in the PostgreSQL query in the getDashboardStats function. The issue is in this line of the query:
+
+FLOOR(EXTRACT(EPOCH FROM (time_in::date - $2::date)::interval) / (7*24*60*60)) AS week,
+The problem is that when you subtract two dates in PostgreSQL, the result is already an interval, so we don't need to cast it to ::interval again. Let me fix this:
+
+server/storage.ts
+The changes I made:
+
+Removed the ::interval cast from (time_in::date - $2::date)::interval because subtracting two dates already returns an interval
+Removed the ::interval cast from the time difference calculation in the CASE statement because the result is already an interval
+This should fix the PostgreSQL casting error and allow the dashboard stats to load properly, which will populate the Pay Period Summary.

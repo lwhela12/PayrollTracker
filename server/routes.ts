@@ -1450,19 +1450,6 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
     const totalHours = regularHours + overtimeHours + miscHours + periodPto + holidayNonWorked + holidayWorked;
     doc.fontSize(12);
     doc.text(`Total Pay Period Hours: ${totalHours.toFixed(2)}`, 50, yPos);
-    
-    // Add reimbursement details if any
-    if (periodReimb.length > 0) {
-      yPos += 25;
-      doc.fontSize(11).text('Reimbursement Details:', 50, yPos);
-      yPos += 15;
-      doc.fontSize(9);
-      
-      periodReimb.forEach(r => {
-        doc.text(`• ${r.description}: $${parseFloat(r.amount as any).toFixed(2)}`, 60, yPos);
-        yPos += 12;
-      });
-    }
   }
   
   doc.end();

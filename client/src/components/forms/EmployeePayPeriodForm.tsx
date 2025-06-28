@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
@@ -81,7 +81,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     enabled: !!employeeId,
   });
 
-  const generateDays = () => {
+  const generateDays = useCallback(() => {
     const startDate = new Date(start);
     const days: DayEntry[] = [];
     for (let i = 0; i < 14; i++) {
@@ -91,9 +91,19 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       days.push({ date: dateStr, shifts: [{ timeIn: "", timeOut: "", lunch: 0 }] });
     }
     return days;
-  };
+  }, [start]);
 
-  const [days, setDays] = useState<DayEntry[]>(generateDays());
+  const [days, setDays] = useState<DayEntry[]>(() => {
+    const startDate = new Date(start);
+    const days: DayEntry[] = [];
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      const dateStr = d.toISOString().split("T")[0];
+      days.push({ date: dateStr, shifts: [{ timeIn: "", timeOut: "", lunch: 0 }] });
+    }
+    return days;
+  });
   const [ptoHours, setPtoHours] = useState(0);
   const [holidayNonWorked, setHolidayNonWorked] = useState(0);
   const [holidayWorked, setHolidayWorked] = useState(0);
@@ -145,7 +155,8 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     }
     
     setDays(newDays);
-  }, [existingEntries, start, end]); // Include start/end to refresh when pay period changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingEntries.length, start, end, generateDays]); // Use length instead of full array
 
   // Populate PTO hours from existing entries
   useEffect(() => {
@@ -158,8 +169,11 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       } catch (error) {
         console.warn('Failed to process PTO entries:', error);
       }
+    } else {
+      setPtoHours(0);
     }
-  }, [existingPtoEntries, start, end]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingPtoEntries.length, start, end]);
 
   // Populate misc hours from existing entries
   useEffect(() => {
@@ -182,8 +196,13 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       } catch (error) {
         console.warn('Failed to process misc hours entries:', error);
       }
+    } else {
+      setHolidayNonWorked(0);
+      setHolidayWorked(0);
+      setMiscHours(0);
     }
-  }, [existingMiscEntries, start, end]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingMiscEntries.length, start, end]);
 
   // Populate reimbursement from existing entries
   useEffect(() => {
@@ -229,8 +248,13 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       } catch (error) {
         console.warn('Failed to process reimbursement entries:', error);
       }
+    } else {
+      setMilesDriven(0);
+      setReimbAmt(0);
+      setReimbDesc("");
     }
-  }, [existingReimbEntries, start, end]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingReimbEntries.length, start, end]);
 
   // Real-time updates to pay period summary when mileage/reimbursement changes
   useEffect(() => {

@@ -125,6 +125,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update employer with payroll date change and entry clearing
+  app.put('/api/employers/:id/reset-payroll', isAuthenticated, async (req: any, res) => {
+    try {
+      const employerId = parseInt(req.params.id);
+      const employer = await storage.getEmployer(employerId);
+
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updateData = insertEmployerSchema.partial().parse(req.body);
+      
+      // Update employer first
+      const updated = await storage.updateEmployer(employerId, updateData);
+      
+      // Clear existing pay periods and regenerate
+      await storage.clearAndRegeneratePayPeriods(employerId);
+      
+      res.json(updated);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: fromZodError(error).toString() });
+      }
+      console.error("Error updating employer with payroll reset:", error);
+      res.status(500).json({ message: "Failed to update employer and reset payroll" });
+    }
+  });
+
   // Employee routes
   app.post('/api/employees', isAuthenticated, async (req: any, res) => {
     try {

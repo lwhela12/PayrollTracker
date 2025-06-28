@@ -34,7 +34,7 @@ import {
   type InsertReport,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, gte, lte, gt, sql } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, gt, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -61,6 +61,7 @@ export interface IStorage {
   getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined>;
   getPayPeriod(id: number): Promise<PayPeriod | undefined>;
   updatePayPeriod(id: number, payPeriod: Partial<InsertPayPeriod>): Promise<PayPeriod>;
+  clearAndRegeneratePayPeriods(employerId: number): Promise<void>;
   
   // Timecard operations
   createTimecard(timecard: InsertTimecard): Promise<Timecard>;
@@ -620,6 +621,48 @@ export class DatabaseStorage implements IStorage {
       .from(reports)
       .where(eq(reports.employerId, employerId))
       .orderBy(desc(reports.createdAt));
+  }
+
+  async clearAndRegeneratePayPeriods(employerId: number): Promise<void> {
+    // Get all employee IDs for this employer
+    const employeeIds = await db
+      .select({ id: employees.id })
+      .from(employees)
+      .where(eq(employees.employerId, employerId));
+    
+    const empIds = employeeIds.map(e => e.id);
+
+    // Get all pay period IDs for this employer
+    const payPeriodIds = await db
+      .select({ id: payPeriods.id })
+      .from(payPeriods)
+      .where(eq(payPeriods.employerId, employerId));
+    
+    const ppIds = payPeriodIds.map(p => p.id);
+
+    // Delete all time entries for employees of this employer
+    if (empIds.length > 0) {
+      for (const empId of empIds) {
+        await db.delete(timeEntries).where(eq(timeEntries.employeeId, empId));
+        await db.delete(ptoEntries).where(eq(ptoEntries.employeeId, empId));
+        await db.delete(reimbursementEntries).where(eq(reimbursementEntries.employeeId, empId));
+        await db.delete(miscHoursEntries).where(eq(miscHoursEntries.employeeId, empId));
+      }
+    }
+
+    // Delete all timecards and reimbursements for pay periods of this employer
+    if (ppIds.length > 0) {
+      for (const ppId of ppIds) {
+        await db.delete(timecards).where(eq(timecards.payPeriodId, ppId));
+        await db.delete(reimbursements).where(eq(reimbursements.payPeriodId, ppId));
+      }
+    }
+
+    // Delete all pay periods for this employer
+    await db.delete(payPeriods).where(eq(payPeriods.employerId, employerId));
+
+    // Regenerate pay periods with updated company settings
+    await this.ensurePayPeriodsExist(employerId);
   }
 }
 

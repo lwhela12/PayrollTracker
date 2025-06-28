@@ -159,7 +159,13 @@ export class DatabaseStorage implements IStorage {
 
   // Employee operations
   async createEmployee(employee: InsertEmployee): Promise<Employee> {
-    const [newEmployee] = await db.insert(employees).values(employee).returning();
+    // Convert Date to string if hireDate is a Date object
+    const insertData = { ...employee };
+    if (insertData.hireDate instanceof Date) {
+      (insertData as any).hireDate = insertData.hireDate.toISOString().split('T')[0];
+    }
+    
+    const [newEmployee] = await db.insert(employees).values(insertData as any).returning();
     return newEmployee;
   }
 
@@ -177,9 +183,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee> {
+    // Convert Date to string if hireDate is present
+    const updateData = { ...employee };
+    if (updateData.hireDate instanceof Date) {
+      (updateData as any).hireDate = updateData.hireDate.toISOString().split('T')[0];
+    }
+    
     const [updated] = await db
       .update(employees)
-      .set(employee)
+      .set(updateData as any)
       .where(eq(employees.id, id))
       .returning();
     return updated;
@@ -191,12 +203,16 @@ export class DatabaseStorage implements IStorage {
 
   // Pay Period Operations
   
-  private getMostRecentWednesday(date: Date): Date {
-    const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayOfWeek = utcDate.getUTCDay(); // Sunday = 0, Wednesday = 3
-    const daysToSubtract = (dayOfWeek + 4) % 7;
-    utcDate.setUTCDate(utcDate.getUTCDate() - daysToSubtract);
-    return utcDate;
+  private getPayPeriodStartDate(employer: Employer): Date {
+    if (!employer.payPeriodStartDate) {
+      throw new Error('Pay period start date is required');
+    }
+    const baseDate = new Date(employer.payPeriodStartDate);
+    return new Date(Date.UTC(
+      baseDate.getFullYear(),
+      baseDate.getMonth(),
+      baseDate.getDate()
+    ));
   }
 
   async getRelevantPayPeriods(employerId: number, referenceDate: Date): Promise<PayPeriod[]> {
@@ -205,7 +221,7 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
 
-    let currentStartDate = this.getMostRecentWednesday(new Date(employer.payPeriodStartDate));
+    let currentStartDate = this.getPayPeriodStartDate(employer);
     const refDateUTC = new Date(Date.UTC(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()));
 
     while (true) {

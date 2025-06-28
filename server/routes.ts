@@ -82,11 +82,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const employerId = parseInt(req.params.id);
       const employer = await storage.getEmployer(employerId);
-      
+
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(404).json({ message: "Employer not found" });
       }
-      
+
       res.json(employer);
     } catch (error) {
       console.error("Error fetching employer:", error);
@@ -143,13 +143,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updateData = insertEmployerSchema.partial().parse(req.body);
-      
+
       // Update employer first
       const updated = await storage.updateEmployer(employerId, updateData);
-      
+
       // Clear existing pay periods and regenerate
       await storage.clearAndRegeneratePayPeriods(employerId);
-      
+
       res.json(updated);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -181,13 +181,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/employees', isAuthenticated, async (req: any, res) => {
     try {
       const employeeData = insertEmployeeSchema.parse(req.body);
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(employeeData.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const employee = await storage.createEmployee(employeeData);
       res.json(employee);
     } catch (error: any) {
@@ -205,13 +205,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/employees/:employerId', isAuthenticated, async (req: any, res) => {
     try {
       const employerId = parseInt(req.params.employerId);
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const employees = await storage.getEmployeesByEmployer(employerId);
       res.json(employees);
     } catch (error) {
@@ -224,17 +224,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const employeeId = parseInt(req.params.id);
       const employee = await storage.getEmployee(employeeId);
-      
+
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const updateData = insertEmployeeSchema.partial().parse(req.body);
       const updated = await storage.updateEmployee(employeeId, updateData);
       res.json(updated);
@@ -251,17 +251,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const employeeId = parseInt(req.params.id);
       const employee = await storage.getEmployee(employeeId);
-      
+
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       await storage.deleteEmployee(employeeId);
       res.json({ message: "Employee deleted successfully" });
     } catch (error) {
@@ -286,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const csvData = req.file.buffer.toString();
       const employees: any[] = [];
-      
+
       await new Promise<void>((resolve, reject) => {
         parseString(csvData, { 
           headers: true,
@@ -300,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const nameParts = row.Name.split(',');
               let firstName = '';
               let lastName = '';
-              
+
               if (nameParts.length >= 2) {
                 lastName = nameParts[0].trim();
                 firstName = nameParts[1].trim();
@@ -355,13 +355,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/pay-periods', isAuthenticated, async (req: any, res) => {
     try {
       const payPeriodData = insertPayPeriodSchema.parse(req.body);
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(payPeriodData.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const payPeriod = await storage.createPayPeriod(payPeriodData);
       res.json(payPeriod);
     } catch (error: any) {
@@ -376,13 +376,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/pay-periods/:employerId', isAuthenticated, async (req: any, res) => {
     try {
       const employerId = parseInt(req.params.employerId);
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const payPeriods = await storage.getPayPeriodsByEmployer(employerId);
       res.json(payPeriods);
     } catch (error) {
@@ -395,13 +395,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const employerId = parseInt(req.params.employerId);
       const date = req.query.date ? new Date(req.query.date as string) : new Date();
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const relevantPayPeriods = await storage.getRelevantPayPeriods(employerId, date);
       res.json(relevantPayPeriods);
     } catch (error) {
@@ -413,13 +413,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/pay-periods/:employerId/current', isAuthenticated, async (req: any, res) => {
     try {
       const employerId = parseInt(req.params.employerId);
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const currentPayPeriod = await storage.getCurrentPayPeriod(employerId);
       res.json(currentPayPeriod);
     } catch (error) {
@@ -432,22 +432,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/pay-periods/:employerId/reset', isAuthenticated, async (req: any, res) => {
     try {
       const employerId = parseInt(req.params.employerId);
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       // Delete existing pay periods for this employer through storage
       const existingPayPeriods = await storage.getPayPeriodsByEmployer(employerId);
       for (const pp of existingPayPeriods) {
         await db.delete(payPeriods).where(eq(payPeriods.id, pp.id));
       }
-      
+
       // Regenerate pay periods with proper Wednesday alignment
       await storage.ensurePayPeriodsExist(employerId);
-      
+
       // Get the current pay period
       const currentPayPeriod = await storage.getCurrentPayPeriod(employerId);
       res.json({ message: "Pay periods reset successfully", currentPayPeriod });
@@ -461,13 +461,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/pay-periods', isAuthenticated, async (req: any, res) => {
     try {
       const payPeriodData = insertPayPeriodSchema.parse(req.body);
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(payPeriodData.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const payPeriod = await storage.createPayPeriod(payPeriodData);
       res.json(payPeriod);
     } catch (error: any) {
@@ -486,18 +486,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/timecards', isAuthenticated, async (req: any, res) => {
     try {
       const timecardData = insertTimecardSchema.parse(req.body);
-      
+
       // Verify employee belongs to user's employer
       const employee = await storage.getEmployee(timecardData.employeeId);
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
-      
+
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const timecard = await storage.createTimecard(timecardData);
       res.json(timecard);
     } catch (error: any) {
@@ -513,18 +513,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const employeeId = parseInt(req.params.employeeId);
       const payPeriodId = req.query.payPeriodId ? parseInt(req.query.payPeriodId as string) : undefined;
-      
+
       // Verify employee belongs to user's employer
       const employee = await storage.getEmployee(employeeId);
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
-      
+
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const timecards = await storage.getTimecardsByEmployee(employeeId, payPeriodId);
       res.json(timecards);
     } catch (error) {
@@ -536,18 +536,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/timecards/pay-period/:payPeriodId', isAuthenticated, async (req: any, res) => {
     try {
       const payPeriodId = parseInt(req.params.payPeriodId);
-      
+
       // Verify pay period belongs to user's employer
       const payPeriod = await storage.getPayPeriod(payPeriodId);
       if (!payPeriod) {
         return res.status(404).json({ message: "Pay period not found" });
       }
-      
+
       const employer = await storage.getEmployer(payPeriod.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const timecards = await storage.getTimecardsByPayPeriod(payPeriodId);
       res.json(timecards);
     } catch (error) {
@@ -561,18 +561,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const employeeId = parseInt(req.params.employeeId);
       const payPeriodId = req.query.payPeriodId ? parseInt(req.query.payPeriodId) : undefined;
-      
+
       // Verify employee belongs to user's employer
       const employee = await storage.getEmployee(employeeId);
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
-      
+
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const timecards = await storage.getTimecardsByEmployee(employeeId, payPeriodId);
       res.json(timecards);
     } catch (error) {
@@ -585,18 +585,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const timecardId = parseInt(req.params.id);
       const timecard = await storage.getTimecard(timecardId);
-      
+
       if (!timecard) {
         return res.status(404).json({ message: "Timecard not found" });
       }
-      
+
       // Verify timecard belongs to user's employer
       const employee = await storage.getEmployee(timecard.employeeId);
       const employer = await storage.getEmployer(employee!.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const updateData = insertTimecardSchema.partial().parse(req.body);
       const updated = await storage.updateTimecard(timecardId, updateData);
       res.json(updated);
@@ -855,18 +855,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/reimbursements', isAuthenticated, async (req: any, res) => {
     try {
       const reimbursementData = insertReimbursementSchema.parse(req.body);
-      
+
       // Verify employee belongs to user's employer
       const employee = await storage.getEmployee(reimbursementData.employeeId);
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
-      
+
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const reimbursement = await storage.createReimbursement(reimbursementData);
       getDashboardStatsCached.clear();
       res.json(reimbursement);
@@ -880,63 +880,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard stats endpoint
-  app.get('/api/dashboard/stats/:employerId', isAuthenticated, async (req: any, res) => {
+  
+app.get("/api/dashboard/stats/:employerId", async (req, res) => {
     try {
       const employerId = parseInt(req.params.employerId);
       const payPeriodId = req.query.payPeriodId ? parseInt(req.query.payPeriodId as string) : null;
 
-      const employer = await storage.getEmployer(employerId);
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
-        return res.status(403).json({ message: "Access denied" });
+      // Get the current or specified pay period
+      let payPeriod;
+      if (payPeriodId) {
+        payPeriod = await storage.getPayPeriod(payPeriodId);
+      } else {
+        payPeriod = await storage.getCurrentPayPeriod(employerId);
+      }
+
+      if (!payPeriod) {
+        return res.status(404).json({ error: "No pay period found" });
       }
 
       const employees = await storage.getEmployeesByEmployer(employerId);
-      let targetPayPeriod;
-      
-      if (payPeriodId) {
-        targetPayPeriod = await storage.getPayPeriod(payPeriodId);
-      } else {
-        targetPayPeriod = await storage.getCurrentPayPeriod(employerId);
-      }
+      const employeeStats: any[] = [];
 
-      if (!targetPayPeriod) {
-        return res.json({
-          totalEmployees: employees.length,
-          pendingTimecards: 0,
-          totalHours: 0,
-          payrollReady: 0,
-          currentPayPeriod: await storage.getCurrentPayPeriod(employerId),
-          employeeStats: []
+      for (const emp of employees) {
+        // Get time entries and calculate weekly overtime using the same logic as frontend
+        const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
+
+        // Calculate hours using the same logic as the frontend timecard form
+        const payPeriodStart = new Date(payPeriod.startDate);
+        const week1Entries: any[] = [];
+        const week2Entries: any[] = [];
+
+        timeEntries.forEach(entry => {
+          if (!entry.timeIn || !entry.timeOut) return;
+
+          const entryDate = new Date(entry.timeIn);
+          const daysDiff = Math.floor((entryDate.getTime() - payPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
+
+          // Calculate hours for this entry (properly handling lunch)
+          let minutes = (new Date(entry.timeOut).getTime() - new Date(entry.timeIn).getTime()) / 60000;
+          if (minutes < 0) minutes += 24 * 60; // Handle overnight shifts
+          if (entry.lunchMinutes) minutes -= entry.lunchMinutes; // Always subtract lunch if specified
+          if (minutes < 0) minutes = 0;
+          const hours = Math.round((minutes / 60) * 100) / 100;
+
+          if (daysDiff < 7) {
+            week1Entries.push({ hours });
+          } else {
+            week2Entries.push({ hours });
+          }
+        });
+
+        // Calculate weekly totals and overtime
+        const week1Hours = week1Entries.reduce((sum, e) => sum + e.hours, 0);
+        const week2Hours = week2Entries.reduce((sum, e) => sum + e.hours, 0);
+
+        const week1Regular = Math.min(week1Hours, 40);
+        const week1Overtime = Math.max(0, week1Hours - 40);
+        const week2Regular = Math.min(week2Hours, 40);
+        const week2Overtime = Math.max(0, week2Hours - 40);
+
+        const totalRegularHours = week1Regular + week2Regular;
+        const totalOvertimeHours = week1Overtime + week2Overtime;
+
+        const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
+        const periodPto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
+          .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
+        const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
+        const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+          .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+        const holidayNonWorked = miscEntries.filter(m => m.entryType === 'holiday' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+          .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+        const miscHours = miscEntries.filter(m => m.entryType === 'misc' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
+          .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
+        const adjustedRegularHours = totalRegularHours + miscHours;
+        const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
+        const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
+          .reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
+
+        // Extract mileage from reimbursement descriptions
+        let totalMiles = 0;
+        const reimbEntriesToCheck = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate);
+        reimbEntriesToCheck.forEach((r: any) => {
+          const mileageMatch = r.description?.match(/Mileage: (\d+(?:\.\d+)?) miles/);
+          if (mileageMatch) {
+            totalMiles += parseFloat(mileageMatch[1]) || 0;
+          }
+        });
+
+        employeeStats.push({
+          employeeId: emp.id,
+          totalHours: adjustedRegularHours + totalOvertimeHours,
+          totalOvertimeHours: totalOvertimeHours,
+          ptoHours: periodPto,
+          holidayHours: holidayNonWorked,
+          holidayWorkedHours: holidayWorked,
+          mileage: totalMiles,
+          reimbursements: periodReimb
         });
       }
-
-      const rows = await getDashboardStatsCached(employerId, targetPayPeriod.id);
 
       let totalHours = 0;
       let pendingTimecards = 0;
       let payrollReady = 0;
 
-      const employeeStats = rows.map((r: any) => {
-        const hasData = (parseFloat(r.totalHours) || 0) > 0 ||
-          (parseFloat(r.ptoHours) || 0) > 0 ||
-          (parseFloat(r.holidayHours) || 0) > 0 ||
-          (parseFloat(r.holidayWorkedHours) || 0) > 0 ||
-          (parseFloat(r.miscHours) || 0) > 0;
+      employeeStats.forEach(stat => {
+        if (stat.totalHours === 0 && stat.ptoHours === 0 && stat.holidayHours === 0 && stat.holidayWorkedHours === 0) {
+          pendingTimecards++;
+        }
 
-        totalHours += parseFloat(r.totalHours) || 0;
-        if (!hasData) pendingTimecards += 1;
-        if (hasData && r.timecardCount === r.approvedCount) payrollReady += 1;
-
-        return {
-          employeeId: r.employeeId,
-          totalHours: Number(parseFloat(r.totalHours).toFixed(2)),
-          totalOvertimeHours: 0,
-          ptoHours: Number(parseFloat(r.ptoHours).toFixed(2)),
-          holidayHours: Number(parseFloat(r.holidayHours).toFixed(2)),
-          holidayWorkedHours: Number(parseFloat(r.holidayWorkedHours).toFixed(2)),
-          mileage: Number(parseFloat(r.mileage).toFixed(2)),
-          reimbursements: Number(parseFloat(r.reimbursements).toFixed(2))
-        };
+        totalHours += stat.totalHours;
       });
 
       res.json({
@@ -957,20 +1009,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/reports/generate', isAuthenticated, async (req: any, res) => {
     try {
       const { employerId, payPeriodId, reportType, format } = req.body;
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const payPeriod = await storage.getPayPeriod(payPeriodId);
       if (!payPeriod) {
         return res.status(404).json({ message: "Pay period not found" });
       }
-      
+
       const employees = await storage.getEmployeesByEmployer(employerId);
-      
+
       let timecardData: any[] = [];
 
       for (const emp of employees) {
@@ -987,13 +1039,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileExtension = format === 'excel' ? 'xlsx' : format;
       const fileName = `${reportType}_${payPeriod.startDate}_${payPeriod.endDate}.${fileExtension}`;
       const filePath = path.join(process.cwd(), 'reports', fileName);
-      
+
       // Ensure reports directory exists
       const reportsDir = path.dirname(filePath);
       if (!fs.existsSync(reportsDir)) {
         fs.mkdirSync(reportsDir, { recursive: true });
       }
-      
+
       if (format === 'pdf') {
         if (reportType === 'individual-timecard') {
           await generateIndividualTimecardPDFReport(employer, payPeriod, employees, timecardData, filePath);
@@ -1003,7 +1055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (format === 'excel') {
         await generateExcelReport(employer, payPeriod, employees, timecardData, filePath);
       }
-      
+
       // Save report record
       const report = await storage.createReport({
         employerId,
@@ -1014,7 +1066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filePath,
         generatedBy: req.user.claims.sub,
       });
-      
+
       res.json({ 
         message: "Report generated successfully",
         report,
@@ -1030,13 +1082,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/reports/:employerId', isAuthenticated, async (req: any, res) => {
     try {
       const employerId = parseInt(req.params.employerId);
-      
+
       // Verify employer ownership
       const employer = await storage.getEmployer(employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: 'Access denied' });
       }
-      
+
       const reports = await storage.getReportsByEmployer(employerId);
       res.json(reports);
     } catch (error) {
@@ -1049,11 +1101,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/reports/download/:reportId', isAuthenticated, async (req: any, res) => {
     try {
       const reportId = parseInt(req.params.reportId);
-      
+
       // Find the report across all user's employers
       const userEmployers = await storage.getEmployersByOwner(req.user.claims.sub);
       let report = null;
-      
+
       for (const employer of userEmployers) {
         const reports = await storage.getReportsByEmployer(employer.id);
         const foundReport = reports.find(r => r.id === reportId);
@@ -1062,7 +1114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           break;
         }
       }
-      
+
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
@@ -1076,7 +1128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mimeType = report.format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Content-Disposition', `attachment; filename="${report.fileName}"`);
-      
+
       // Stream the file
       const fileStream = fs.createReadStream(report.filePath!);
       fileStream.pipe(res);
@@ -1131,7 +1183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .reduce((s, m) => s + parseFloat(m.hours as any), 0);
         const miscHours = misc.filter(m => m.entryType === 'misc' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
           .reduce((s, m) => s + parseFloat(m.hours as any), 0);
-        
+
         // Add misc hours to regular hours (doesn't affect OT calculation)
         const adjustedRegularHours = reg + miscHours;
 
@@ -1256,28 +1308,28 @@ async function generatePDFReport(
 async function generateExcelReport(employer: any, payPeriod: any, employees: any[], timecardData: any[], filePath: string) {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Payroll Report');
-  
+
   // Headers
   worksheet.addRow(['Payroll Report']);
   worksheet.addRow([`Company: ${employer.name}`]);
   worksheet.addRow([`Pay Period: ${payPeriod.startDate} to ${payPeriod.endDate}`]);
   worksheet.addRow([`Generated: ${new Date().toLocaleDateString()}`]);
   worksheet.addRow([]);
-  
+
   // Employee data headers
   worksheet.addRow(['Employee', 'Regular Hours', 'OT Hours', 'PTO Hours', 'Holiday Hours', 'Holiday Worked', 'Reimbursement']);
-  
+
   // Process each employee
   for (const emp of employees) {
     // Get time entries for the pay period and calculate hours
     const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
     const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, payPeriod.startDate);
-    
+
     // Get PTO entries for pay period
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
     const periodPto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
       .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
-    
+
     // Get misc hours entries for holidays and misc hours
     const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
     const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
@@ -1286,15 +1338,15 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
     const miscHours = miscEntries.filter(m => m.entryType === 'misc' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
-    
+
     // Add misc hours to regular hours (doesn't affect OT calculation)
     const adjustedRegularHours = regularHours + miscHours;
-    
+
     // Get reimbursement entries for pay period
     const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
     const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
       .reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
-    
+
     // Add employee row
     worksheet.addRow([
       `${emp.firstName} ${emp.lastName}`,
@@ -1306,16 +1358,16 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
       periodReimb.toFixed(2)
     ]);
   }
-  
+
   // Style the worksheet
   worksheet.getRow(1).font = { bold: true, size: 16 };
   worksheet.getRow(6).font = { bold: true };
-  
+
   // Auto-fit columns
   worksheet.columns.forEach(column => {
     column.width = 15;
   });
-  
+
   await workbook.xlsx.writeFile(filePath);
 }
 
@@ -1325,19 +1377,19 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
 
   for (const emp of employees) {
     if (employees.indexOf(emp) > 0) doc.addPage({ size: 'A4', layout: 'landscape' });
-    
+
     // Header
     doc.fontSize(20).text('Individual Timecard Report', 50, 50);
     doc.fontSize(14).text(`Company: ${employer.name}`, 50, 80);
     doc.fontSize(14).text(`Employee: ${emp.firstName} ${emp.lastName} (ID: ${emp.employeeId || emp.id})`, 50, 100);
     doc.text(`Pay Period: ${payPeriod.startDate} to ${payPeriod.endDate}`, 50, 120);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 50, 140);
-    
+
     // Column headers
     let yPos = 180;
     doc.fontSize(16).text('Daily Time Entries', 50, yPos);
     yPos += 30;
-    
+
     // Table headers with landscape spacing
     doc.fontSize(9);
     doc.text('Date', 50, yPos);
@@ -1347,21 +1399,21 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
     doc.text('Hours', 310, yPos);
     doc.text('Notes', 360, yPos);
     yPos += 20;
-    
+
     // Draw header line
     doc.moveTo(50, yPos - 5).lineTo(720, yPos - 5).stroke();
-    
+
     // Get time entries for this employee
     const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
-    
+
     // Calculate total hours for display
     const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, payPeriod.startDate);
-    
+
     // Get additional entries
     const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
     const periodPto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)
       .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
-    
+
     const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
     const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
@@ -1369,11 +1421,11 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
     const miscHours = miscEntries.filter(m => m.entryType === 'misc' && m.entryDate >= payPeriod.startDate && m.entryDate <= payPeriod.endDate)
       .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
-    
+
     const reimbEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
     const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate);
     const totalReimbursement = periodReimb.reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
-    
+
     // Extract mileage from reimbursement descriptions
     let totalMiles = 0;
     periodReimb.forEach(r => {
@@ -1388,7 +1440,7 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
       const timeIn = new Date(entry.timeIn);
       const timeOut = entry.timeOut ? new Date(entry.timeOut) : null;
       let entryHours = 0;
-      
+
       if (timeOut) {
         let minutes = (timeOut.getTime() - timeIn.getTime()) / 60000;
         if (minutes < 0) minutes += 24 * 60; // Handle overnight shifts
@@ -1398,11 +1450,11 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
         if (minutes < 0) minutes = 0;
         entryHours = Math.round((minutes / 60) * 100) / 100;
       }
-      
+
       // Format date as MM/DD/YYYY for compactness
       const entryDate = new Date(entry.timeIn);
       const formattedDate = `${(entryDate.getMonth() + 1).toString().padStart(2, '0')}/${entryDate.getDate().toString().padStart(2, '0')}/${entryDate.getFullYear()}`;
-      
+
       doc.fontSize(8);
       doc.text(formattedDate, 50, yPos);
       doc.text(timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 120, yPos);
@@ -1411,23 +1463,23 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
       doc.text(entryHours.toFixed(2), 310, yPos);
       doc.text(entry.notes || '', 360, yPos, { width: 300, ellipsis: true });
       yPos += 15;
-      
+
       if (yPos > 480) {
         doc.addPage({ size: 'A4', layout: 'landscape' });
         yPos = 50;
       }
     }
-    
+
     // Add comprehensive summary section
     yPos += 30;
     doc.moveTo(50, yPos - 10).lineTo(720, yPos - 10).stroke();
-    
+
     doc.fontSize(14).text('Pay Period Summary', 50, yPos);
     yPos += 25;
-    
+
     // Summary in two columns
     doc.fontSize(10);
-    
+
     // Left column
     doc.text(`Regular Hours: ${(regularHours + miscHours).toFixed(2)}`, 50, yPos);
     yPos += 15;
@@ -1436,7 +1488,7 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
     doc.text(`PTO Hours: ${periodPto.toFixed(2)}`, 50, yPos);
     yPos += 15;
     doc.text(`Holiday Hours: ${holidayNonWorked.toFixed(2)}`, 50, yPos);
-    
+
     // Right column
     yPos -= 45; // Reset to top of summary
     doc.text(`Holiday Hours Worked: ${holidayWorked.toFixed(2)}`, 300, yPos);
@@ -1446,13 +1498,13 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
     doc.text(`Miles Driven: ${totalMiles.toFixed(1)}`, 300, yPos);
     yPos += 15;
     doc.text(`Total Reimbursement: $${totalReimbursement.toFixed(2)}`, 300, yPos);
-    
+
     // Total hours calculation
     yPos += 30;
     const totalHours = regularHours + overtimeHours + miscHours + periodPto + holidayNonWorked + holidayWorked;
     doc.fontSize(12);
     doc.text(`Total Pay Period Hours: ${totalHours.toFixed(2)}`, 50, yPos);
   }
-  
+
   doc.end();
 }

@@ -244,149 +244,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]> {
-    // Ensure pay periods exist for current date
-    await this.ensurePayPeriodsExist(employerId);
-    
-    // Clean up any future periods first
-    await this.cleanupFuturePeriods(employerId);
-    
-    // Get current pay period first
-    const currentPayPeriod = await this.getCurrentPayPeriod(employerId);
-    
-    // Get all pay periods and limit to current + 3 historical
-    const allPeriods = await db
+    return await db
       .select()
       .from(payPeriods)
       .where(eq(payPeriods.employerId, employerId))
-      .orderBy(desc(payPeriods.startDate))
-      .limit(4); // Current + 3 historical
-    
-    return allPeriods;
-  }
-
-  private async cleanupFuturePeriods(employerId: number): Promise<void> {
-    // Use UTC date to ensure consistent timezone handling
-    const today = new Date();
-    const utcToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
-    const todayStr = utcToday.toISOString().split('T')[0];
-    
-    // Delete any pay periods that start after today
-    await db
-      .delete(payPeriods)
-      .where(
-        and(
-          eq(payPeriods.employerId, employerId),
-          gt(payPeriods.startDate, todayStr)
-        )
-      );
+      .orderBy(desc(payPeriods.startDate));
   }
 
   async getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined> {
-    // First ensure pay periods exist for the current date
-    await this.ensurePayPeriodsExist(employerId);
-    
-    // Use UTC date to ensure consistent timezone handling
-    const today = new Date();
-    const utcToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
-    const todayStr = utcToday.toISOString().split('T')[0];
-    
-    const [current] = await db
-      .select()
-      .from(payPeriods)
-      .where(
-        and(
-          eq(payPeriods.employerId, employerId),
-          lte(payPeriods.startDate, todayStr),
-          gte(payPeriods.endDate, todayStr)
-        )
-      )
-      .limit(1);
-    
-    return current;
+    const relevant = await this.getRelevantPayPeriods(employerId, new Date());
+    return relevant[0];
   }
 
-  async ensurePayPeriodsExist(employerId: number): Promise<void> {
-    const employer = await this.getEmployer(employerId);
-    if (!employer) return;
-
-    let startDate: Date;
-    if (!employer.payPeriodStartDate) {
-        console.warn(`Employer ${employerId} missing pay_period_start_date, defaulting to the most recent Wednesday.`);
-        const today = new Date();
-        const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
-        startDate = this.getMostRecentWednesday(todayUTC);
-    } else {
-        const [year, month, day] = employer.payPeriodStartDate.split('-').map(Number);
-        const configuredDate = new Date(Date.UTC(year, month - 1, day));
-        startDate = this.getMostRecentWednesday(configuredDate);
-    }
-
-    const today = new Date();
-    const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
-    
-    const futureDate = new Date(todayUTC);
-    futureDate.setUTCDate(futureDate.getUTCDate() + 21);
-
-    const existingPayPeriods = await this.getPayPeriodsByEmployer(employerId);
-    const existingPeriodSet = new Set(existingPayPeriods.map(p => p.startDate));
-
-    let currentStart = new Date(startDate);
-    // Find the start of the pay period that contains today
-    while (currentStart < todayUTC) {
-        const endDate = new Date(currentStart);
-        endDate.setUTCDate(endDate.getUTCDate() + 13);
-        if (currentStart <= todayUTC && todayUTC <= endDate) {
-            break;
-        }
-        currentStart.setUTCDate(currentStart.getUTCDate() + 14);
-    }
-    
-    // Go back two pay periods to ensure previous ones exist
-    currentStart.setUTCDate(currentStart.getUTCDate() - 28);
-
-    const payPeriodsToCreate = [];
-    while (currentStart <= futureDate) {
-        const endDate = new Date(currentStart);
-        endDate.setUTCDate(endDate.getUTCDate() + 13);
-        const startDateStr = currentStart.toISOString().split('T')[0];
-
-        if (!existingPeriodSet.has(startDateStr)) {
-            payPeriodsToCreate.push({
-                employerId,
-                startDate: startDateStr,
-                endDate: endDate.toISOString().split('T')[0],
-                isActive: false
-            });
-        }
-
-        currentStart.setUTCDate(currentStart.getUTCDate() + 14);
-    }
-
-    if (payPeriodsToCreate.length > 0) {
-        await db.insert(payPeriods).values(payPeriodsToCreate);
-    }
-  }
-
-  private getMostRecentWeekStartDay(date: Date, weekStartsOn: number): Date {
-    // Create UTC date to avoid timezone issues
+  private getMostRecentWednesday(date: Date): Date {
     const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayOfWeek = utcDate.getUTCDay(); // Sunday = 0, Monday = 1, etc.
-    
-    let daysToSubtract: number;
-    if (dayOfWeek === weekStartsOn) {
-      // It's the configured start day, use this date
-      daysToSubtract = 0;
-    } else if (dayOfWeek > weekStartsOn) {
-      // It's after the start day, go back to this week's start day
-      daysToSubtract = dayOfWeek - weekStartsOn;
-    } else {
-      // It's before the start day, go back to last week's start day
-      daysToSubtract = dayOfWeek + (7 - weekStartsOn);
-    }
-    
-    const startDate = new Date(utcDate);
-    startDate.setUTCDate(utcDate.getUTCDate() - daysToSubtract);
-    return startDate;
+    const dayOfWeek = utcDate.getUTCDay(); // Sunday = 0, Wednesday = 3
+    const daysToSubtract = (dayOfWeek + 4) % 7;
+    utcDate.setUTCDate(utcDate.getUTCDate() - daysToSubtract);
+    return utcDate;
   }
 
   async getPayPeriod(id: number): Promise<PayPeriod | undefined> {
@@ -394,52 +269,73 @@ export class DatabaseStorage implements IStorage {
     return payPeriod;
   }
 
-  async getRelevantPayPeriods(employerId: number, date: Date): Promise<PayPeriod[]> {
-    const dateStr = date.toISOString().split('T')[0];
-
-    // Find the pay period containing the given date
-    const [currentPeriod] = await db
-      .select()
-      .from(payPeriods)
-      .where(
-        and(
-          eq(payPeriods.employerId, employerId),
-          lte(payPeriods.startDate, dateStr),
-          gte(payPeriods.endDate, dateStr)
-        )
-      )
-      .limit(1);
-
-    // If a current period is found, fetch it and the two prior periods.
-    if (currentPeriod) {
-      const results = await db
-        .select()
-        .from(payPeriods)
-        .where(
-          and(
-            eq(payPeriods.employerId, employerId),
-            lte(payPeriods.startDate, currentPeriod.startDate)
-          )
-        )
-        .orderBy(desc(payPeriods.startDate))
-        .limit(3);
-      return results;
-    } else {
-      // If no period contains the current date (e.g., we are between periods),
-      // find the most recent past period and return it and the two before it.
-      const results = await db
-        .select()
-        .from(payPeriods)
-        .where(
-          and(
-            eq(payPeriods.employerId, employerId),
-            lte(payPeriods.startDate, dateStr) // Find all periods that have already started
-          )
-        )
-        .orderBy(desc(payPeriods.startDate)) // Get the most recent ones
-        .limit(3); // Get the top 3
-      return results;
+  async getRelevantPayPeriods(employerId: number, referenceDate: Date): Promise<PayPeriod[]> {
+    const employer = await this.getEmployer(employerId);
+    if (!employer || !employer.payPeriodStartDate) {
+      // Cannot generate periods without a start date
+      return [];
     }
+
+    // 1. Determine the correct current pay period start date
+    let currentStartDate = this.getMostRecentWednesday(new Date(employer.payPeriodStartDate));
+    const refDateUTC = new Date(Date.UTC(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()));
+
+    while (true) {
+      const endDate = new Date(currentStartDate);
+      endDate.setUTCDate(endDate.getUTCDate() + 13);
+      if (currentStartDate <= refDateUTC && refDateUTC <= endDate) {
+        break; // Found the current period
+      }
+      if (currentStartDate > refDateUTC) {
+        // This can happen if the start date was moved. Let's find the period that *would* contain today.
+        currentStartDate.setUTCDate(currentStartDate.getUTCDate() - 14);
+      } else {
+        currentStartDate.setUTCDate(currentStartDate.getUTCDate() + 14);
+      }
+    }
+
+    // 2. Define the three target pay periods
+    const targetPeriods = [-2, -1, 0].map(offset => {
+      const startDate = new Date(currentStartDate);
+      startDate.setUTCDate(startDate.getUTCDate() + (offset * 14));
+      const endDate = new Date(startDate);
+      endDate.setUTCDate(endDate.getUTCDate() + 13);
+      return {
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+      };
+    });
+
+    const targetStartDates = targetPeriods.map(p => p.startDate);
+
+    // 3. Check which ones already exist
+    const existingPeriods = await db.select().from(payPeriods).where(and(
+      eq(payPeriods.employerId, employerId),
+      inArray(payPeriods.startDate, targetStartDates)
+    ));
+
+    const existingDates = new Set(existingPeriods.map(p => p.startDate));
+
+    // 4. Create any missing periods
+    const periodsToCreate = targetPeriods
+      .filter(p => !existingDates.has(p.startDate))
+      .map(p => ({
+        ...p,
+        employerId,
+        isActive: p.startDate === currentStartDate.toISOString().split('T')[0]
+      }));
+
+    if (periodsToCreate.length > 0) {
+      await db.insert(payPeriods).values(periodsToCreate);
+    }
+
+    // 5. Return the definitive list of 3 periods
+    const finalPeriods = await db.select().from(payPeriods).where(and(
+      eq(payPeriods.employerId, employerId),
+      inArray(payPeriods.startDate, targetStartDates)
+    )).orderBy(desc(payPeriods.startDate));
+    
+    return finalPeriods;
   }
 
   async updatePayPeriod(id: number, payPeriod: Partial<InsertPayPeriod>): Promise<PayPeriod> {

@@ -11,6 +11,11 @@ import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+function getDayOfWeekName(dayNumber: number): string {
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  return days[dayNumber] || "";
+}
+
 interface EmployerFormProps {
   employer?: any;
   onSuccess: () => void;

@@ -19,6 +19,7 @@ import TopSheetReport from "@/pages/reports/TopSheetReport";
 import CompaniesAdmin from "@/pages/admin/Companies";
 import { CompanyProvider } from "@/context/company";
 import { TimecardUpdatesProvider } from "@/context/timecard-updates";
+import { CompanySetupGuard } from "@/components/company-setup-guard";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -36,19 +37,21 @@ function Router() {
       {!isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
-        <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/create-company" component={CreateCompany} />
-          <Route path="/settings/create-company" component={SettingsCreateCompany} />
-          <Route path="/settings/company" component={CompanySettings} />
-          <Route path="/employees" component={Employees} />
-          <Route path="/timecards" component={Timecards} />
-          <Route path="/timecard/employee/:employeeId/period/:start" component={TimecardEntry} />
-          <Route path="/reports" component={Reports} />
-          <Route path="/reports/top-sheet" component={TopSheetReport} />
-          <Route path="/admin/companies" component={CompaniesAdmin} />
-          <Route path="/settings" component={Settings} />
-        </>
+        <CompanySetupGuard>
+          <>
+            <Route path="/" component={Timecards} />
+            <Route path="/create-company" component={CreateCompany} />
+            <Route path="/settings/create-company" component={SettingsCreateCompany} />
+            <Route path="/settings/company" component={CompanySettings} />
+            <Route path="/employees" component={Employees} />
+
+            <Route path="/timecard/employee/:employeeId/period/:start" component={TimecardEntry} />
+            <Route path="/reports" component={Reports} />
+            <Route path="/reports/top-sheet" component={TopSheetReport} />
+            <Route path="/admin/companies" component={CompaniesAdmin} />
+            <Route path="/settings" component={Settings} />
+          </>
+        </CompanySetupGuard>
       )}
       <Route component={NotFound} />
     </Switch>

@@ -51,6 +51,7 @@ export const employers = pgTable("employers", {
   taxId: varchar("tax_id", { length: 50 }),
   weekStartsOn: integer("week_starts_on").notNull().default(0),
   payPeriodStartDate: date("pay_period_start_date"),
+  mileageRate: decimal("mileage_rate", { precision: 10, scale: 4 }).default("0.655"), // IRS standard rate
   ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -63,7 +64,6 @@ export const employees = pgTable("employees", {
   email: varchar("email", { length: 255 }),
   phone: varchar("phone", { length: 20 }),
   position: varchar("position", { length: 100 }),
-  mileageRate: decimal("mileage_rate", { precision: 10, scale: 4 }).default("0.655"), // IRS standard rate
   hireDate: date("hire_date").notNull(),
   isActive: boolean("is_active").default(true),
   employerId: integer("employer_id").notNull().references(() => employers.id, { onDelete: "cascade" }),
@@ -106,8 +106,8 @@ export const timecards = pgTable("timecards", {
 export const timeEntries = pgTable('time_entries', {
   id: serial('id').primaryKey(),
   employeeId: integer('employee_id').references(() => employees.id).notNull(),
-  timeIn: timestamp('time_in', { withTimezone: true }).notNull(),
-  timeOut: timestamp('time_out', { withTimezone: true }),
+  timeIn: timestamp('time_in', { withTimezone: false }).notNull(),
+  timeOut: timestamp('time_out', { withTimezone: false }),
   lunchMinutes: integer('lunch_minutes').default(0),
   notes: text('notes'),
 });
@@ -176,7 +176,6 @@ export const insertEmployeeSchema = createInsertSchema(employees).omit({
   id: true,
   createdAt: true,
 }).extend({
-  mileageRate: z.coerce.number().min(0).max(5).default(0.655),
   hireDate: z.coerce.date(),
 });
 
@@ -194,8 +193,16 @@ export const insertTimecardSchema = createInsertSchema(timecards).omit({
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({
   id: true,
 }).extend({
-  timeIn: z.string().transform((val) => new Date(val)),
-  timeOut: z.string().optional().transform((val) => val ? new Date(val) : undefined),
+  timeIn: z.string().transform((val) => {
+    // For timezone-naive timestamps, create Date without timezone conversion
+    const dateStr = val.includes('T') ? val.replace('Z', '') : val;
+    return new Date(dateStr);
+  }),
+  timeOut: z.string().optional().transform((val) => {
+    if (!val) return undefined;
+    const dateStr = val.includes('T') ? val.replace('Z', '') : val;
+    return new Date(dateStr);
+  }),
 });
 
 export const insertPtoEntrySchema = createInsertSchema(ptoEntries).omit({

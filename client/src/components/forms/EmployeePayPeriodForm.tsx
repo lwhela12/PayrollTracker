@@ -38,6 +38,14 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
 
   const employee = propEmployee || fetchedEmployee;
 
+  // Fetch employer data to get company-level mileage rate
+  const { data: employer } = useQuery<any>({
+    queryKey: ["/api/employers", employee?.employerId],
+    queryFn: () =>
+      apiRequest("GET", `/api/employers/${employee?.employerId}`).then((res) => res.json()),
+    enabled: !!employee?.employerId,
+  });
+
   const { data: existingEntries = [] } = useQuery<any[]>({
     queryKey: ["/api/time-entries/employee", employeeId, start, end],
     queryFn: () =>
@@ -86,6 +94,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   const [holidayNonWorked, setHolidayNonWorked] = useState(0);
   const [holidayWorked, setHolidayWorked] = useState(0);
   const [milesDriven, setMilesDriven] = useState(0);
+  const [miscHours, setMiscHours] = useState(0);
   const [reimbAmt, setReimbAmt] = useState(0);
   const [reimbDesc, setReimbDesc] = useState("");
   const [notes, setNotes] = useState("");
@@ -116,6 +125,14 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
             console.warn('Failed to process time entry:', e, error);
           }
         });
+        
+        // Ensure each day has at least one empty shift for new entries
+        Object.values(map).forEach(day => {
+          if (day.shifts.length === 0) {
+            day.shifts.push({ timeIn: "", timeOut: "", lunch: 0 });
+          }
+        });
+        
         return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
       });
     }
@@ -148,9 +165,12 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
           .reduce((sum, m) => sum + (parseFloat(m.hours) || 0), 0);
         const holidayWorkedHours = periodMisc.filter(m => m.entryType === 'holiday-worked')
           .reduce((sum, m) => sum + (parseFloat(m.hours) || 0), 0);
+        const miscHoursTotal = periodMisc.filter(m => m.entryType === 'misc')
+          .reduce((sum, m) => sum + (parseFloat(m.hours) || 0), 0);
         
         setHolidayNonWorked(holidayHours);
         setHolidayWorked(holidayWorkedHours);
+        setMiscHours(miscHoursTotal);
       } catch (error) {
         console.warn('Failed to process misc hours entries:', error);
       }
@@ -206,8 +226,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
 
   // Real-time updates to pay period summary when mileage/reimbursement changes
   useEffect(() => {
-    if (employee) {
-      const mileageAmount = milesDriven > 0 ? milesDriven * parseFloat(employee.mileageRate || '0') : 0;
+    if (employee && employer) {
+      const mileageRate = parseFloat(employer.mileageRate || '0.655');
+      const mileageAmount = milesDriven > 0 ? milesDriven * mileageRate : 0;
       const totalReimbursement = reimbAmt + mileageAmount;
       
       updateEmployee(employeeId, {
@@ -218,7 +239,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         holidayWorkedHours: holidayWorked
       });
     }
-  }, [milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, employee, employeeId, updateEmployee]);
+  }, [milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, employee, employer, employeeId, updateEmployee]);
 
   const addShift = (date: string) => {
     setDays((prev) =>
@@ -245,20 +266,18 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     }, 0);
   };
 
-  const totals = days.reduce(
-    (acc, d) => {
-      const dayTotal = calculateDayTotal(d);
-      acc.totalHours += dayTotal;
-      if (dayTotal > 8) {
-        acc.overtime += dayTotal - 8;
-        acc.regular += 8;
-      } else {
-        acc.regular += dayTotal;
-      }
-      return acc;
-    },
-    { regular: 0, overtime: 0, totalHours: 0 }
-  );
+  // Calculate total hours from all days first
+  const totalWorkedHours = days.reduce((sum, d) => sum + calculateDayTotal(d), 0);
+  
+  // Calculate weekly overtime (anything over 40 hours)
+  const weeklyOvertimeHours = Math.max(0, totalWorkedHours - 40);
+  const regularHours = Math.min(totalWorkedHours, 40);
+  
+  const totals = {
+    regular: regularHours + miscHours, // Add misc hours to regular hours
+    overtime: weeklyOvertimeHours,
+    totalHours: totalWorkedHours + miscHours
+  };
 
   const saveTimeEntries = useMutation({
     mutationFn: async (payload: any) => {
@@ -276,14 +295,14 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       for (const day of payload.days) {
         for (const shift of day.shifts) {
           if (shift.timeIn && shift.timeOut) {
-            // Combine date and time into proper timestamps
-            const timeInTimestamp = new Date(`${day.date}T${shift.timeIn}:00`);
-            const timeOutTimestamp = new Date(`${day.date}T${shift.timeOut}:00`);
+            // Create timestamps that preserve local time without timezone conversion
+            const timeInLocal = `${day.date}T${shift.timeIn}:00`;
+            const timeOutLocal = `${day.date}T${shift.timeOut}:00`;
             
             await apiRequest("POST", "/api/time-entries", {
               employeeId: payload.employeeId,
-              timeIn: timeInTimestamp.toISOString(),
-              timeOut: timeOutTimestamp.toISOString(),
+              timeIn: timeInLocal,
+              timeOut: timeOutLocal,
               lunchMinutes: shift.lunch,
               notes: payload.notes || ""
             });
@@ -345,9 +364,21 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         });
       }
 
+      // Save misc hours entry if any
+      if (payload.miscHours > 0) {
+        await apiRequest("POST", "/api/misc-hours-entries", {
+          employeeId: payload.employeeId,
+          entryDate: payload.payPeriod.start,
+          hours: payload.miscHours.toString(),
+          entryType: "misc",
+          description: "Misc hours"
+        });
+      }
+
       // Save combined reimbursement entry (includes mileage + other reimbursements)
-      const mileageAmount = payload.milesDriven > 0 && employee ? 
-        payload.milesDriven * parseFloat(employee.mileageRate || '0') : 0;
+      const mileageRate = employer ? parseFloat(employer.mileageRate || '0.655') : 0.655;
+      const mileageAmount = payload.milesDriven > 0 ? 
+        payload.milesDriven * mileageRate : 0;
       const totalReimbursement = payload.reimbursement.amount + mileageAmount;
       
       if (totalReimbursement > 0) {
@@ -410,6 +441,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       holidayNonWorked,
       holidayWorked,
       milesDriven,
+      miscHours,
       reimbursement: { amount: reimbAmt, description: reimbDesc },
       notes,
     };
@@ -507,11 +539,22 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                 step="1"
                 min="0"
               />
-              {employee && milesDriven > 0 && (
+              {employer && milesDriven > 0 && (
                 <div className="text-xs text-gray-500 mt-1">
-                  ${(milesDriven * parseFloat(employee.mileageRate || '0')).toFixed(2)} at ${parseFloat(employee.mileageRate || '0').toFixed(3)}/mile
+                  ${(milesDriven * parseFloat(employer.mileageRate || '0.655')).toFixed(2)} at ${parseFloat(employer.mileageRate || '0.655').toFixed(3)}/mile
                 </div>
               )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Misc. Hours</label>
+              <Input
+                type="number"
+                value={miscHours}
+                onChange={(e) => setMiscHours(parseFloat(e.target.value) || 0)}
+                placeholder="0.00"
+                step="0.25"
+                min="0"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Reimbursement Amount</label>
@@ -523,9 +566,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                 step="0.01"
                 min="0"
               />
-              {employee && milesDriven > 0 && (
+              {employer && milesDriven > 0 && (
                 <div className="text-xs text-gray-500 mt-1">
-                  + ${(milesDriven * parseFloat(employee.mileageRate || '0')).toFixed(2)} mileage (auto-added)
+                  + ${(milesDriven * parseFloat(employer.mileageRate || '0.655')).toFixed(2)} mileage (auto-added)
                 </div>
               )}
             </div>
@@ -571,7 +614,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
           <div className="flex justify-between">
             <span>Reimb:</span>
             <span>
-              ${(reimbAmt + (employee && milesDriven > 0 ? milesDriven * parseFloat(employee.mileageRate || '0') : 0)).toFixed(2)}
+              ${(reimbAmt + (employer && milesDriven > 0 ? milesDriven * parseFloat(employer.mileageRate || '0.655') : 0)).toFixed(2)}
             </span>
           </div>
           <div className="flex justify-between font-semibold"><span>Total Hours:</span><span>{(totals.totalHours + ptoHours + holidayNonWorked + holidayWorked).toFixed(2)}h</span></div>

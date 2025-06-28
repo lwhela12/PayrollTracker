@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
@@ -18,10 +18,6 @@ interface EmployeeFormProps {
 }
 
 const employeeFormSchema = insertEmployeeSchema.extend({
-  mileageRate: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().optional(),
-  position: z.string().optional(),
   hireDate: z.string().min(1, "Hire date is required"),
 });
 
@@ -32,15 +28,17 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
   const queryClient = useQueryClient();
   const isEditing = !!employee;
 
+  // Fetch employer data to get company name for position default
+  const { data: employer } = useQuery<any>({
+    queryKey: ["/api/employers", employerId],
+    enabled: !!employerId,
+  });
+
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: {
       firstName: employee?.firstName || "",
       lastName: employee?.lastName || "",
-      email: employee?.email || "",
-      phone: employee?.phone || "",
-      position: employee?.position || "",
-      mileageRate: employee?.mileageRate?.toString() || "0.655",
       hireDate: employee?.hireDate || new Date().toISOString().split('T')[0],
       isActive: employee?.isActive ?? true,
       employerId,
@@ -125,7 +123,7 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
     
     const submissionData = {
       ...data,
-      mileageRate: data.mileageRate ? parseFloat(data.mileageRate) : 0.655,
+      position: employer?.name || "Employee", // Default position to company name
     };
     console.log('Final submission data:', submissionData);
 
@@ -171,48 +169,6 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
 
         <FormField
           control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input type="email" placeholder="Enter email address" {...field} value={field.value || ""} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Phone</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter phone number" {...field} value={field.value || ""} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="position"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Position</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter job position" {...field} value={field.value || ""} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
           name="hireDate"
           render={({ field }) => (
             <FormItem>
@@ -229,25 +185,7 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="mileageRate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Mileage Rate (per mile)</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number" 
-                  step="0.001" 
-                  placeholder="0.655" 
-                  {...field} 
-                  value={field.value || ""}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
 
         <div className="flex justify-end space-x-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>

@@ -34,7 +34,7 @@ import {
   type InsertReport,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, gt, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -62,6 +62,7 @@ export interface IStorage {
   getPayPeriod(id: number): Promise<PayPeriod | undefined>;
   getRelevantPayPeriods(employerId: number, date: Date): Promise<PayPeriod[]>;
   updatePayPeriod(id: number, payPeriod: Partial<InsertPayPeriod>): Promise<PayPeriod>;
+  clearAndRegeneratePayPeriods(employerId: number): Promise<void>;
   
   // Timecard operations
   createTimecard(timecard: InsertTimecard): Promise<Timecard>;
@@ -131,7 +132,11 @@ export class DatabaseStorage implements IStorage {
 
   // Employer operations
   async createEmployer(employer: InsertEmployer): Promise<Employer> {
-    const [newEmployer] = await db.insert(employers).values(employer).returning();
+    const employerData = {
+      ...employer,
+      mileageRate: employer.mileageRate?.toString() || "0.655",
+    };
+    const [newEmployer] = await db.insert(employers).values(employerData).returning();
     return newEmployer;
   }
 
@@ -145,9 +150,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEmployer(id: number, employer: Partial<InsertEmployer>): Promise<Employer> {
+    const employerData: any = { ...employer };
+    if (employer.mileageRate !== undefined && employer.mileageRate !== null) {
+      employerData.mileageRate = employer.mileageRate.toString();
+    }
     const [updated] = await db
       .update(employers)
-      .set(employer)
+      .set(employerData)
       .where(eq(employers.id, id))
       .returning();
     return updated;
@@ -155,21 +164,33 @@ export class DatabaseStorage implements IStorage {
 
   // Employee operations
   async createEmployee(employee: InsertEmployee): Promise<Employee> {
-    const employeeData = {
-      ...employee,
-      mileageRate: employee.mileageRate?.toString() || "0.655"
-    };
+    // Convert Date objects to strings if present and remove obsolete fields
+    const employeeData: any = { ...employee };
+    if (employeeData.hireDate && employeeData.hireDate instanceof Date) {
+      employeeData.hireDate = employeeData.hireDate.toISOString().split('T')[0];
+    }
+    // Remove any obsolete mileageRate field
+    delete employeeData.mileageRate;
+    
     const [newEmployee] = await db.insert(employees).values(employeeData).returning();
     return newEmployee;
   }
 
   async createMultipleEmployees(employeeList: InsertEmployee[]): Promise<{ success: number; failed: number }> {
     if (employeeList.length === 0) return { success: 0, failed: 0 };
-    const values = employeeList.map(emp => ({
-      ...emp,
-      mileageRate: emp.mileageRate?.toString() || "0.655"
-    }));
-    const inserted = await db.insert(employees).values(values).returning();
+    
+    // Clean up each employee data object
+    const cleanedEmployees = employeeList.map(emp => {
+      const employeeData: any = { ...emp };
+      if (employeeData.hireDate && employeeData.hireDate instanceof Date) {
+        employeeData.hireDate = employeeData.hireDate.toISOString().split('T')[0];
+      }
+      // Remove any obsolete mileageRate field
+      delete employeeData.mileageRate;
+      return employeeData;
+    });
+    
+    const inserted = await db.insert(employees).values(cleanedEmployees).returning();
     return { success: inserted.length, failed: employeeList.length - inserted.length };
   }
 
@@ -187,10 +208,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee> {
+    // Convert Date objects to strings if present
     const updateData: any = { ...employee };
-    if (employee.mileageRate !== undefined) {
-      updateData.mileageRate = employee.mileageRate.toString();
+    if (updateData.hireDate && updateData.hireDate instanceof Date) {
+      updateData.hireDate = updateData.hireDate.toISOString().split('T')[0];
     }
+    // Remove any obsolete mileageRate field
+    delete updateData.mileageRate;
+    
     const [updated] = await db
       .update(employees)
       .set(updateData)
@@ -218,11 +243,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]> {
-    return await db
+    // Ensure pay periods exist for current date
+    await this.ensurePayPeriodsExist(employerId);
+    
+    // Clean up any future periods first
+    await this.cleanupFuturePeriods(employerId);
+    
+    // Get current pay period first
+    const currentPayPeriod = await this.getCurrentPayPeriod(employerId);
+    
+    // Get all pay periods and limit to current + 3 historical
+    const allPeriods = await db
       .select()
       .from(payPeriods)
       .where(eq(payPeriods.employerId, employerId))
-      .orderBy(desc(payPeriods.startDate));
+      .orderBy(desc(payPeriods.startDate))
+      .limit(4); // Current + 3 historical
+    
+    return allPeriods;
+  }
+
+  private async cleanupFuturePeriods(employerId: number): Promise<void> {
+    // Use UTC date to ensure consistent timezone handling
+    const today = new Date();
+    const utcToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+    const todayStr = utcToday.toISOString().split('T')[0];
+    
+    // Delete any pay periods that start after today
+    await db
+      .delete(payPeriods)
+      .where(
+        and(
+          eq(payPeriods.employerId, employerId),
+          gt(payPeriods.startDate, todayStr)
+        )
+      );
   }
 
   async getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined> {
@@ -253,20 +308,27 @@ export class DatabaseStorage implements IStorage {
     const employer = await this.getEmployer(employerId);
     
     let startDate: Date;
+    let weekStartsOn = employer?.weekStartsOn ?? 3; // Default to Wednesday (3) if not set
     
     if (!employer?.payPeriodStartDate) {
       console.warn(
-        `Employer ${employerId} missing pay_period_start_date, defaulting to the most recent Wednesday.`
+        `Employer ${employerId} missing pay_period_start_date, defaulting to the most recent configured week start day.`
       );
-      // Find the most recent Wednesday (including today if it's Wednesday) using UTC
+      // Find the most recent configured week start day using UTC
       const today = new Date();
       const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
-      startDate = this.getMostRecentWednesday(todayUTC);
+      startDate = this.getMostRecentWeekStartDay(todayUTC, weekStartsOn);
     } else {
-      // Find the most recent Wednesday from the configured start date - parse as UTC
+      // Use the exact configured start date - parse as UTC
       const [year, month, day] = employer.payPeriodStartDate.split('-').map(Number);
-      const configuredDate = new Date(Date.UTC(year, month - 1, day));
-      startDate = this.getMostRecentWednesday(configuredDate);
+      startDate = new Date(Date.UTC(year, month - 1, day));
+      
+      // Update the weekStartsOn to match the day of week from the configured start date
+      const dayOfWeek = startDate.getUTCDay();
+      if (employer.weekStartsOn !== dayOfWeek) {
+        await this.updateEmployer(employerId, { weekStartsOn: dayOfWeek });
+        weekStartsOn = dayOfWeek;
+      }
     }
 
     // Use UTC for consistent date handling
@@ -292,25 +354,48 @@ export class DatabaseStorage implements IStorage {
       currentStart = new Date(startDate);
     }
 
-    // Generate pay periods up to a few weeks into the future using UTC dates
-    const futureDate = new Date(todayUTC);
-    futureDate.setUTCDate(futureDate.getUTCDate() + 21); // 3 weeks ahead
-
+    // Generate current period plus 2 historical periods (no future periods)
     const payPeriodsToCreate = [];
-    while (currentStart <= futureDate) {
-      // Ensure we're using UTC dates for end date calculation
-      const endDate = new Date(currentStart);
-      endDate.setUTCDate(endDate.getUTCDate() + 13); // 14 days total (0-13 = 14 days)
-
+    
+    // Find the most recent period start date that includes today
+    // Start from the configured start date and find which period today falls into
+    let currentPeriodStart = new Date(startDate);
+    
+    // If start date is in the future, we need to work backwards
+    if (startDate > todayUTC) {
+      // Work backwards from start date to find a period that contains today
+      while (currentPeriodStart > todayUTC) {
+        currentPeriodStart.setUTCDate(currentPeriodStart.getUTCDate() - 14);
+      }
+    } else {
+      // Work forwards from start date to find the period that contains today
+      while (true) {
+        const periodEnd = new Date(currentPeriodStart);
+        periodEnd.setUTCDate(periodEnd.getUTCDate() + 13); // 14 days total
+        
+        if (todayUTC >= currentPeriodStart && todayUTC <= periodEnd) {
+          // Found the period that contains today
+          break;
+        }
+        
+        currentPeriodStart.setUTCDate(currentPeriodStart.getUTCDate() + 14);
+      }
+    }
+    
+    // Now create 3 periods: current and 2 previous
+    for (let periodsBack = 2; periodsBack >= 0; periodsBack--) {
+      const periodStart = new Date(currentPeriodStart);
+      periodStart.setUTCDate(periodStart.getUTCDate() - (periodsBack * 14));
+      
+      const periodEnd = new Date(periodStart);
+      periodEnd.setUTCDate(periodEnd.getUTCDate() + 13); // 14 days total
+      
       payPeriodsToCreate.push({
         employerId,
-        startDate: currentStart.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
+        startDate: periodStart.toISOString().split('T')[0],
+        endDate: periodEnd.toISOString().split('T')[0],
         isActive: false
       });
-
-      // Move to next pay period - increment by 14 days using UTC
-      currentStart.setUTCDate(currentStart.getUTCDate() + 14);
     }
 
     if (payPeriodsToCreate.length > 0) {
@@ -318,26 +403,26 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  private getMostRecentWednesday(date: Date): Date {
+  private getMostRecentWeekStartDay(date: Date, weekStartsOn: number): Date {
     // Create UTC date to avoid timezone issues
     const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayOfWeek = utcDate.getUTCDay(); // Sunday = 0, Wednesday = 3
+    const dayOfWeek = utcDate.getUTCDay(); // Sunday = 0, Monday = 1, etc.
     
     let daysToSubtract: number;
-    if (dayOfWeek === 3) {
-      // It's Wednesday, use this date
+    if (dayOfWeek === weekStartsOn) {
+      // It's the configured start day, use this date
       daysToSubtract = 0;
-    } else if (dayOfWeek > 3) {
-      // It's after Wednesday (Thu, Fri, Sat), go back to this week's Wednesday
-      daysToSubtract = dayOfWeek - 3;
+    } else if (dayOfWeek > weekStartsOn) {
+      // It's after the start day, go back to this week's start day
+      daysToSubtract = dayOfWeek - weekStartsOn;
     } else {
-      // It's before Wednesday (Sun, Mon, Tue), go back to last week's Wednesday
-      daysToSubtract = dayOfWeek + 4; // (7 - 3) + dayOfWeek
+      // It's before the start day, go back to last week's start day
+      daysToSubtract = dayOfWeek + (7 - weekStartsOn);
     }
     
-    const wednesdayDate = new Date(utcDate);
-    wednesdayDate.setUTCDate(utcDate.getUTCDate() - daysToSubtract);
-    return wednesdayDate;
+    const startDate = new Date(utcDate);
+    startDate.setUTCDate(utcDate.getUTCDate() - daysToSubtract);
+    return startDate;
   }
 
   async getPayPeriod(id: number): Promise<PayPeriod | undefined> {
@@ -605,6 +690,51 @@ export class DatabaseStorage implements IStorage {
       .from(reports)
       .where(eq(reports.employerId, employerId))
       .orderBy(desc(reports.createdAt));
+  }
+
+  async clearAndRegeneratePayPeriods(employerId: number): Promise<void> {
+    // Get all employee IDs for this employer
+    const employeeIds = await db
+      .select({ id: employees.id })
+      .from(employees)
+      .where(eq(employees.employerId, employerId));
+    
+    const empIds = employeeIds.map(e => e.id);
+
+    // Get all pay period IDs for this employer
+    const payPeriodIds = await db
+      .select({ id: payPeriods.id })
+      .from(payPeriods)
+      .where(eq(payPeriods.employerId, employerId));
+    
+    const ppIds = payPeriodIds.map(p => p.id);
+
+    // Delete all time entries for employees of this employer
+    if (empIds.length > 0) {
+      for (const empId of empIds) {
+        await db.delete(timeEntries).where(eq(timeEntries.employeeId, empId));
+        await db.delete(ptoEntries).where(eq(ptoEntries.employeeId, empId));
+        await db.delete(reimbursementEntries).where(eq(reimbursementEntries.employeeId, empId));
+        await db.delete(miscHoursEntries).where(eq(miscHoursEntries.employeeId, empId));
+      }
+    }
+
+    // Delete all related data for pay periods of this employer
+    if (ppIds.length > 0) {
+      for (const ppId of ppIds) {
+        // Delete reports first (they reference pay periods)
+        await db.delete(reports).where(eq(reports.payPeriodId, ppId));
+        // Delete timecards and reimbursements
+        await db.delete(timecards).where(eq(timecards.payPeriodId, ppId));
+        await db.delete(reimbursements).where(eq(reimbursements.payPeriodId, ppId));
+      }
+    }
+
+    // Delete all pay periods for this employer
+    await db.delete(payPeriods).where(eq(payPeriods.employerId, employerId));
+
+    // Regenerate pay periods with updated company settings
+    await this.ensurePayPeriodsExist(employerId);
   }
 }
 

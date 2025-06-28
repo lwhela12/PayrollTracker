@@ -30,7 +30,6 @@ export function Sidebar({ selectedEmployer, currentPayPeriod, user }: SidebarPro
   const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Employee Roster", href: "/employees", icon: Users },
-    { name: "Timecards", href: "/timecards", icon: Clock },
     { name: "Payroll Reports", href: "/reports", icon: FileText },
     ...(user?.role === 'Admin' ? [{ name: 'Companies', href: '/admin/companies', icon: Building }] : []),
   ];

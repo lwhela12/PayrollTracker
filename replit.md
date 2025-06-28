@@ -11,7 +11,7 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
-- **2025-06-27**: Complete UI cleanup, header scrolling, and report generation fixes
+- **2025-06-27**: Complete UI cleanup, header scrolling, report generation, timezone fixes, and navigation consolidation
   - Fixed React hooks error in Employees component by moving useLocation outside conditional
   - Reduced sidebar width from 256px to 192px for cleaner desktop layout
   - Updated all page layouts to properly align with reduced sidebar (ml-48 instead of ml-64)
@@ -19,9 +19,16 @@ A comprehensive payroll tracking web application designed to streamline employee
   - Removed compensating top padding from all pages (pt-20 md:pt-24)
   - Enhanced dashboard stats calculation to use time entries instead of legacy timecards
   - Fixed Payroll Summary Report to calculate hours from time entries instead of legacy timecards
-  - Fixed Individual Timecard report generation by updating data source and calculation logic
-  - All report formats now use authentic time entry data with proper hour calculations
-  - Pay period summary accurately reflects timecard totals with real-time updates
+  - Fixed Individual Timecard report generation and improved column spacing for readability
+  - Resolved timezone shifting issue - times now store exactly as entered without UTC conversion
+  - Updated database schema to use timezone-naive timestamps for accurate time tracking
+  - Fixed timecard form to keep empty time entry fields visible after saving
+  - Streamlined dashboard and timecard page stats by removing Total Hours and Payroll Ready cards
+  - Renamed "Pending Timecards" to "Unsaved Timecards" for clarity
+  - Consolidated Dashboard and Timecards into single unified Dashboard page for simplified navigation
+  - Added "Misc. Hours" field to timecard entry that adds to regular hours without affecting OT calculation
+  - Modified pay period system to only show current period plus 3 historical periods (no future periods)
+  - Pay period dropdown now defaults to current active period and limits historical data for cleaner interface
 
 - **2025-06-27**: UI improvements and navigation cleanup
   - Changed Companies sidebar icon from gear to building icon

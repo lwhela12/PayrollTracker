@@ -77,6 +77,20 @@ export default function Timecards() {
   const selectedPayPeriod = payPeriods.find((p: any) => p.id.toString() === selectedPayPeriodId);
   const currentPayPeriod = dashboardStats?.currentPayPeriod;
 
+  useEffect(() => {
+    if (payPeriods.length > 0 && !selectedPayPeriodId && currentPayPeriod) {
+      // Always default to the current pay period from dashboard stats
+      setSelectedPayPeriodId(currentPayPeriod.id.toString());
+    }
+  }, [payPeriods, selectedPayPeriodId, currentPayPeriod]);
+
+  const { data: timecards = [] } = useQuery<any[]>({
+    queryKey: ["/api/timecards/pay-period", selectedPayPeriodId],
+    queryFn: () =>
+      selectedPayPeriodId ? fetch(`/api/timecards/pay-period/${selectedPayPeriodId}`, { credentials: "include" }).then((r) => r.json()) : Promise.resolve([]),
+    enabled: !!selectedPayPeriodId,
+  });
+
   const [, setLocation] = useLocation();
 
   const handleNavigateToTimecard = (employeeId: number) => {
@@ -92,22 +106,10 @@ export default function Timecards() {
       color: "bg-blue-500",
     },
     {
-      title: "Pending Timecards",
+      title: "Unsaved Timecards",
       value: dashboardStats?.pendingTimecards || 0,
       icon: Clock,
       color: "bg-orange-500",
-    },
-    {
-      title: "Total Hours",
-      value: dashboardStats?.totalHours || 0,
-      icon: Clock,
-      color: "bg-green-500",
-    },
-    {
-      title: "Payroll Ready",
-      value: dashboardStats?.payrollReady || 0,
-      icon: DollarSign,
-      color: "bg-purple-500",
     },
   ];
 
@@ -121,8 +123,8 @@ export default function Timecards() {
       
       <div className="md:ml-48 min-h-screen">
         <Header 
-          title="Timecards"
-          description="Employee timecard management"
+          title="Dashboard"
+          description="Employee timecard management and overview"
           user={user}
         />
         

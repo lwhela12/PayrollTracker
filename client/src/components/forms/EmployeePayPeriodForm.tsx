@@ -55,7 +55,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         "GET",
         `/api/time-entries/employee/${employeeId}?start=${start}&end=${end}`
       ).then((res) => res.json()),
-    enabled: !!employeeId,
+    enabled: !!employeeId && !!start && !!end,
+    staleTime: 0, // Always refetch to ensure fresh data
+    refetchOnMount: true,
   });
 
   const { data: existingPtoEntries = [] } = useQuery<any[]>({
@@ -107,40 +109,43 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   const { updateEmployee, clearEmployee } = useTimecardUpdates();
 
   useEffect(() => {
+    // Always regenerate days structure when existingEntries changes
+    const newDays = generateDays(); // Start with fresh 14-day structure
+    
     if (existingEntries.length > 0) {
-      setDays((prev) => {
-        const map: Record<string, DayEntry> = {};
-        prev.forEach((d) => (map[d.date] = { ...d, shifts: [] }));
-        existingEntries.forEach((e: any) => {
-          if (!e.timeIn) return; // Skip entries without timeIn
+      // Process existing entries and map them to the correct dates
+      existingEntries.forEach((e: any) => {
+        if (!e.timeIn) return; // Skip entries without timeIn
+        
+        try {
+          const entryDate = e.timeIn.split("T")[0];
+          const dayIndex = newDays.findIndex(d => d.date === entryDate);
           
-          try {
-            const date = e.timeIn.split("T")[0];
-            if (!map[date]) {
-              map[date] = { date, shifts: [] };
+          if (dayIndex >= 0) {
+            // If this is the first shift for this day, replace the empty shift
+            if (newDays[dayIndex].shifts.length === 1 && !newDays[dayIndex].shifts[0].timeIn) {
+              newDays[dayIndex].shifts[0] = {
+                timeIn: e.timeIn.split("T")[1]?.slice(0, 5) || "",
+                timeOut: e.timeOut?.split("T")[1]?.slice(0, 5) || "",
+                lunch: e.lunchMinutes || 0,
+              };
+            } else {
+              // Add as additional shift
+              newDays[dayIndex].shifts.push({
+                timeIn: e.timeIn.split("T")[1]?.slice(0, 5) || "",
+                timeOut: e.timeOut?.split("T")[1]?.slice(0, 5) || "",
+                lunch: e.lunchMinutes || 0,
+              });
             }
-            map[date].shifts.push({
-              timeIn: e.timeIn.split("T")[1]?.slice(0, 5) || "",
-              timeOut: e.timeOut?.split("T")[1]?.slice(0, 5) || "",
-              lunch: e.lunchMinutes || 0,
-            });
-          } catch (error) {
-            console.warn('Failed to process time entry:', e, error);
           }
-        });
-        
-        // Ensure each day has at least one empty shift for new entries
-        Object.values(map).forEach(day => {
-          if (day.shifts.length === 0) {
-            day.shifts.push({ timeIn: "", timeOut: "", lunch: 0 });
-          }
-        });
-        
-        return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+        } catch (error) {
+          console.warn('Failed to process time entry:', e, error);
+        }
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingEntries.length]);
+    
+    setDays(newDays);
+  }, [existingEntries, start, end]); // Include start/end to refresh when pay period changes
 
   // Populate PTO hours from existing entries
   useEffect(() => {
@@ -489,6 +494,24 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       toast({
         title: "Success",
         description: "Timecard data saved successfully",
+      });
+
+      // Invalidate and refetch time entries for this employee
+      await queryClient.invalidateQueries({
+        queryKey: ["/api/time-entries/employee", employeeId],
+      });
+      
+      // Invalidate related queries
+      await queryClient.invalidateQueries({
+        queryKey: ["/api/pto-entries/employee", employeeId],
+      });
+      
+      await queryClient.invalidateQueries({
+        queryKey: ["/api/misc-hours-entries/employee", employeeId],
+      });
+      
+      await queryClient.invalidateQueries({
+        queryKey: ["/api/reimbursement-entries/employee", employeeId],
       });
 
       if (employee?.employerId) {

@@ -352,6 +352,20 @@ export class DatabaseStorage implements IStorage {
     return payPeriod;
   }
 
+  async getPayPeriodByDates(employerId: number, startDate: Date, endDate: Date): Promise<PayPeriod | undefined> {
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    
+    const [payPeriod] = await db.select().from(payPeriods).where(
+      and(
+        eq(payPeriods.employerId, employerId),
+        eq(payPeriods.startDate, startDateStr),
+        eq(payPeriods.endDate, endDateStr)
+      )
+    );
+    return payPeriod;
+  }
+
   async clearAndRegeneratePayPeriods(employerId: number): Promise<void> {
     const payPeriodIds = await db
       .select({ id: payPeriods.id })
@@ -573,6 +587,200 @@ export class DatabaseStorage implements IStorage {
       .from(reports)
       .where(eq(reports.employerId, employerId))
       .orderBy(desc(reports.createdAt));
+  }
+
+  async bulkUpdateTimecardData(data: {
+    employeeId: number;
+    payPeriodId: number;
+    payPeriodStart: string;
+    payPeriodEnd: string;
+    days: any;
+    ptoHours: any;
+    holidayNonWorked: any;
+    holidayWorked: any;
+    milesDriven: any;
+    miscHours: any;
+    reimbursement: any;
+    employer: any;
+  }): Promise<void> {
+    const {
+      employeeId,
+      payPeriodId,
+      payPeriodStart,
+      payPeriodEnd,
+      days,
+      ptoHours,
+      holidayNonWorked,
+      holidayWorked,
+      milesDriven,
+      miscHours,
+      reimbursement,
+      employer
+    } = data;
+
+    await db.transaction(async (tx) => {
+      // Clear existing entries for this employee and pay period
+      await tx.delete(timeEntries).where(
+        and(
+          eq(timeEntries.employeeId, employeeId),
+          gte(timeEntries.timeIn, new Date(payPeriodStart)),
+          lte(timeEntries.timeIn, new Date(payPeriodEnd))
+        )
+      );
+
+      await tx.delete(ptoEntries).where(
+        and(
+          eq(ptoEntries.employeeId, employeeId),
+          gte(ptoEntries.entryDate, payPeriodStart),
+          lte(ptoEntries.entryDate, payPeriodEnd)
+        )
+      );
+
+      await tx.delete(miscHoursEntries).where(
+        and(
+          eq(miscHoursEntries.employeeId, employeeId),
+          gte(miscHoursEntries.entryDate, payPeriodStart),
+          lte(miscHoursEntries.entryDate, payPeriodEnd)
+        )
+      );
+
+      await tx.delete(reimbursementEntries).where(
+        and(
+          eq(reimbursementEntries.employeeId, employeeId),
+          gte(reimbursementEntries.entryDate, payPeriodStart),
+          lte(reimbursementEntries.entryDate, payPeriodEnd)
+        )
+      );
+
+      // Insert new time entries
+      const timeEntriesToInsert = [];
+      for (const [date, dayData] of Object.entries(days)) {
+        if (dayData && typeof dayData === 'object') {
+          const { shifts } = dayData as any;
+          if (shifts && Array.isArray(shifts)) {
+            for (const shift of shifts) {
+              if (shift.timeIn && shift.timeOut) {
+                const timeInDate = new Date(`${date}T${shift.timeIn}:00`);
+                const timeOutDate = new Date(`${date}T${shift.timeOut}:00`);
+                
+                timeEntriesToInsert.push({
+                  employeeId,
+                  timeIn: timeInDate,
+                  timeOut: timeOutDate,
+                  lunchMinutes: shift.lunch || 0,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      if (timeEntriesToInsert.length > 0) {
+        await tx.insert(timeEntries).values(timeEntriesToInsert);
+      }
+
+      // Insert PTO entries
+      if (ptoHours && typeof ptoHours === 'object') {
+        const ptoEntriesToInsert = [];
+        for (const [date, hours] of Object.entries(ptoHours)) {
+          if (hours && parseFloat(hours as string) > 0) {
+            ptoEntriesToInsert.push({
+              employeeId,
+              entryDate: date,
+              hours: parseFloat(hours as string),
+              description: 'PTO'
+            });
+          }
+        }
+        if (ptoEntriesToInsert.length > 0) {
+          await tx.insert(ptoEntries).values(ptoEntriesToInsert);
+        }
+      }
+
+      // Insert misc hours entries
+      const miscEntriesToInsert = [];
+      
+      if (holidayNonWorked && typeof holidayNonWorked === 'object') {
+        for (const [date, hours] of Object.entries(holidayNonWorked)) {
+          if (hours && parseFloat(hours as string) > 0) {
+            miscEntriesToInsert.push({
+              employeeId,
+              entryDate: date,
+              entryType: 'holiday' as const,
+              hours: parseFloat(hours as string),
+              description: 'Holiday'
+            });
+          }
+        }
+      }
+
+      if (holidayWorked && typeof holidayWorked === 'object') {
+        for (const [date, hours] of Object.entries(holidayWorked)) {
+          if (hours && parseFloat(hours as string) > 0) {
+            miscEntriesToInsert.push({
+              employeeId,
+              entryDate: date,
+              entryType: 'holiday-worked' as const,
+              hours: parseFloat(hours as string),
+              description: 'Holiday Worked'
+            });
+          }
+        }
+      }
+
+      if (miscHours && typeof miscHours === 'object') {
+        for (const [date, hours] of Object.entries(miscHours)) {
+          if (hours && parseFloat(hours as string) > 0) {
+            miscEntriesToInsert.push({
+              employeeId,
+              entryDate: date,
+              entryType: 'misc' as const,
+              hours: parseFloat(hours as string),
+              description: 'Misc Hours'
+            });
+          }
+        }
+      }
+
+      if (miscEntriesToInsert.length > 0) {
+        await tx.insert(miscHoursEntries).values(miscEntriesToInsert);
+      }
+
+      // Insert reimbursement entries
+      const reimbEntriesToInsert = [];
+      
+      if (milesDriven && typeof milesDriven === 'object') {
+        for (const [date, miles] of Object.entries(milesDriven)) {
+          if (miles && parseFloat(miles as string) > 0) {
+            const mileageRate = employer.mileageRate || 0.67;
+            const amount = parseFloat(miles as string) * mileageRate;
+            reimbEntriesToInsert.push({
+              employeeId,
+              entryDate: date,
+              description: `Mileage: ${miles} miles`,
+              amount: amount
+            });
+          }
+        }
+      }
+
+      if (reimbursement && typeof reimbursement === 'object') {
+        for (const [date, amount] of Object.entries(reimbursement)) {
+          if (amount && parseFloat(amount as string) > 0) {
+            reimbEntriesToInsert.push({
+              employeeId,
+              entryDate: date,
+              description: 'Reimbursement',
+              amount: parseFloat(amount as string)
+            });
+          }
+        }
+      }
+
+      if (reimbEntriesToInsert.length > 0) {
+        await tx.insert(reimbursementEntries).values(reimbEntriesToInsert);
+      }
+    });
   }
 
   async getDashboardStats(employerId: number, payPeriodId: number): Promise<any[]> {

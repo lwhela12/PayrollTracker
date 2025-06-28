@@ -577,12 +577,13 @@ export class DatabaseStorage implements IStorage {
       WITH time_entries_with_hours AS (
         SELECT
           employee_id,
-          FLOOR(EXTRACT(EPOCH FROM (time_in::date - $2::date)) / (7*24*60*60)) AS week,
-          SUM(EXTRACT(EPOCH FROM (
-            CASE WHEN time_out >= time_in
-                 THEN time_out - time_in
-                 ELSE time_out + interval '24 hours' - time_in
-            END))/3600 - lunch_minutes/60.0) AS hours
+          FLOOR((time_in::date - $2::date) / 7) AS week,
+          SUM(CASE 
+            WHEN time_out >= time_in THEN 
+              EXTRACT(EPOCH FROM (time_out - time_in))/3600 - COALESCE(lunch_minutes, 0)/60.0
+            ELSE 
+              EXTRACT(EPOCH FROM (time_out + interval '24 hours' - time_in))/3600 - COALESCE(lunch_minutes, 0)/60.0
+          END) AS hours
         FROM time_entries
         WHERE time_in >= $2 AND time_in <= $3
           AND employee_id IN (SELECT id FROM employees WHERE employer_id = $1 AND is_active = true)

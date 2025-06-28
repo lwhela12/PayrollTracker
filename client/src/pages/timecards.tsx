@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -199,6 +200,47 @@ export default function Timecards() {
                             {employees.map((employee: any) => {
                               const stats = dashboardStats.employeeStats?.find((s: any) => s.employeeId === employee.id) || {};
                               const updates = getEmployeeUpdate(employee.id);
+
+                              const handleMouseEnter = () => {
+                                if (!selectedPayPeriod) return;
+                                queryClient.prefetchQuery({
+                                  queryKey: [
+                                    "/api/time-entries/employee",
+                                    employee.id,
+                                    selectedPayPeriod.startDate,
+                                    selectedPayPeriod.endDate,
+                                  ],
+                                  queryFn: () =>
+                                    apiRequest(
+                                      "GET",
+                                      `/api/time-entries/employee/${employee.id}?start=${selectedPayPeriod.startDate}&end=${selectedPayPeriod.endDate}`,
+                                    ).then((res) => res.json()),
+                                });
+
+                                queryClient.prefetchQuery({
+                                  queryKey: ["/api/pto-entries/employee", employee.id],
+                                  queryFn: () =>
+                                    apiRequest("GET", `/api/pto-entries/employee/${employee.id}`).then((res) => res.json()),
+                                });
+
+                                queryClient.prefetchQuery({
+                                  queryKey: ["/api/misc-hours-entries/employee", employee.id],
+                                  queryFn: () =>
+                                    apiRequest("GET", `/api/misc-hours-entries/employee/${employee.id}`).then((res) => res.json()),
+                                });
+
+                                queryClient.prefetchQuery({
+                                  queryKey: ["/api/reimbursement-entries/employee", employee.id],
+                                  queryFn: () =>
+                                    apiRequest("GET", `/api/reimbursement-entries/employee/${employee.id}`).then((res) => res.json()),
+                                });
+
+                                queryClient.prefetchQuery({
+                                  queryKey: ["/api/employees", employee.id],
+                                  queryFn: () =>
+                                    apiRequest("GET", `/api/employees/${employee.id}`).then((res) => res.json()),
+                                });
+                              };
                               
                               // Combine saved data with real-time updates
                               const displayStats = {
@@ -217,6 +259,7 @@ export default function Timecards() {
                                 <tr
                                   key={employee.id}
                                   className="hover:bg-gray-50 cursor-pointer"
+                                  onMouseEnter={handleMouseEnter}
                                   onClick={() => handleNavigateToTimecard(employee.id)}
                                 >
                                   <td className="p-2">
@@ -242,6 +285,47 @@ export default function Timecards() {
                         {employees.map((employee: any) => {
                           const stats = dashboardStats.employeeStats?.find((s: any) => s.employeeId === employee.id) || {};
                           const updates = getEmployeeUpdate(employee.id);
+
+                          const handleMouseEnter = () => {
+                            if (!selectedPayPeriod) return;
+                            queryClient.prefetchQuery({
+                              queryKey: [
+                                "/api/time-entries/employee",
+                                employee.id,
+                                selectedPayPeriod.startDate,
+                                selectedPayPeriod.endDate,
+                              ],
+                              queryFn: () =>
+                                apiRequest(
+                                  "GET",
+                                  `/api/time-entries/employee/${employee.id}?start=${selectedPayPeriod.startDate}&end=${selectedPayPeriod.endDate}`,
+                                ).then((res) => res.json()),
+                            });
+
+                            queryClient.prefetchQuery({
+                              queryKey: ["/api/pto-entries/employee", employee.id],
+                              queryFn: () =>
+                                apiRequest("GET", `/api/pto-entries/employee/${employee.id}`).then((res) => res.json()),
+                            });
+
+                            queryClient.prefetchQuery({
+                              queryKey: ["/api/misc-hours-entries/employee", employee.id],
+                              queryFn: () =>
+                                apiRequest("GET", `/api/misc-hours-entries/employee/${employee.id}`).then((res) => res.json()),
+                            });
+
+                            queryClient.prefetchQuery({
+                              queryKey: ["/api/reimbursement-entries/employee", employee.id],
+                              queryFn: () =>
+                                apiRequest("GET", `/api/reimbursement-entries/employee/${employee.id}`).then((res) => res.json()),
+                            });
+
+                            queryClient.prefetchQuery({
+                              queryKey: ["/api/employees", employee.id],
+                              queryFn: () =>
+                                apiRequest("GET", `/api/employees/${employee.id}`).then((res) => res.json()),
+                            });
+                          };
                           
                           // Combine saved data with real-time updates
                           const displayStats = {
@@ -257,9 +341,10 @@ export default function Timecards() {
                             (displayStats.totalOvertimeHours ?? 0);
                           
                           return (
-                            <Card 
-                              key={employee.id} 
+                            <Card
+                              key={employee.id}
                               className="cursor-pointer hover:shadow-md transition-shadow"
+                              onMouseEnter={handleMouseEnter}
                               onClick={() => handleNavigateToTimecard(employee.id)}
                             >
                               <CardContent className="p-4">

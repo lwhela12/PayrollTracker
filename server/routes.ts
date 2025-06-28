@@ -87,6 +87,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get individual employer
+  app.get('/api/employers/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const employerId = parseInt(req.params.id);
+      const employer = await storage.getEmployer(employerId);
+
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json(employer);
+    } catch (error: any) {
+      console.error("Error fetching employer:", error);
+      res.status(500).json({ message: "Failed to fetch employer" });
+    }
+  });
+
   app.put('/api/employers/:id', isAuthenticated, async (req: any, res) => {
     try {
       const employerId = parseInt(req.params.id);

@@ -251,6 +251,26 @@ export default function CompanySettings() {
               </div>
             </form>
           </Form>
+
+          <AlertDialog open={showPayrollWarning} onOpenChange={setShowPayrollWarning}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Warning: Payroll Date Change</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You changed the payroll date so any existing entries for this payroll will be cleared. Are you sure you want to continue?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={handleCancelPayrollChange}>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleConfirmPayrollChange}
+                  disabled={updateCompanyWithPayrollChangeMutation.isPending}
+                >
+                  {updateCompanyWithPayrollChangeMutation.isPending ? "Updating..." : "Yes, Continue"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     </div>

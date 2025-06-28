@@ -66,6 +66,20 @@ export default function Timecards() {
 
   useEffect(() => {
     if (payPeriods.length > 0 && !selectedPayPeriodId) {
+      // Check if we have a saved pay period to restore
+      const savedPayPeriodStart = sessionStorage.getItem('selected-pay-period-start');
+      if (savedPayPeriodStart) {
+        // Find the pay period that matches the saved start date
+        const matchingPeriod = payPeriods.find(p => p.startDate === savedPayPeriodStart);
+        if (matchingPeriod) {
+          setSelectedPayPeriodId(matchingPeriod.id.toString());
+          // Clear the saved period after restoring
+          sessionStorage.removeItem('selected-pay-period-start');
+          return;
+        }
+      }
+      
+      // Default behavior if no saved period or no match found
       const defaultPeriod = currentPayPeriod ?? payPeriods[0];
       setSelectedPayPeriodId(defaultPeriod.id.toString());
     }
@@ -99,6 +113,9 @@ export default function Timecards() {
     
     // Save current scroll position
     sessionStorage.setItem('timecards-scroll-position', window.scrollY.toString());
+    
+    // Save selected pay period for restoration
+    sessionStorage.setItem('selected-pay-period-start', selectedPayPeriod.startDate);
     
     setLocation(
       `/timecard/employee/${employeeId}/period/${selectedPayPeriod.startDate}`,

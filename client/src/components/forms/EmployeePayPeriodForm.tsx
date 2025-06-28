@@ -516,6 +516,17 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         });
       }
 
+      // Store the current pay period for restoration
+      if (payPeriod && payPeriod.start) {
+        const startDate = new Date(payPeriod.start);
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 13);
+        
+        // Find the pay period ID that matches this date range
+        // We need to store enough info to restore the selection
+        sessionStorage.setItem('selected-pay-period-start', payPeriod.start);
+      }
+
       navigate("/");
 
       // Clear real-time updates

@@ -353,28 +353,38 @@ export class DatabaseStorage implements IStorage {
       currentStart = new Date(startDate);
     }
 
-    // Only generate current pay period (no future periods)
+    // Generate current period plus 2 historical periods
     const payPeriodsToCreate = [];
     
     // Find the current pay period that contains today
-    let periodStart = new Date(currentStart);
-    while (periodStart <= todayUTC) {
-      const periodEnd = new Date(periodStart);
+    let currentPeriodStart = new Date(currentStart);
+    while (currentPeriodStart <= todayUTC) {
+      const periodEnd = new Date(currentPeriodStart);
       periodEnd.setUTCDate(periodEnd.getUTCDate() + 13); // 14 days total
       
-      // If today falls within this period, create it
-      if (todayUTC >= periodStart && todayUTC <= periodEnd) {
-        payPeriodsToCreate.push({
-          employerId,
-          startDate: periodStart.toISOString().split('T')[0],
-          endDate: periodEnd.toISOString().split('T')[0],
-          isActive: false
-        });
+      // If today falls within this period, this is our current period
+      if (todayUTC >= currentPeriodStart && todayUTC <= periodEnd) {
         break;
       }
       
       // Move to next period
-      periodStart.setUTCDate(periodStart.getUTCDate() + 14);
+      currentPeriodStart.setUTCDate(currentPeriodStart.getUTCDate() + 14);
+    }
+    
+    // Generate current period + 2 historical periods (3 total)
+    for (let i = -2; i <= 0; i++) {
+      const periodStart = new Date(currentPeriodStart);
+      periodStart.setUTCDate(periodStart.getUTCDate() + (i * 14));
+      
+      const periodEnd = new Date(periodStart);
+      periodEnd.setUTCDate(periodEnd.getUTCDate() + 13);
+      
+      payPeriodsToCreate.push({
+        employerId,
+        startDate: periodStart.toISOString().split('T')[0],
+        endDate: periodEnd.toISOString().split('T')[0],
+        isActive: false
+      });
     }
 
     if (payPeriodsToCreate.length > 0) {

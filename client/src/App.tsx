@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
-import Dashboard from "@/pages/dashboard";
 import Employees from "@/pages/employees";
 import Timecards from "@/pages/timecards";
 import Reports from "@/pages/reports";
@@ -20,6 +19,7 @@ import CompaniesAdmin from "@/pages/admin/Companies";
 import { CompanyProvider } from "@/context/company";
 import { TimecardUpdatesProvider } from "@/context/timecard-updates";
 import { CompanySetupGuard } from "@/components/company-setup-guard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -65,7 +65,9 @@ function App() {
         <TimecardUpdatesProvider>
           <TooltipProvider>
             <Toaster />
-            <Router />
+            <ErrorBoundary>
+              <Router />
+            </ErrorBoundary>
           </TooltipProvider>
         </TimecardUpdatesProvider>
       </CompanyProvider>

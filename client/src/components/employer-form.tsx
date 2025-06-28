@@ -247,17 +247,18 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
             <FormItem>
               <FormLabel>Week Starts On</FormLabel>
               <FormControl>
-                <select {...field} className="border rounded p-2 w-full">
-                  <option value="0">Sunday</option>
-                  <option value="1">Monday</option>
-                  <option value="2">Tuesday</option>
-                  <option value="3">Wednesday</option>
-                  <option value="4">Thursday</option>
-                  <option value="5">Friday</option>
-                  <option value="6">Saturday</option>
-                </select>
+                <Input 
+                  {...field} 
+                  value={getDayOfWeekName(parseInt(field.value || "0"))}
+                  readOnly
+                  className="bg-gray-50 cursor-not-allowed"
+                  placeholder="Select payroll start date first"
+                />
               </FormControl>
               <FormMessage />
+              <p className="text-sm text-gray-500">
+                Week beginning day is automatically set based on your payroll start date
+              </p>
             </FormItem>
           )}
         />

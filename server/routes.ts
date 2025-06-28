@@ -25,10 +25,17 @@ import fs from "fs";
 import path from "path";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
+import memoize from "memoizee";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  const getDashboardStatsCached = memoize(
+    (employerId: number, payPeriodId: number) =>
+      storage.getDashboardStats(employerId, payPeriodId),
+    { maxAge: 5 * 60 * 1000, promise: true }
+  );
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -598,6 +605,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Access denied' });
       }
       const entry = await storage.createTimeEntry(entryData);
+      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -632,6 +640,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const entry = await storage.updateTimeEntry(id, insertTimeEntrySchema.partial().parse(req.body));
+      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -646,6 +655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       await storage.deleteTimeEntry(id);
+      getDashboardStatsCached.clear();
       res.json({ message: 'Deleted' });
     } catch (error) {
       console.error('Error deleting time entry:', error);
@@ -662,6 +672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
       const entry = await storage.createPtoEntry(data);
+      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -689,6 +700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const entry = await storage.updatePtoEntry(id, insertPtoEntrySchema.partial().parse(req.body));
+      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -700,6 +712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/pto-entries/:id', isAuthenticated, async (req: any, res) => {
     try {
       await storage.deletePtoEntry(parseInt(req.params.id));
+      getDashboardStatsCached.clear();
       res.json({ message: 'Deleted' });
     } catch (error) {
       console.error('Error deleting PTO entry:', error);
@@ -716,6 +729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
       const entry = await storage.createReimbursementEntry(data);
+      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -743,6 +757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const entry = await storage.updateReimbursementEntry(id, insertReimbursementEntrySchema.partial().parse(req.body));
+      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -754,6 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/reimbursement-entries/:id', isAuthenticated, async (req: any, res) => {
     try {
       await storage.deleteReimbursementEntry(parseInt(req.params.id));
+      getDashboardStatsCached.clear();
       res.json({ message: 'Deleted' });
     } catch (error) {
       console.error('Error deleting reimbursement entry:', error);
@@ -770,6 +786,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
       const entry = await storage.createMiscHoursEntry(data);
+      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -797,6 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const entry = await storage.updateMiscHoursEntry(id, insertMiscHoursEntrySchema.partial().parse(req.body));
+      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -808,6 +826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/misc-hours-entries/:id', isAuthenticated, async (req: any, res) => {
     try {
       await storage.deleteMiscHoursEntry(parseInt(req.params.id));
+      getDashboardStatsCached.clear();
       res.json({ message: 'Deleted' });
     } catch (error) {
       console.error('Error deleting misc hours entry:', error);
@@ -832,6 +851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const reimbursement = await storage.createReimbursement(reimbursementData);
+      getDashboardStatsCached.clear();
       res.json(reimbursement);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -846,117 +866,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/dashboard/stats/:employerId', isAuthenticated, async (req: any, res) => {
     try {
       const employerId = parseInt(req.params.employerId);
-      
-      // Verify employer ownership
+
       const employer = await storage.getEmployer(employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const employees = await storage.getEmployeesByEmployer(employerId);
       const currentPayPeriod = await storage.getCurrentPayPeriod(employerId);
 
-      let employeeStats: any[] = [];
+      if (!currentPayPeriod) {
+        return res.json({
+          totalEmployees: employees.length,
+          pendingTimecards: 0,
+          totalHours: 0,
+          payrollReady: 0,
+          currentPayPeriod: null,
+          employeeStats: []
+        });
+      }
+
+      const rows = await getDashboardStatsCached(employerId, currentPayPeriod.id);
+
       let totalHours = 0;
       let pendingTimecards = 0;
       let payrollReady = 0;
 
-      if (currentPayPeriod) {
-        const timecards = await storage.getTimecardsByPayPeriod(currentPayPeriod.id);
-        const reimbursements = await storage.getReimbursementsByPayPeriod(currentPayPeriod.id);
+      const employeeStats = rows.map((r: any) => {
+        const hasData = (parseFloat(r.totalHours) || 0) > 0 ||
+          (parseFloat(r.ptoHours) || 0) > 0 ||
+          (parseFloat(r.holidayHours) || 0) > 0 ||
+          (parseFloat(r.holidayWorkedHours) || 0) > 0 ||
+          (parseFloat(r.miscHours) || 0) > 0;
 
-        const results = await Promise.all(employees.map(async (emp) => {
-          const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
-          const empReimbs = reimbursements.filter(r => r.employeeId === emp.id);
+        totalHours += parseFloat(r.totalHours) || 0;
+        if (!hasData) pendingTimecards += 1;
+        if (hasData && r.timecardCount === r.approvedCount) payrollReady += 1;
 
-          // Get time entries for this employee in the current pay period
-          const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, currentPayPeriod.startDate, currentPayPeriod.endDate);
-          
-          const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, currentPayPeriod.startDate);
-          let empTotalHours = regularHours + overtimeHours;
-          let empOvertimeHours = overtimeHours;
+        return {
+          employeeId: r.employeeId,
+          totalHours: Number(parseFloat(r.totalHours).toFixed(2)),
+          totalOvertimeHours: 0,
+          ptoHours: Number(parseFloat(r.ptoHours).toFixed(2)),
+          holidayHours: Number(parseFloat(r.holidayHours).toFixed(2)),
+          holidayWorkedHours: Number(parseFloat(r.holidayWorkedHours).toFixed(2)),
+          mileage: Number(parseFloat(r.mileage).toFixed(2)),
+          reimbursements: Number(parseFloat(r.reimbursements).toFixed(2))
+        };
+      });
 
-          // Get reimbursement entries for pay period to calculate mileage and reimbursements
-          const reimbursementEntries = await storage.getReimbursementEntriesByEmployee(emp.id);
-          const periodReimbEntries = reimbursementEntries.filter(r => 
-            r.entryDate >= currentPayPeriod.startDate && r.entryDate <= currentPayPeriod.endDate
-          );
-          
-          let empMiles = 0;
-          let empReimbAmt = 0;
-          
-          // Parse mileage and reimbursement from reimbursement entries
-          periodReimbEntries.forEach(entry => {
-            const description = entry.description || "";
-            const totalAmount = parseFloat(entry.amount);
-            empReimbAmt += totalAmount;
-            
-            // Extract mileage info if present in description
-            const mileageMatch = description.match(/Mileage: (\d+(?:\.\d+)?) miles/);
-            if (mileageMatch) {
-              empMiles += parseFloat(mileageMatch[1]);
-            }
-          });
-
-          // Get PTO entries for pay period
-          const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
-          const periodPto = ptoEntries.filter(p => p.entryDate >= currentPayPeriod.startDate && p.entryDate <= currentPayPeriod.endDate)
-            .reduce((sum, p) => sum + parseFloat(p.hours as any), 0);
-
-          // Get misc hours entries for holidays and misc hours
-          const miscEntries = await storage.getMiscHoursEntriesByEmployee(emp.id);
-          const holidayWorked = miscEntries.filter(m => m.entryType === 'holiday-worked' && m.entryDate >= currentPayPeriod.startDate && m.entryDate <= currentPayPeriod.endDate)
-            .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
-          const holidayNonWorked = miscEntries.filter(m => m.entryType === 'holiday' && m.entryDate >= currentPayPeriod.startDate && m.entryDate <= currentPayPeriod.endDate)
-            .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
-          const miscHours = miscEntries.filter(m => m.entryType === 'misc' && m.entryDate >= currentPayPeriod.startDate && m.entryDate <= currentPayPeriod.endDate)
-            .reduce((sum, m) => sum + parseFloat(m.hours as any), 0);
-
-          // Legacy timecard hours (if any) - combine with new entries
-          const legacyPto = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.ptoHours || '0'), 0);
-          const legacyHoliday = empTimecards.reduce((sum, tc) => sum + parseFloat(tc.holidayHours || '0'), 0);
-
-          // Add misc hours to total hours (doesn't affect OT calculation)
-          const adjustedTotalHours = empTotalHours + miscHours;
-
-          // Check if employee has any time data for this period
-          const hasTimeData = timeEntries.length > 0 || periodPto > 0 || holidayWorked > 0 || holidayNonWorked > 0 || miscHours > 0;
-
-          return {
-            row: {
-              employeeId: emp.id,
-              totalHours: Number(adjustedTotalHours.toFixed(2)),
-              totalOvertimeHours: Number(empOvertimeHours.toFixed(2)),
-              ptoHours: Number((legacyPto + periodPto).toFixed(2)),
-              holidayHours: Number((legacyHoliday + holidayNonWorked).toFixed(2)),
-              holidayWorkedHours: Number(holidayWorked.toFixed(2)),
-              mileage: empMiles,
-              reimbursements: Number(empReimbAmt.toFixed(2))
-            },
-            addHours: adjustedTotalHours,
-            pending: !hasTimeData ? 1 : 0,
-            ready: hasTimeData && empTimecards.every(tc => tc.isApproved) ? 1 : 0
-          };
-        }));
-
-        for (const res of results) {
-          employeeStats.push(res.row);
-          totalHours += res.addHours;
-          pendingTimecards += res.pending;
-          payrollReady += res.ready;
-        }
-      }
-
-      const stats = {
+      res.json({
         totalEmployees: employees.length,
         pendingTimecards,
         totalHours: Number(totalHours.toFixed(1)),
         payrollReady,
         currentPayPeriod,
-        employeeStats,
-      };
-
-      res.json(stats);
+        employeeStats
+      });
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
       res.status(500).json({ message: "Failed to fetch dashboard stats" });

@@ -376,8 +376,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       }
 
       // Save combined reimbursement entry (includes mileage + other reimbursements)
-      const mileageAmount = payload.milesDriven > 0 && employee ? 
-        payload.milesDriven * parseFloat(employee.mileageRate || '0') : 0;
+      const mileageRate = employer ? parseFloat(employer.mileageRate || '0.655') : 0.655;
+      const mileageAmount = payload.milesDriven > 0 ? 
+        payload.milesDriven * mileageRate : 0;
       const totalReimbursement = payload.reimbursement.amount + mileageAmount;
       
       if (totalReimbursement > 0) {

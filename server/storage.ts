@@ -154,13 +154,33 @@ export class DatabaseStorage implements IStorage {
 
   // Employee operations
   async createEmployee(employee: InsertEmployee): Promise<Employee> {
-    const [newEmployee] = await db.insert(employees).values(employee).returning();
+    // Convert Date objects to strings if present and remove obsolete fields
+    const employeeData: any = { ...employee };
+    if (employeeData.hireDate && employeeData.hireDate instanceof Date) {
+      employeeData.hireDate = employeeData.hireDate.toISOString().split('T')[0];
+    }
+    // Remove any obsolete mileageRate field
+    delete employeeData.mileageRate;
+    
+    const [newEmployee] = await db.insert(employees).values(employeeData).returning();
     return newEmployee;
   }
 
   async createMultipleEmployees(employeeList: InsertEmployee[]): Promise<{ success: number; failed: number }> {
     if (employeeList.length === 0) return { success: 0, failed: 0 };
-    const inserted = await db.insert(employees).values(employeeList).returning();
+    
+    // Clean up each employee data object
+    const cleanedEmployees = employeeList.map(emp => {
+      const employeeData: any = { ...emp };
+      if (employeeData.hireDate && employeeData.hireDate instanceof Date) {
+        employeeData.hireDate = employeeData.hireDate.toISOString().split('T')[0];
+      }
+      // Remove any obsolete mileageRate field
+      delete employeeData.mileageRate;
+      return employeeData;
+    });
+    
+    const inserted = await db.insert(employees).values(cleanedEmployees).returning();
     return { success: inserted.length, failed: employeeList.length - inserted.length };
   }
 
@@ -178,9 +198,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee> {
+    // Convert Date objects to strings if present
+    const updateData: any = { ...employee };
+    if (updateData.hireDate && updateData.hireDate instanceof Date) {
+      updateData.hireDate = updateData.hireDate.toISOString().split('T')[0];
+    }
+    // Remove any obsolete mileageRate field
+    delete updateData.mileageRate;
+    
     const [updated] = await db
       .update(employees)
-      .set(employee)
+      .set(updateData)
       .where(eq(employees.id, id))
       .returning();
     return updated;

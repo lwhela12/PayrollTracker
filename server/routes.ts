@@ -872,7 +872,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get time entries for this employee in the current pay period
           const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, currentPayPeriod.startDate, currentPayPeriod.endDate);
           
-          const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, employer.weekStartsOn || 0);
+          const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, currentPayPeriod.startDate);
           let empTotalHours = regularHours + overtimeHours;
           let empOvertimeHours = overtimeHours;
 
@@ -980,7 +980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const emp of employees) {
         const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
-        const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, employer.weekStartsOn || 0);
+        const { regularHours, overtimeHours } = calculateWeeklyOvertime(timeEntries, payPeriod.startDate);
         timecardData.push({
           employeeId: emp.id,
           regularHours,
@@ -1123,7 +1123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const emp of employees) {
         // Get time entries for the pay period and calculate hours
         const timeEntries = await storage.getTimeEntriesByEmployee(emp.id, payPeriod.startDate, payPeriod.endDate);
-        const { regularHours: reg, overtimeHours: ot } = calculateWeeklyOvertime(timeEntries, 3); // Wednesday = 3
+        const { regularHours: reg, overtimeHours: ot } = calculateWeeklyOvertime(timeEntries, payPeriod.startDate);
 
         const ptoEntries = await storage.getPtoEntriesByEmployee(emp.id);
         const pto = ptoEntries.filter(p => p.entryDate >= payPeriod.startDate && p.entryDate <= payPeriod.endDate)

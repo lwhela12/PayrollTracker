@@ -16,20 +16,35 @@ function hoursFromEntry(entry: TimeEntry): number {
   return Math.round((minutes / 60) * 100) / 100
 }
 
-export function calculateWeeklyOvertime(entries: TimeEntry[], weekStartsOn: number) {
+export function calculateWeeklyOvertime(entries: TimeEntry[], payPeriodStartDate: string) {
   const buckets = new Map<string, number>()
+  const periodStart = new Date(payPeriodStartDate)
+  
   for (const e of entries) {
-    const week = startOfWeek(new Date(e.timeIn), { weekStartsOn })
-    const key = week.toISOString()
+    const entryDate = new Date(e.timeIn)
+    
+    // Calculate days since pay period start
+    const daysSinceStart = Math.floor((entryDate.getTime() - periodStart.getTime()) / (24 * 60 * 60 * 1000))
+    
+    // Determine which payroll week (0 = first week, 1 = second week)
+    const payrollWeek = Math.floor(daysSinceStart / 7)
+    
+    // Create week key based on payroll week number
+    const weekKey = `week-${payrollWeek}`
+    
     const hours = hoursFromEntry(e)
-    buckets.set(key, (buckets.get(key) || 0) + hours)
+    buckets.set(weekKey, (buckets.get(weekKey) || 0) + hours)
   }
+  
   let regularHours = 0
   let overtimeHours = 0
-  for (const hours of buckets.values()) {
+  
+  // Calculate overtime for each payroll week separately
+  buckets.forEach((hours, weekKey) => {
     regularHours += Math.min(hours, 40)
     overtimeHours += Math.max(0, hours - 40)
-  }
+  })
+  
   return { regularHours, overtimeHours }
 }
 

@@ -247,7 +247,8 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         holidayWorkedHours: holidayWorked
       });
     }
-  }, [milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, employee, employer, employeeId, updateEmployee]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, employee, employer, employeeId]);
 
   const addShift = (date: string) => {
     setDays((prev) =>

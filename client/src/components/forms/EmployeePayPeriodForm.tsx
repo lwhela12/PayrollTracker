@@ -365,43 +365,58 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       const previousStats = queryClient.getQueryData<any>(["/api/dashboard/stats", employee.employerId]);
 
       if (previousStats) {
-        const entryList: TimeEntryLike[] = [];
-        newData.days.forEach((d: any) => {
-          d.shifts.forEach((s: any) => {
-            if (s.timeIn && s.timeOut) {
-              entryList.push({
-                timeIn: `${d.date}T${s.timeIn}:00`,
-                timeOut: `${d.date}T${s.timeOut}:00`,
-                lunchMinutes: s.lunch,
-              });
-            }
-          });
-        });
-
-        const { totalRegularHours, totalOvertimeHours } = calculateWeeklyHours(entryList, newData.payPeriod.start);
-
-        const mileageRate = employer ? parseFloat(employer.mileageRate || '0.655') : 0.655;
-        const optimistic = {
-          employeeId,
-          totalHours: totalRegularHours + newData.miscHours + totalOvertimeHours,
-          totalOvertimeHours,
-          ptoHours: newData.ptoHours,
-          holidayHours: newData.holidayNonWorked,
-          holidayWorkedHours: newData.holidayWorked,
-          mileage: newData.milesDriven,
-          reimbursements: newData.reimbursement.amount + newData.milesDriven * mileageRate,
-        };
-
-        queryClient.setQueryData<any>(["/api/dashboard/stats", employee.employerId], (old: any) => {
-          if (!old) return old;
-          const idx = old.employeeStats?.findIndex((s: any) => s.employeeId === employeeId);
-          if (idx != null && idx >= 0) {
-            old.employeeStats[idx] = optimistic;
-          } else if (old.employeeStats) {
-            old.employeeStats.push(optimistic);
+        try {
+          const entryList: TimeEntryLike[] = [];
+          
+          // Safely process days and shifts
+          if (newData.days && Array.isArray(newData.days)) {
+            newData.days.forEach((d: any) => {
+              if (d && d.shifts && Array.isArray(d.shifts)) {
+                d.shifts.forEach((s: any) => {
+                  if (s && s.timeIn && s.timeOut) {
+                    entryList.push({
+                      timeIn: `${d.date}T${s.timeIn}:00`,
+                      timeOut: `${d.date}T${s.timeOut}:00`,
+                      lunchMinutes: s.lunch || 0,
+                    });
+                  }
+                });
+              }
+            });
           }
-          return { ...old };
-        });
+
+          const { totalRegularHours, totalOvertimeHours } = calculateWeeklyHours(entryList, newData.payPeriod?.start || payPeriod.start);
+
+          const mileageRate = employer ? parseFloat(employer.mileageRate || '0.655') : 0.655;
+          const optimistic = {
+            employeeId,
+            totalHours: (totalRegularHours || 0) + (newData.miscHours || 0) + (totalOvertimeHours || 0),
+            totalOvertimeHours: totalOvertimeHours || 0,
+            ptoHours: newData.ptoHours || 0,
+            holidayHours: newData.holidayNonWorked || 0,
+            holidayWorkedHours: newData.holidayWorked || 0,
+            mileage: newData.milesDriven || 0,
+            reimbursements: (newData.reimbursement?.amount || 0) + (newData.milesDriven || 0) * mileageRate,
+          };
+
+          queryClient.setQueryData<any>(["/api/dashboard/stats", employee.employerId], (old: any) => {
+            if (!old || !old.employeeStats) return old;
+            
+            const employeeStats = [...(old.employeeStats || [])];
+            const idx = employeeStats.findIndex((s: any) => s.employeeId === employeeId);
+            
+            if (idx >= 0) {
+              employeeStats[idx] = optimistic;
+            } else {
+              employeeStats.push(optimistic);
+            }
+            
+            return { ...old, employeeStats };
+          });
+        } catch (error) {
+          console.error("Optimistic update error:", error);
+          // Continue with mutation even if optimistic update fails
+        }
       }
 
       return { previousStats };

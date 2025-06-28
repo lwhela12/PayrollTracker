@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { calculateHoursFromTimecard, calculateWeeklyHours, TimeEntryLike } from "@/lib/payrollUtils";
+import { calculateHoursFromTimecard, TimeEntryLike } from "@/lib/payrollUtils";
 import { getDayOfWeek } from "@/lib/dateUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useTimecardUpdates } from "@/context/timecard-updates";
@@ -263,7 +263,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingReimbEntries?.length, start, end]);
 
-  // Real-time updates to pay period summary when mileage/reimbursement changes
+  // Real-time updates to pay period summary when any values change
   useEffect(() => {
     if (employee && employer) {
       const mileageRate = parseFloat(employer.mileageRate || '0.655');
@@ -271,6 +271,8 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       const totalReimbursement = reimbAmt + mileageAmount;
       
       updateEmployee(employeeId, {
+        totalHours: totals.totalHours + ptoHours + holidayNonWorked + holidayWorked,
+        totalOvertimeHours: totals.overtime,
         mileage: milesDriven,
         reimbursement: totalReimbursement,
         ptoHours,
@@ -279,7 +281,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, employee, employer, employeeId]);
+  }, [days, milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, miscHours, employee, employer, employeeId, totals.totalHours, totals.overtime]);
 
   const addShift = (date: string) => {
     setDays((prev) =>
@@ -385,7 +387,45 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
             });
           }
 
-          const { totalRegularHours, totalOvertimeHours } = calculateWeeklyHours(entryList, newData.payPeriod?.start || payPeriod.start);
+          // Calculate weekly hours using the same logic as the component
+          const week1Entries = entryList.filter(e => {
+            const entryDate = new Date(e.timeIn).toISOString().split('T')[0];
+            const startDate = new Date(newData.payPeriod?.start || payPeriod.start);
+            const week1End = new Date(startDate);
+            week1End.setDate(startDate.getDate() + 6);
+            return entryDate >= startDate.toISOString().split('T')[0] && entryDate <= week1End.toISOString().split('T')[0];
+          });
+          
+          const week2Entries = entryList.filter(e => {
+            const entryDate = new Date(e.timeIn).toISOString().split('T')[0];
+            const startDate = new Date(newData.payPeriod?.start || payPeriod.start);
+            const week2Start = new Date(startDate);
+            week2Start.setDate(startDate.getDate() + 7);
+            const week2End = new Date(startDate);
+            week2End.setDate(startDate.getDate() + 13);
+            return entryDate >= week2Start.toISOString().split('T')[0] && entryDate <= week2End.toISOString().split('T')[0];
+          });
+          
+          const calculateWeekHours = (entries: TimeEntryLike[]) => {
+            const totalHours = entries.reduce((sum, entry) => {
+              const timeIn = new Date(entry.timeIn);
+              const timeOut = new Date(entry.timeOut);
+              let hours = (timeOut.getTime() - timeIn.getTime()) / (1000 * 60 * 60);
+              if (entry.lunchMinutes) {
+                hours -= entry.lunchMinutes / 60;
+              }
+              return sum + Math.max(0, hours);
+            }, 0);
+            return {
+              regularHours: Math.min(totalHours, 40),
+              overtimeHours: Math.max(0, totalHours - 40)
+            };
+          };
+          
+          const week1Hours = calculateWeekHours(week1Entries);
+          const week2Hours = calculateWeekHours(week2Entries);
+          const totalRegularHours = week1Hours.regularHours + week2Hours.regularHours;
+          const totalOvertimeHours = week1Hours.overtimeHours + week2Hours.overtimeHours;
 
           const mileageRate = employer ? parseFloat(employer.mileageRate || '0.655') : 0.655;
           const optimistic = {

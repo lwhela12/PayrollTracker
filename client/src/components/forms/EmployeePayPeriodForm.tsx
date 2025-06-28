@@ -118,6 +118,11 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   const { toast } = useToast();
   const { updateEmployee, clearEmployee } = useTimecardUpdates();
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   useEffect(() => {
     // Always regenerate days structure when existingEntries changes
     const newDays = generateDays(); // Start with fresh 14-day structure

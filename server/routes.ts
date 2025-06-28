@@ -1175,34 +1175,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 }
 
 // Helper functions for report generation
-async function generatePDFReport(employer: any, payPeriod: any, employees: any[], timecardData: any[], filePath: string) {
+async function generatePDFReport(
+  employer: any,
+  payPeriod: any,
+  employees: any[],
+  timecardData: any[],
+  filePath: string
+) {
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
   doc.pipe(fs.createWriteStream(filePath));
-  
-  // Header
-  doc.fontSize(20).text('Payroll Report', 50, 50);
-  doc.fontSize(14).text(`Company: ${employer.name}`, 50, 80);
-  doc.text(`Pay Period: ${payPeriod.startDate} to ${payPeriod.endDate}`, 50, 100);
-  doc.text(`Generated: ${new Date().toLocaleDateString()}`, 50, 120);
-  
-  // Column headers
-  let yPos = 160;
-  doc.fontSize(16).text('Employee Summary', 50, yPos);
-  yPos += 30;
-  
-  // Table headers with better spacing for landscape mode
-  doc.fontSize(10);
-  doc.text('Employee Name', 50, yPos);
-  doc.text('Regular Hrs', 220, yPos);
-  doc.text('OT Hrs', 300, yPos);
-  doc.text('PTO Hrs', 370, yPos);
-  doc.text('Holiday Hrs', 440, yPos);
-  doc.text('Holiday Worked', 520, yPos);
-  doc.text('Reimbursement', 620, yPos);
-  yPos += 20;
-  
-  // Draw header line
-  doc.moveTo(50, yPos - 5).lineTo(720, yPos - 5).stroke();
+
+  const addHeader = () => {
+    // Report title and meta
+    doc.fontSize(20).text('Payroll Report', 50, 50);
+    doc.fontSize(14).text(`Company: ${employer.name}`, 50, 80);
+    doc.text(`Pay Period: ${payPeriod.startDate} to ${payPeriod.endDate}`, 50, 100);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 50, 120);
+
+    let headerY = 160;
+    doc.fontSize(16).text('Employee Summary', 50, headerY);
+    headerY += 30;
+
+    // Table column headers
+    doc.fontSize(10);
+    doc.text('Employee Name', 50, headerY);
+    doc.text('Regular Hrs', 220, headerY);
+    doc.text('OT Hrs', 300, headerY);
+    doc.text('PTO Hrs', 370, headerY);
+    doc.text('Holiday Hrs', 440, headerY);
+    doc.text('Holiday Worked', 520, headerY);
+    doc.text('Reimbursement', 620, headerY);
+    headerY += 20;
+
+    doc.moveTo(50, headerY - 5).lineTo(720, headerY - 5).stroke();
+    return headerY;
+  };
+
+  let yPos = addHeader();
   
   for (const emp of employees) {
     // Get time entries for the pay period and calculate hours
@@ -1244,10 +1253,10 @@ async function generatePDFReport(employer: any, payPeriod: any, employees: any[]
     
     if (yPos > 700) {
       doc.addPage();
-      yPos = 50;
+      yPos = addHeader();
     }
   }
-  
+
   doc.end();
 }
 

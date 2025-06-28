@@ -160,6 +160,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/employers/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const employerId = parseInt(req.params.id);
+      const employer = await storage.getEmployer(employerId);
+
+      if (!employer || employer.ownerId !== req.user.claims.sub) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      await storage.deleteEmployer(employerId);
+      res.json({ message: 'Employer deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting employer:', error);
+      res.status(500).json({ message: 'Failed to delete employer' });
+    }
+  });
+
   // Employee routes
   app.post('/api/employees', isAuthenticated, async (req: any, res) => {
     try {

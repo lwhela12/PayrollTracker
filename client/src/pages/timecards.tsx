@@ -64,18 +64,11 @@ export default function Timecards() {
   const currentPayPeriod = dashboardStats?.currentPayPeriod;
 
   useEffect(() => {
-    if (payPeriods.length > 0 && !selectedPayPeriodId) {
-      // Default to the most recent pay period, which will be the first in the sorted list
-      setSelectedPayPeriodId(payPeriods[0].id.toString());
+    if (payPeriods.length > 0) {
+      const defaultPeriod = currentPayPeriod ?? payPeriods[0];
+      setSelectedPayPeriodId(defaultPeriod.id.toString());
     }
-  }, [payPeriods, selectedPayPeriodId]);
-
-  useEffect(() => {
-    if (payPeriods.length > 0 && !selectedPayPeriodId && currentPayPeriod) {
-      // Always default to the current pay period from dashboard stats
-      setSelectedPayPeriodId(currentPayPeriod.id.toString());
-    }
-  }, [payPeriods, selectedPayPeriodId, currentPayPeriod]);
+  }, [payPeriods, currentPayPeriod]);
 
   const { data: timecards = [] } = useQuery<any[]>({
     queryKey: ["/api/timecards/pay-period", selectedPayPeriodId],
@@ -87,8 +80,10 @@ export default function Timecards() {
   const [, setLocation] = useLocation();
 
   const handleNavigateToTimecard = (employeeId: number) => {
-    if (!currentPayPeriod) return;
-    setLocation(`/timecard/employee/${employeeId}/period/${currentPayPeriod.startDate}`);
+    if (!selectedPayPeriod) return;
+    setLocation(
+      `/timecard/employee/${employeeId}/period/${selectedPayPeriod.startDate}`,
+    );
   };
 
   const stats = [

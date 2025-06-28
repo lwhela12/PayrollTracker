@@ -119,6 +119,7 @@ export default function CompanySettings() {
       queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
       queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/pay-periods", employerId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pay-periods/relevant", employerId] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employerId] });
       toast({ title: "Company Updated", description: "Payroll periods regenerated" });
       navigate("/settings");

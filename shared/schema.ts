@@ -78,7 +78,14 @@ export const payPeriods = pgTable("pay_periods", {
   isActive: boolean("is_active").default(false),
   employerId: integer("employer_id").notNull().references(() => employers.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
-});
+},
+// ensure no duplicate pay period per employer+start date
+(table) => [
+  index("IDX_pay_periods_employer_start", { unique: true }).on(
+    table.employerId,
+    table.startDate,
+  ),
+]);
 
 // Timecards table
 export const timecards = pgTable("timecards", {

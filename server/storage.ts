@@ -250,7 +250,9 @@ export class DatabaseStorage implements IStorage {
       }));
 
     if (periodsToCreate.length > 0) {
-      await db.insert(payPeriods).values(periodsToCreate);
+      await db.insert(payPeriods)
+        .values(periodsToCreate)
+        .onConflictDoNothing();
     }
 
     const finalPeriods = await db.select().from(payPeriods).where(and(

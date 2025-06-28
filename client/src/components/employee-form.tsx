@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
@@ -27,6 +27,12 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEditing = !!employee;
+
+  // Fetch employer data to get company name for position default
+  const { data: employer } = useQuery<any>({
+    queryKey: ["/api/employers", employerId],
+    enabled: !!employerId,
+  });
 
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeFormSchema),
@@ -117,6 +123,7 @@ export function EmployeeForm({ employerId, employee, onSuccess, onCancel }: Empl
     
     const submissionData = {
       ...data,
+      position: employer?.name || "Employee", // Default position to company name
     };
     console.log('Final submission data:', submissionData);
 

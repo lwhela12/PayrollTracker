@@ -94,8 +94,8 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
   const onSubmit = (data: EmployerFormData) => {
     const submissionData = {
       ...data,
-      mileageRate: parseFloat(data.mileageRate),
-      weekStartsOn: parseInt(data.weekStartsOn || "0"),
+      mileageRate: data.mileageRate ? parseFloat(data.mileageRate.toString()) : 0.655,
+      weekStartsOn: data.weekStartsOn ? parseInt(data.weekStartsOn.toString()) : 0,
     };
     
     if (isEditing) {

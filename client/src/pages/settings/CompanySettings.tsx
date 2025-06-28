@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useLocation } from "wouter";
 import { useCompany } from "@/context/company";
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,25 +48,16 @@ export default function CompanySettings() {
   const [showPayrollWarning, setShowPayrollWarning] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
 
-  const { data } = useQuery<any>({
-    queryKey: ["/api/employers", employerId],
+  const { data: employer } = useQuery<any>({
+    queryKey: employerId ? [`/api/employers/${employerId}`] : [],
     enabled: !!employerId
   });
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    values: data ? { 
-      name: data.name || "", 
-      weekStartsOn: data.weekStartsOn || 0,
-      payPeriodStartDate: data.payPeriodStartDate || "",
-      address: data.address || "",
-      phone: data.phone || "",
-      email: data.email || "",
-      taxId: data.taxId || "",
-      mileageRate: data.mileageRate?.toString() || "0.655"
-    } : { 
-      name: "", 
-      weekStartsOn: 0, 
+    defaultValues: {
+      name: "",
+      weekStartsOn: 0,
       payPeriodStartDate: "",
       address: "",
       phone: "",
@@ -76,13 +67,36 @@ export default function CompanySettings() {
     }
   });
 
-  const mutation = useMutation({
+  // Update form values when data loads
+  React.useEffect(() => {
+    if (employer) {
+      const formData = {
+        name: employer.name || "",
+        weekStartsOn: employer.weekStartsOn || 0,
+        payPeriodStartDate: employer.payPeriodStartDate || "",
+        address: employer.address || "",
+        phone: employer.phone || "",
+        email: employer.email || "",
+        taxId: employer.taxId || "",
+        mileageRate: employer.mileageRate?.toString() || "0.655"
+      };
+      form.reset(formData);
+    }
+  }, [employer, form]);
+
+  const updateCompanyMutation = useMutation({
     mutationFn: async (values: FormData) => {
       if (!employerId) return;
-      const res = await apiRequest("PUT", `/api/employers/${employerId}`, values);
-      return res.json();
+      const submissionData = {
+        ...values,
+        mileageRate: parseFloat(values.mileageRate),
+      };
+      const response = await apiRequest("PUT", `/api/employers/${employerId}`, submissionData);
+      return response;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}`] });
       toast({ title: "Company Updated" });
       navigate("/settings");
     },
@@ -91,7 +105,61 @@ export default function CompanySettings() {
     }
   });
 
-  const onSubmit = (vals: FormData) => mutation.mutate(vals);
+  const updateCompanyWithPayrollChangeMutation = useMutation({
+    mutationFn: async (values: FormData) => {
+      if (!employerId) return;
+      const submissionData = {
+        ...values,
+        mileageRate: parseFloat(values.mileageRate),
+      };
+      const response = await apiRequest("PUT", `/api/employers/${employerId}/reset-payroll`, submissionData);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pay-periods", employerId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employerId] });
+      toast({ title: "Company Updated", description: "Payroll periods regenerated" });
+      navigate("/settings");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  });
+
+  const onSubmit = (values: FormData) => {
+    // Check if payroll start date has changed
+    const payrollDateChanged = employer?.payPeriodStartDate !== values.payPeriodStartDate;
+    
+    console.log('Payroll date check:', {
+      original: employer?.payPeriodStartDate,
+      new: values.payPeriodStartDate,
+      changed: payrollDateChanged
+    });
+    
+    if (payrollDateChanged) {
+      console.log('Showing payroll warning dialog');
+      setPendingFormData(values);
+      setShowPayrollWarning(true);
+    } else {
+      console.log('No payroll date change, updating normally');
+      updateCompanyMutation.mutate(values);
+    }
+  };
+
+  const handleConfirmPayrollChange = () => {
+    if (pendingFormData) {
+      updateCompanyWithPayrollChangeMutation.mutate(pendingFormData);
+    }
+    setShowPayrollWarning(false);
+    setPendingFormData(null);
+  };
+
+  const handleCancelPayrollChange = () => {
+    setShowPayrollWarning(false);
+    setPendingFormData(null);
+  };
 
   if (!employerId) return null;
 
@@ -111,27 +179,74 @@ export default function CompanySettings() {
                   <FormMessage />
                 </FormItem>
               )} />
+
+              <FormField name="payPeriodStartDate" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Payroll Start Date</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="date" 
+                      {...field} 
+                      onChange={(e) => {
+                        field.onChange(e);
+                        // Auto-calculate week start day
+                        const date = new Date(e.target.value);
+                        const dayOfWeek = date.getDay();
+                        form.setValue('weekStartsOn', dayOfWeek);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <p className="text-sm text-gray-500">
+                    This determines when your pay periods start and end
+                  </p>
+                </FormItem>
+              )} />
+
               <FormField name="weekStartsOn" control={form.control} render={({ field }) => (
                 <FormItem>
                   <FormLabel>Week Starts On</FormLabel>
                   <FormControl>
-                    <select {...field} className="border rounded p-2 w-full">
-                      <option value={0}>Sunday</option>
-                      <option value={1}>Monday</option>
-                      <option value={2}>Tuesday</option>
-                      <option value={3}>Wednesday</option>
-                      <option value={4}>Thursday</option>
-                      <option value={5}>Friday</option>
-                      <option value={6}>Saturday</option>
-                    </select>
+                    <Input 
+                      {...field} 
+                      value={getDayOfWeekName(parseInt(field.value?.toString() || "0"))}
+                      readOnly
+                      className="bg-gray-50 cursor-not-allowed"
+                      placeholder="Select payroll start date first"
+                    />
                   </FormControl>
                   <FormMessage />
+                  <p className="text-sm text-gray-500">
+                    Week beginning day is automatically set based on your payroll start date
+                  </p>
+                </FormItem>
+              )} />
+
+              <FormField name="mileageRate" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mileage Rate (per mile)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.001" 
+                      {...field} 
+                      placeholder="0.655"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <p className="text-sm text-gray-500">
+                    Current IRS standard rate is $0.655 per mile
+                  </p>
                 </FormItem>
               )} />
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => navigate("/settings")}>Cancel</Button>
-                <Button type="submit" disabled={mutation.isPending} className="payroll-button-primary">
-                  Save
+                <Button 
+                  type="submit" 
+                  disabled={updateCompanyMutation.isPending || updateCompanyWithPayrollChangeMutation.isPending} 
+                  className="payroll-button-primary"
+                >
+                  {(updateCompanyMutation.isPending || updateCompanyWithPayrollChangeMutation.isPending) ? "Saving..." : "Save"}
                 </Button>
               </div>
             </form>

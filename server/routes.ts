@@ -865,7 +865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const timecards = await storage.getTimecardsByPayPeriod(currentPayPeriod.id);
         const reimbursements = await storage.getReimbursementsByPayPeriod(currentPayPeriod.id);
 
-        for (const emp of employees) {
+        const results = await Promise.all(employees.map(async (emp) => {
           const empTimecards = timecards.filter(tc => tc.employeeId === emp.id);
           const empReimbs = reimbursements.filter(r => r.employeeId === emp.id);
 
@@ -918,27 +918,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Add misc hours to total hours (doesn't affect OT calculation)
           const adjustedTotalHours = empTotalHours + miscHours;
-          totalHours += adjustedTotalHours;
 
           // Check if employee has any time data for this period
           const hasTimeData = timeEntries.length > 0 || periodPto > 0 || holidayWorked > 0 || holidayNonWorked > 0 || miscHours > 0;
-          
-          if (!hasTimeData) {
-            pendingTimecards++;
-          } else if (empTimecards.every(tc => tc.isApproved)) {
-            payrollReady++;
-          }
 
-          employeeStats.push({
-            employeeId: emp.id,
-            totalHours: Number(adjustedTotalHours.toFixed(2)),
-            totalOvertimeHours: Number(empOvertimeHours.toFixed(2)),
-            ptoHours: Number((legacyPto + periodPto).toFixed(2)),
-            holidayHours: Number((legacyHoliday + holidayNonWorked).toFixed(2)),
-            holidayWorkedHours: Number(holidayWorked.toFixed(2)),
-            mileage: empMiles,
-            reimbursements: Number(empReimbAmt.toFixed(2))
-          });
+          return {
+            row: {
+              employeeId: emp.id,
+              totalHours: Number(adjustedTotalHours.toFixed(2)),
+              totalOvertimeHours: Number(empOvertimeHours.toFixed(2)),
+              ptoHours: Number((legacyPto + periodPto).toFixed(2)),
+              holidayHours: Number((legacyHoliday + holidayNonWorked).toFixed(2)),
+              holidayWorkedHours: Number(holidayWorked.toFixed(2)),
+              mileage: empMiles,
+              reimbursements: Number(empReimbAmt.toFixed(2))
+            },
+            addHours: adjustedTotalHours,
+            pending: !hasTimeData ? 1 : 0,
+            ready: hasTimeData && empTimecards.every(tc => tc.isApproved) ? 1 : 0
+          };
+        }));
+
+        for (const res of results) {
+          employeeStats.push(res.row);
+          totalHours += res.addHours;
+          pendingTimecards += res.pending;
+          payrollReady += res.ready;
         }
       }
 

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { calculateHoursFromTimecard } from "@/lib/payrollUtils";
+import { calculateHoursFromTimecard, calculateWeeklyHours, TimeEntryLike } from "@/lib/payrollUtils";
 import { getDayOfWeek } from "@/lib/dateUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useTimecardUpdates } from "@/context/timecard-updates";
@@ -458,20 +458,38 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     },
     onMutate: async (newData: any) => {
       if (!employee?.employerId) return { previousStats: undefined };
+
       await queryClient.cancelQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
       const previousStats = queryClient.getQueryData<any>(["/api/dashboard/stats", employee.employerId]);
+
       if (previousStats) {
+        const entryList: TimeEntryLike[] = [];
+        newData.days.forEach((d: any) => {
+          d.shifts.forEach((s: any) => {
+            if (s.timeIn && s.timeOut) {
+              entryList.push({
+                timeIn: `${d.date}T${s.timeIn}:00`,
+                timeOut: `${d.date}T${s.timeOut}:00`,
+                lunchMinutes: s.lunch,
+              });
+            }
+          });
+        });
+
+        const { totalRegularHours, totalOvertimeHours } = calculateWeeklyHours(entryList, newData.payPeriod.start);
+
         const mileageRate = employer ? parseFloat(employer.mileageRate || '0.655') : 0.655;
         const optimistic = {
           employeeId,
-          totalHours: totals.totalHours,
-          totalOvertimeHours: totals.overtime,
-          ptoHours,
-          holidayHours: holidayNonWorked,
-          holidayWorkedHours: holidayWorked,
-          mileage: milesDriven,
-          reimbursements: reimbAmt + milesDriven * mileageRate,
+          totalHours: totalRegularHours + newData.miscHours + totalOvertimeHours,
+          totalOvertimeHours,
+          ptoHours: newData.ptoHours,
+          holidayHours: newData.holidayNonWorked,
+          holidayWorkedHours: newData.holidayWorked,
+          mileage: newData.milesDriven,
+          reimbursements: newData.reimbursement.amount + newData.milesDriven * mileageRate,
         };
+
         queryClient.setQueryData<any>(["/api/dashboard/stats", employee.employerId], (old: any) => {
           if (!old) return old;
           const idx = old.employeeStats?.findIndex((s: any) => s.employeeId === employeeId);
@@ -483,6 +501,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
           return { ...old };
         });
       }
+
       return { previousStats };
     },
     onError: (err, _newData, context) => {

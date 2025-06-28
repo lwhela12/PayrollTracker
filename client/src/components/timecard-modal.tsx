@@ -33,7 +33,7 @@ export function TimecardModal({ isOpen, onClose, employee, timecards, payPeriod,
     totalRegularHours: employeeStats.regularHours || 0,
     totalOvertimeHours: employeeStats.overtimeHours || 0,
     totalHours: (employeeStats.regularHours || 0) + (employeeStats.overtimeHours || 0)
-  } : calculateWeeklyHours(timecards);
+  } : calculateWeeklyHours(timecards, payPeriod.startDate || payPeriod.start);
 
   const approveTimecardsMutation = useMutation({
     mutationFn: async () => {

@@ -59,13 +59,19 @@ export function formatMinutesToTime(minutes: number): string {
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 }
 
-export function calculateWeeklyHours(timecards: any[]): {
+export interface TimeEntryLike {
+  timeIn: string;
+  timeOut?: string | null;
+  lunchMinutes?: number | null;
+}
+
+export function calculateWeeklyHours(entries: TimeEntryLike[], payPeriodStartDate: string): {
   totalRegularHours: number;
   totalOvertimeHours: number;
   totalHours: number;
   weeklyOvertimeHours: number;
 } {
-  if (timecards.length === 0) {
+  if (entries.length === 0) {
     return {
       totalRegularHours: 0,
       totalOvertimeHours: 0,
@@ -73,63 +79,43 @@ export function calculateWeeklyHours(timecards: any[]): {
       weeklyOvertimeHours: 0,
     };
   }
-  
-  // Sort timecards by date to process in chronological order
-  const sortedTimecards = [...timecards].sort((a, b) => 
-    new Date(a.workDate).getTime() - new Date(b.workDate).getTime()
-  );
-  
-  // Get the start date to properly split into weeks
-  const payPeriodStart = new Date(sortedTimecards[0].workDate);
-  
-  // Split timecards into two 7-day weeks based on pay period start date
-  const week1Timecards: any[] = [];
-  const week2Timecards: any[] = [];
-  
-  sortedTimecards.forEach(timecard => {
-    const timecardDate = new Date(timecard.workDate);
-    const daysDiff = Math.floor((timecardDate.getTime() - payPeriodStart.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysDiff < 7) {
-      week1Timecards.push(timecard);
-    } else {
-      week2Timecards.push(timecard);
+
+  const buckets = new Map<number, number>();
+  const periodStart = new Date(payPeriodStartDate);
+
+  entries.forEach(e => {
+    if (!e.timeIn || !e.timeOut) return;
+    const entryDate = new Date(e.timeIn);
+    const daysSinceStart = Math.floor((entryDate.getTime() - periodStart.getTime()) / (24 * 60 * 60 * 1000));
+    const payrollWeek = Math.floor(daysSinceStart / 7);
+
+    let minutes = (new Date(e.timeOut).getTime() - new Date(e.timeIn).getTime()) / 60000;
+    if (minutes < 0) minutes += 24 * 60;
+    if (e.lunchMinutes && minutes / 60 >= 8) {
+      minutes -= e.lunchMinutes;
     }
+    if (minutes < 0) minutes = 0;
+    const hours = Math.round((minutes / 60) * 100) / 100;
+    buckets.set(payrollWeek, (buckets.get(payrollWeek) || 0) + hours);
   });
-  
-  // Calculate hours for each week separately
-  const calculateWeekHours = (weekTimecards: any[]) => {
-    const weekTotalHours = weekTimecards.reduce((sum, tc) => {
-      const regular = parseFloat(tc.regularHours || '0');
-      const overtime = parseFloat(tc.overtimeHours || '0');
-      const misc = parseFloat(tc.miscHours || '0');
-      const pto = parseFloat(tc.ptoHours || '0');
-      const holiday = parseFloat(tc.holidayHours || '0');
-      return sum + regular + overtime + misc + pto + holiday;
-    }, 0);
-    
-    // Weekly overtime: anything over 40 hours in a single week
-    const weekRegularHours = Math.min(weekTotalHours, 40);
-    const weekOvertimeHours = Math.max(0, weekTotalHours - 40);
-    
-    return {
-      regularHours: weekRegularHours,
-      overtimeHours: weekOvertimeHours
-    };
-  };
-  
-  const week1 = calculateWeekHours(week1Timecards);
-  const week2 = calculateWeekHours(week2Timecards);
-  
-  const totalRegularHours = week1.regularHours + week2.regularHours;
-  const totalOvertimeHours = week1.overtimeHours + week2.overtimeHours;
-  const totalHours = totalRegularHours + totalOvertimeHours;
-  
+
+  let regularHours = 0;
+  let overtimeHours = 0;
+
+  buckets.forEach(hours => {
+    regularHours += Math.min(hours, 40);
+    overtimeHours += Math.max(0, hours - 40);
+  });
+
+  const totalRegularHours = Math.round(regularHours * 100) / 100;
+  const totalOvertimeHours = Math.round(overtimeHours * 100) / 100;
+  const totalHours = Math.round((regularHours + overtimeHours) * 100) / 100;
+
   return {
-    totalRegularHours: Math.round(totalRegularHours * 100) / 100,
-    totalOvertimeHours: Math.round(totalOvertimeHours * 100) / 100,
-    totalHours: Math.round(totalHours * 100) / 100,
-    weeklyOvertimeHours: Math.round(totalOvertimeHours * 100) / 100,
+    totalRegularHours,
+    totalOvertimeHours,
+    totalHours,
+    weeklyOvertimeHours: totalOvertimeHours,
   };
 }
 

@@ -9,7 +9,8 @@ function hoursFromEntry(entry: TimeEntry): number {
   if (minutes < 0) {
     minutes += 24 * 60
   }
-  if (entry.lunchMinutes && minutes / 60 >= 8) {
+  // Always subtract lunch minutes if specified, regardless of shift length
+  if (entry.lunchMinutes) {
     minutes -= entry.lunchMinutes
   }
   if (minutes < 0) minutes = 0

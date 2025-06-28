@@ -39,7 +39,7 @@ export function Sidebar({ selectedEmployer, currentPayPeriod, user }: SidebarPro
     return location.startsWith(href);
   };
 
-  const payPeriodProgress = currentPayPeriod ? getPayPeriodProgress(
+  const payPeriodProgress = currentPayPeriod && currentPayPeriod.startDate && currentPayPeriod.endDate ? getPayPeriodProgress(
     currentPayPeriod.startDate, 
     currentPayPeriod.endDate
   ) : null;

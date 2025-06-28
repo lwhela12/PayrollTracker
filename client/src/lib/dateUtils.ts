@@ -43,6 +43,17 @@ export function calculateWorkingDays(startDate: string, endDate: string): number
 }
 
 export function getPayPeriodProgress(startDate: string, endDate: string) {
+  // Add null checks to prevent errors with undefined dates
+  if (!startDate || !endDate) {
+    return {
+      percentage: 0,
+      completedDays: 0,
+      totalDays: 0,
+      isComplete: false,
+      isActive: false
+    };
+  }
+  
   // Parse dates as UTC to avoid timezone shifts
   const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
   const [endYear, endMonth, endDay] = endDate.split('-').map(Number);

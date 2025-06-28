@@ -356,31 +356,45 @@ export class DatabaseStorage implements IStorage {
     // Generate current period plus 2 historical periods (no future periods)
     const payPeriodsToCreate = [];
     
-    // Calculate how many 14-day periods have passed since the start date
-    const daysSinceStart = Math.floor((todayUTC.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const periodsFromStart = Math.floor(daysSinceStart / 14);
+    // Find the most recent period start date that includes today
+    // Start from the configured start date and find which period today falls into
+    let currentPeriodStart = new Date(startDate);
     
-    // Calculate the start of the current pay period
-    const currentPeriodStart = new Date(startDate);
-    currentPeriodStart.setUTCDate(currentPeriodStart.getUTCDate() + (periodsFromStart * 14));
+    // If start date is in the future, we need to work backwards
+    if (startDate > todayUTC) {
+      // Work backwards from start date to find a period that contains today
+      while (currentPeriodStart > todayUTC) {
+        currentPeriodStart.setUTCDate(currentPeriodStart.getUTCDate() - 14);
+      }
+    } else {
+      // Work forwards from start date to find the period that contains today
+      while (true) {
+        const periodEnd = new Date(currentPeriodStart);
+        periodEnd.setUTCDate(periodEnd.getUTCDate() + 13); // 14 days total
+        
+        if (todayUTC >= currentPeriodStart && todayUTC <= periodEnd) {
+          // Found the period that contains today
+          break;
+        }
+        
+        currentPeriodStart.setUTCDate(currentPeriodStart.getUTCDate() + 14);
+      }
+    }
     
-    // Generate 3 periods: current and 2 historical (no future periods)
-    for (let i = -2; i <= 0; i++) {
+    // Now create 3 periods: current and 2 previous
+    for (let periodsBack = 2; periodsBack >= 0; periodsBack--) {
       const periodStart = new Date(currentPeriodStart);
-      periodStart.setUTCDate(periodStart.getUTCDate() + (i * 14));
+      periodStart.setUTCDate(periodStart.getUTCDate() - (periodsBack * 14));
       
       const periodEnd = new Date(periodStart);
-      periodEnd.setUTCDate(periodEnd.getUTCDate() + 13); // 14 days total (start + 13 = 14 days)
+      periodEnd.setUTCDate(periodEnd.getUTCDate() + 13); // 14 days total
       
-      // Only create periods that don't extend into the future
-      if (periodStart <= todayUTC) {
-        payPeriodsToCreate.push({
-          employerId,
-          startDate: periodStart.toISOString().split('T')[0],
-          endDate: periodEnd.toISOString().split('T')[0],
-          isActive: false
-        });
-      }
+      payPeriodsToCreate.push({
+        employerId,
+        startDate: periodStart.toISOString().split('T')[0],
+        endDate: periodEnd.toISOString().split('T')[0],
+        isActive: false
+      });
     }
 
     if (payPeriodsToCreate.length > 0) {

@@ -122,10 +122,10 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     // Always regenerate days structure when existingEntries changes
     const newDays = generateDays(); // Start with fresh 14-day structure
     
-    if (existingEntries.length > 0) {
+    if (existingEntries && existingEntries.length > 0) {
       // Process existing entries and map them to the correct dates
       existingEntries.forEach((e: any) => {
-        if (!e.timeIn) return; // Skip entries without timeIn
+        if (!e || !e.timeIn) return; // Skip entries without timeIn
         
         try {
           const entryDate = e.timeIn.split("T")[0];
@@ -156,31 +156,32 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     
     setDays(newDays);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingEntries.length, start, end, generateDays]); // Use length instead of full array
+  }, [existingEntries?.length, start, end, generateDays]); // Use length instead of full array
 
   // Populate PTO hours from existing entries
   useEffect(() => {
-    if (existingPtoEntries.length > 0) {
+    if (existingPtoEntries && existingPtoEntries.length > 0) {
       try {
         const periodPto = existingPtoEntries.filter(p => 
-          p.entryDate >= start && p.entryDate <= end
+          p && p.entryDate >= start && p.entryDate <= end
         ).reduce((sum, p) => sum + (parseFloat(p.hours) || 0), 0);
         setPtoHours(periodPto);
       } catch (error) {
         console.warn('Failed to process PTO entries:', error);
+        setPtoHours(0);
       }
     } else {
       setPtoHours(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingPtoEntries.length, start, end]);
+  }, [existingPtoEntries?.length, start, end]);
 
   // Populate misc hours from existing entries
   useEffect(() => {
-    if (existingMiscEntries.length > 0) {
+    if (existingMiscEntries && existingMiscEntries.length > 0) {
       try {
         const periodMisc = existingMiscEntries.filter(m => 
-          m.entryDate >= start && m.entryDate <= end
+          m && m.entryDate >= start && m.entryDate <= end
         );
         
         const holidayHours = periodMisc.filter(m => m.entryType === 'holiday')
@@ -195,6 +196,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         setMiscHours(miscHoursTotal);
       } catch (error) {
         console.warn('Failed to process misc hours entries:', error);
+        setHolidayNonWorked(0);
+        setHolidayWorked(0);
+        setMiscHours(0);
       }
     } else {
       setHolidayNonWorked(0);
@@ -202,14 +206,14 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       setMiscHours(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingMiscEntries.length, start, end]);
+  }, [existingMiscEntries?.length, start, end]);
 
   // Populate reimbursement from existing entries
   useEffect(() => {
-    if (existingReimbEntries.length > 0) {
+    if (existingReimbEntries && existingReimbEntries.length > 0) {
       try {
         const periodReimb = existingReimbEntries.filter(r => 
-          r.entryDate >= start && r.entryDate <= end
+          r && r.entryDate >= start && r.entryDate <= end
         );
         
         if (periodReimb.length > 0) {
@@ -247,6 +251,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         }
       } catch (error) {
         console.warn('Failed to process reimbursement entries:', error);
+        setMilesDriven(0);
+        setReimbAmt(0);
+        setReimbDesc("");
       }
     } else {
       setMilesDriven(0);
@@ -254,7 +261,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       setReimbDesc("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingReimbEntries.length, start, end]);
+  }, [existingReimbEntries?.length, start, end]);
 
   // Real-time updates to pay period summary when mileage/reimbursement changes
   useEffect(() => {

@@ -2,20 +2,13 @@ import React, { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { insertEmployerSchema } from "@shared/schema";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-
-function getDayOfWeekName(dayNumber: number): string {
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  return days[dayNumber] || "";
-}
 
 interface EmployerFormProps {
   employer?: any;
@@ -25,12 +18,8 @@ interface EmployerFormProps {
 
 const employerFormSchema = z.object({
   name: z.string().min(1, "Company name is required"),
-  address: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
-  taxId: z.string().optional(),
   mileageRate: z.string().min(1, "Mileage rate is required"),
-  payPeriodStartDate: z.string().optional(),
+  payPeriodStartDate: z.string().min(1, "Pay period start date is required"),
   weekStartsOn: z.string().optional(),
 });
 
@@ -47,10 +36,6 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
     resolver: zodResolver(employerFormSchema),
     defaultValues: {
       name: employer?.name || "",
-      address: employer?.address || "",
-      phone: employer?.phone || "",
-      email: employer?.email || "",
-      taxId: employer?.taxId || "",
       mileageRate: employer?.mileageRate?.toString() || "0.655",
       payPeriodStartDate: employer?.payPeriodStartDate || "",
       weekStartsOn: employer?.weekStartsOn?.toString() || "0",
@@ -190,7 +175,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="name"
@@ -198,104 +183,19 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
             <FormItem>
               <FormLabel>Company Name *</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="ABC Company Inc." />
+                <Input {...field} placeholder="Enter your company name" />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        <FormField
-          control={form.control}
-          name="address"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Address</FormLabel>
-              <FormControl>
-                <Textarea 
-                  {...field} 
-                  placeholder="123 Main St, City, State 12345"
-                  className="resize-none"
-                  rows={3}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="phone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Phone Number</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="(555) 123-4567" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input {...field} type="email" placeholder="contact@company.com" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="taxId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tax ID / EIN</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="12-3456789" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="mileageRate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Mileage Rate (per mile) *</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    step="0.001" 
-                    placeholder="0.655" 
-                    {...field} 
-                    value={field.value || ""}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
 
         <FormField
           control={form.control}
           name="payPeriodStartDate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Pay Period Start Day</FormLabel>
+              <FormLabel>Pay Period Start Date *</FormLabel>
               <FormControl>
                 <Input
                   type="date"
@@ -304,32 +204,46 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
                 />
               </FormControl>
               <FormMessage />
+              <p className="text-sm text-gray-500">
+                Select the start date for your pay periods. Week beginning day will be automatically set based on this date.
+              </p>
             </FormItem>
           )}
         />
 
         <FormField
           control={form.control}
-          name="weekStartsOn"
+          name="mileageRate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Week Starts On</FormLabel>
+              <FormLabel>Mileage Rate (per mile) *</FormLabel>
               <FormControl>
                 <Input 
+                  type="number" 
+                  step="0.001" 
+                  placeholder="0.655" 
                   {...field} 
-                  value={getDayOfWeekName(parseInt(field.value || "0"))}
-                  readOnly
-                  className="bg-gray-50 cursor-not-allowed"
-                  placeholder="Select payroll start date first"
+                  value={field.value || ""}
                 />
               </FormControl>
               <FormMessage />
               <p className="text-sm text-gray-500">
-                Week beginning day is automatically set based on your payroll start date
+                Current IRS standard rate is $0.655 per mile
               </p>
             </FormItem>
           )}
         />
+
+        {payPeriodStartDate && (
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <p className="text-sm text-gray-600">
+              <strong>Week Start Day:</strong> {getDayOfWeekName(parseInt(form.watch("weekStartsOn") || "0"))}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              This is automatically set based on your pay period start date
+            </p>
+          </div>
+        )}
 
         <div className="flex justify-end space-x-3 pt-6">
           <Button 

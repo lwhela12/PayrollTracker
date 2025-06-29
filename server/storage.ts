@@ -34,10 +34,6 @@ import {
   type InsertReport,
 } from "@shared/schema";
 import { db } from "./db";
-import { 
-  employees, employers, timeEntries, ptoEntries, miscHoursEntries, 
-  reimbursementEntries, payPeriods, reports, reimbursements 
-} from "../shared/schema";
 import { eq, and, gte, lte, desc, asc, between } from "drizzle-orm";
 import { pool } from "./db";
 import { calculateWeeklyOvertime } from "./lib/payroll";
@@ -594,13 +590,13 @@ export class DatabaseStorage implements IStorage {
     payPeriodId: number;
     payPeriodStart: string;
     payPeriodEnd: string;
-    days: any;
-    ptoHours: any;
-    holidayNonWorked: any;
-    holidayWorked: any;
-    milesDriven: any;
-    miscHours: any;
-    reimbursement: any;
+    days: any[];
+    ptoHours: number;
+    holidayNonWorked: number;
+    holidayWorked: number;
+    milesDriven: number;
+    miscHours: number;
+    reimbursement: { amount: number; description: string };
     employer: any;
   }): Promise<void> {
     const {
@@ -624,7 +620,7 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(timeEntries.employeeId, employeeId),
           gte(timeEntries.timeIn, new Date(payPeriodStart)),
-          lte(timeEntries.timeIn, new Date(payPeriodEnd))
+          lte(timeEntries.timeIn, new Date(payPeriodEnd + 'T23:59:59'))
         )
       );
 
@@ -652,29 +648,37 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-      // Insert new time entries
+      // Insert new time entries from days array
       const timeEntriesToInsert = [];
-      for (const [date, dayData] of Object.entries(days)) {
-        if (dayData && typeof dayData === 'object') {
-          const { shifts } = dayData as any;
-          if (shifts && Array.isArray(shifts)) {
-            for (const shift of shifts) {
+      if (days && Array.isArray(days)) {
+        for (const day of days) {
+          if (day && day.shifts && Array.isArray(day.shifts)) {
+            for (const shift of day.shifts) {
               if (shift.timeIn && shift.timeOut && shift.timeIn.trim() !== '' && shift.timeOut.trim() !== '') {
-                // Ensure time format is HH:MM
-                const timeInFormatted = shift.timeIn.includes(':') ? shift.timeIn : `${shift.timeIn}:00`;
-                const timeOutFormatted = shift.timeOut.includes(':') ? shift.timeOut : `${shift.timeOut}:00`;
-                
-                const timeInDate = new Date(`${date}T${timeInFormatted}:00`);
-                const timeOutDate = new Date(`${date}T${timeOutFormatted}:00`);
-                
-                // Validate dates before inserting
-                if (!isNaN(timeInDate.getTime()) && !isNaN(timeOutDate.getTime())) {
-                  timeEntriesToInsert.push({
-                    employeeId,
-                    timeIn: timeInDate,
-                    timeOut: timeOutDate,
-                    lunchMinutes: shift.lunch || 0,
-                  });
+                try {
+                  // Ensure time format is HH:MM
+                  const timeInFormatted = shift.timeIn.includes(':') ? shift.timeIn : `${shift.timeIn}:00`;
+                  const timeOutFormatted = shift.timeOut.includes(':') ? shift.timeOut : `${shift.timeOut}:00`;
+                  
+                  const timeInDate = new Date(`${day.date}T${timeInFormatted}:00`);
+                  let timeOutDate = new Date(`${day.date}T${timeOutFormatted}:00`);
+                  
+                  // Handle overnight shifts - if timeOut < timeIn, add a day
+                  if (timeOutDate <= timeInDate) {
+                    timeOutDate = new Date(timeOutDate.getTime() + 24 * 60 * 60 * 1000);
+                  }
+                  
+                  // Validate dates before inserting
+                  if (!isNaN(timeInDate.getTime()) && !isNaN(timeOutDate.getTime())) {
+                    timeEntriesToInsert.push({
+                      employeeId,
+                      timeIn: timeInDate,
+                      timeOut: timeOutDate,
+                      lunchMinutes: shift.lunch || 0,
+                    });
+                  }
+                } catch (error) {
+                  console.warn(`Invalid time entry for ${day.date}:`, shift, error);
                 }
               }
             }
@@ -686,67 +690,47 @@ export class DatabaseStorage implements IStorage {
         await tx.insert(timeEntries).values(timeEntriesToInsert);
       }
 
-      // Insert PTO entries
-      if (ptoHours && typeof ptoHours === 'object') {
-        const ptoEntriesToInsert = [];
-        for (const [date, hours] of Object.entries(ptoHours)) {
-          if (hours && parseFloat(hours as string) > 0) {
-            ptoEntriesToInsert.push({
-              employeeId,
-              entryDate: date,
-              hours: parseFloat(hours as string),
-              description: 'PTO'
-            });
-          }
-        }
-        if (ptoEntriesToInsert.length > 0) {
-          await tx.insert(ptoEntries).values(ptoEntriesToInsert);
-        }
+      // Insert PTO entries if hours > 0
+      if (ptoHours && ptoHours > 0) {
+        await tx.insert(ptoEntries).values({
+          employeeId,
+          entryDate: payPeriodStart,
+          hours: ptoHours.toString(),
+          description: 'PTO'
+        });
       }
 
       // Insert misc hours entries
       const miscEntriesToInsert = [];
       
-      if (holidayNonWorked && typeof holidayNonWorked === 'object') {
-        for (const [date, hours] of Object.entries(holidayNonWorked)) {
-          if (hours && parseFloat(hours as string) > 0) {
-            miscEntriesToInsert.push({
-              employeeId,
-              entryDate: date,
-              entryType: 'holiday' as const,
-              hours: parseFloat(hours as string),
-              description: 'Holiday'
-            });
-          }
-        }
+      if (holidayNonWorked && holidayNonWorked > 0) {
+        miscEntriesToInsert.push({
+          employeeId,
+          entryDate: payPeriodStart,
+          entryType: 'holiday' as const,
+          hours: holidayNonWorked.toString(),
+          description: 'Holiday'
+        });
       }
 
-      if (holidayWorked && typeof holidayWorked === 'object') {
-        for (const [date, hours] of Object.entries(holidayWorked)) {
-          if (hours && parseFloat(hours as string) > 0) {
-            miscEntriesToInsert.push({
-              employeeId,
-              entryDate: date,
-              entryType: 'holiday-worked' as const,
-              hours: parseFloat(hours as string),
-              description: 'Holiday Worked'
-            });
-          }
-        }
+      if (holidayWorked && holidayWorked > 0) {
+        miscEntriesToInsert.push({
+          employeeId,
+          entryDate: payPeriodStart,
+          entryType: 'holiday-worked' as const,
+          hours: holidayWorked.toString(),
+          description: 'Holiday Worked'
+        });
       }
 
-      if (miscHours && typeof miscHours === 'object') {
-        for (const [date, hours] of Object.entries(miscHours)) {
-          if (hours && parseFloat(hours as string) > 0) {
-            miscEntriesToInsert.push({
-              employeeId,
-              entryDate: date,
-              entryType: 'misc' as const,
-              hours: parseFloat(hours as string),
-              description: 'Misc Hours'
-            });
-          }
-        }
+      if (miscHours && miscHours > 0) {
+        miscEntriesToInsert.push({
+          employeeId,
+          entryDate: payPeriodStart,
+          entryType: 'misc' as const,
+          hours: miscHours.toString(),
+          description: 'Misc Hours'
+        });
       }
 
       if (miscEntriesToInsert.length > 0) {
@@ -756,32 +740,32 @@ export class DatabaseStorage implements IStorage {
       // Insert reimbursement entries
       const reimbEntriesToInsert = [];
       
-      if (milesDriven && typeof milesDriven === 'object') {
-        for (const [date, miles] of Object.entries(milesDriven)) {
-          if (miles && parseFloat(miles as string) > 0) {
-            const mileageRate = employer.mileageRate || 0.67;
-            const amount = parseFloat(miles as string) * mileageRate;
-            reimbEntriesToInsert.push({
-              employeeId,
-              entryDate: date,
-              description: `Mileage: ${miles} miles`,
-              amount: amount
-            });
-          }
+      if (milesDriven && milesDriven > 0) {
+        const mileageRate = parseFloat(employer.mileageRate || '0.655');
+        const mileageAmount = milesDriven * mileageRate;
+        
+        let description = `Mileage: ${milesDriven} miles ($${mileageAmount.toFixed(2)})`;
+        let totalAmount = mileageAmount;
+        
+        // Combine with other reimbursement if present
+        if (reimbursement && reimbursement.amount > 0) {
+          description += `; ${reimbursement.description}`;
+          totalAmount += reimbursement.amount;
         }
-      }
-
-      if (reimbursement && typeof reimbursement === 'object') {
-        for (const [date, amount] of Object.entries(reimbursement)) {
-          if (amount && parseFloat(amount as string) > 0) {
-            reimbEntriesToInsert.push({
-              employeeId,
-              entryDate: date,
-              description: 'Reimbursement',
-              amount: parseFloat(amount as string)
-            });
-          }
-        }
+        
+        reimbEntriesToInsert.push({
+          employeeId,
+          entryDate: payPeriodStart,
+          description,
+          amount: totalAmount
+        });
+      } else if (reimbursement && reimbursement.amount > 0) {
+        reimbEntriesToInsert.push({
+          employeeId,
+          entryDate: payPeriodStart,
+          description: reimbursement.description || 'Reimbursement',
+          amount: reimbursement.amount
+        });
       }
 
       if (reimbEntriesToInsert.length > 0) {

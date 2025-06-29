@@ -374,117 +374,12 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         throw error;
       }
     },
-    onMutate: async (newData: any) => {
-      if (!employee?.employerId) return { previousStats: undefined };
-
-      await queryClient.cancelQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
-      const previousStats = queryClient.getQueryData<any>(["/api/dashboard/stats", employee.employerId]);
-
-      if (previousStats) {
-        try {
-          const entryList: TimeEntryLike[] = [];
-
-          // Safely process days and shifts
-          if (newData.days && Array.isArray(newData.days)) {
-            newData.days.forEach((d: any) => {
-              if (d && d.shifts && Array.isArray(d.shifts)) {
-                d.shifts.forEach((s: any) => {
-                  if (s && s.timeIn && s.timeOut) {
-                    entryList.push({
-                      timeIn: `${d.date}T${s.timeIn}:00`,
-                      timeOut: `${d.date}T${s.timeOut}:00`,
-                      lunchMinutes: s.lunch || 0,
-                    });
-                  }
-                });
-              }
-            });
-          }
-
-          // Calculate weekly hours using the same logic as the component
-          const week1Entries = entryList.filter(e => {
-            const entryDate = new Date(e.timeIn).toISOString().split('T')[0];
-            const startDate = new Date(newData.payPeriod?.start || payPeriod.start);
-            const week1End = new Date(startDate);
-            week1End.setDate(startDate.getDate() + 6);
-            return entryDate >= startDate.toISOString().split('T')[0] && entryDate <= week1End.toISOString().split('T')[0];
-          });
-
-          const week2Entries = entryList.filter(e => {
-            const entryDate = new Date(e.timeIn).toISOString().split('T')[0];
-            const startDate = new Date(newData.payPeriod?.start || payPeriod.start);
-            const week2Start = new Date(startDate);
-            week2Start.setDate(startDate.getDate() + 7);
-            const week2End = new Date(startDate);
-            week2End.setDate(startDate.getDate() + 13);
-            return entryDate >= week2Start.toISOString().split('T')[0] && entryDate <= week2End.toISOString().split('T')[0];
-          });
-
-          const calculateWeekHours = (entries: TimeEntryLike[]) => {
-            const totalHours = entries.reduce((sum, entry) => {
-              const timeIn = new Date(entry.timeIn);
-              const timeOut = new Date(entry.timeOut);
-              let hours = (timeOut.getTime() - timeIn.getTime()) / (1000 * 60 * 60);
-              if (entry.lunchMinutes) {
-                hours -= entry.lunchMinutes / 60;
-              }
-              return sum + Math.max(0, hours);
-            }, 0);
-            return {
-              regularHours: Math.min(totalHours, 40),
-              overtimeHours: Math.max(0, totalHours - 40)
-            };
-          };
-
-          const week1Hours = calculateWeekHours(week1Entries);
-          const week2Hours = calculateWeekHours(week2Entries);
-          const totalRegularHours = week1Hours.regularHours + week2Hours.regularHours;
-          const totalOvertimeHours = week1Hours.overtimeHours + week2Hours.overtimeHours;
-
-          const mileageRate = employer ? parseFloat(employer.mileageRate || '0.655') : 0.655;
-          const optimistic = {
-            employeeId,
-            totalHours: (totalRegularHours || 0) + (newData.miscHours || 0) + (totalOvertimeHours || 0),
-            totalOvertimeHours: totalOvertimeHours || 0,
-            ptoHours: newData.ptoHours || 0,
-            holidayHours: newData.holidayNonWorked || 0,
-            holidayWorkedHours: newData.holidayWorked || 0,
-            mileage: newData.milesDriven || 0,
-            reimbursements: (newData.reimbursement?.amount || 0) + (newData.milesDriven || 0) * mileageRate,
-          };
-
-          queryClient.setQueryData<any>(["/api/dashboard/stats", employee.employerId], (old: any) => {
-            if (!old || !old.employeeStats) return old;
-
-            const employeeStats = [...(old.employeeStats || [])];
-            const idx = employeeStats.findIndex((s: any) => s.employeeId === employeeId);
-
-            if (idx >= 0) {
-              employeeStats[idx] = optimistic;
-            } else {
-              employeeStats.push(optimistic);
-            }
-
-            return { ...old, employeeStats };
-          });
-        } catch (error) {
-          console.error("Optimistic update error:", error);
-          // Continue with mutation even if optimistic update fails
-        }
-      }
-
-      return { previousStats };
-    },
-    onError: (err: any, _newData, context) => {
+    onError: (err: any) => {
       console.error("Save timecard error:", err);
-      if (context?.previousStats && employee?.employerId) {
-        queryClient.setQueryData(["/api/dashboard/stats", employee.employerId], context.previousStats);
-      }
-
       const errorMessage = err?.message || "Failed to save timecard data";
       toast({ 
         title: "Error", 
-        description: `Failed to save. ${errorMessage}. Your changes have been reverted.`, 
+        description: `Failed to save. ${errorMessage}. Please try again.`, 
         variant: "destructive" 
       });
     },
@@ -499,19 +394,20 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         sessionStorage.setItem('selected-pay-period-start', payPeriod.start);
       }
 
-      // Clear real-time updates immediately to avoid stale data
+      // Clear real-time updates to avoid stale data
       clearEmployee(employeeId);
 
-      // Nuclear option: clear ALL cached data to force fresh fetch
-      queryClient.clear();
+      // Invalidate specific caches that need refreshing
+      if (employee?.employerId) {
+        await queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/time-entries/employee", employeeId] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/pto-entries/employee", employeeId] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/misc-hours-entries/employee", employeeId] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/reimbursement-entries/employee", employeeId] });
+      }
 
       // Navigate immediately
       navigate("/");
-    },
-    onSettled: () => {
-      if (employee?.employerId) {
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
-      }
     },
   });
 

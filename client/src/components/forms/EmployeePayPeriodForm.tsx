@@ -313,8 +313,6 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       // Debounce updates to avoid excessive calls
       const timeoutId = setTimeout(() => {
         updateEmployee(employeeId, {
-          totalHours: totals.totalHours + ptoHours + holidayNonWorked + holidayWorked,
-          totalOvertimeHours: totals.overtime,
           mileage: milesDriven,
           reimbursement: totalReimbursement,
           ptoHours,

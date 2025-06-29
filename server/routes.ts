@@ -1454,7 +1454,7 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
   await workbook.xlsx.writeFile(filePath);
 }
 
-async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any, employees: any[], timecardData: any[], filePath: string) {
+  async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any, employees: any[], timecardData: any[], filePath: string) {
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
   doc.pipe(fs.createWriteStream(filePath));
 

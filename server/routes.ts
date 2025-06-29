@@ -102,6 +102,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Creating employer with data:', req.body);
       const userId = req.user.claims.sub;
+      
+      // For test users in development, ensure they exist in database first
+      if (process.env.NODE_ENV === 'development' && userId.startsWith('test-user-')) {
+        try {
+          let user = await storage.getUser(userId);
+          if (!user) {
+            user = await storage.upsertUser({
+              id: userId,
+              email: `test-${Date.now()}@example.com`,
+              firstName: 'Test',
+              lastName: 'User',
+              profileImageUrl: null,
+              role: 'Admin'
+            });
+            console.log('Created test user in database:', user);
+          }
+        } catch (userError) {
+          console.error('Error creating test user:', userError);
+          return res.status(500).json({ message: "Failed to create test user" });
+        }
+      }
+      
       const employerData = insertEmployerSchema.parse({ ...req.body, ownerId: userId });
       const employer = await storage.createEmployer(employerData);
       res.json(employer);

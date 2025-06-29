@@ -115,13 +115,11 @@ export default function CompanySettings() {
       const response = await apiRequest("PUT", `/api/employers/${employerId}/reset-payroll`, submissionData);
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (employer) => {
       queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
       queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pay-periods", employerId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pay-periods/relevant", employerId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employerId] });
-      toast({ title: "Company Updated", description: "Payroll periods regenerated" });
+      queryClient.invalidateQueries({ queryKey: [`/api/pay-periods/${employerId}`] });
+      toast({ title: "Company Updated", description: "Payroll periods have been regenerated" });
       navigate("/settings");
     },
     onError: (err: Error) => {
@@ -133,10 +131,10 @@ export default function CompanySettings() {
     console.log('=== FORM SUBMIT HANDLER CALLED ===');
     console.log('Form values:', values);
     console.log('Current employer data:', employer);
-    
+
     // Check if payroll start date has changed
     const payrollDateChanged = employer?.payPeriodStartDate !== values.payPeriodStartDate;
-    
+
     console.log('Payroll date comparison:', {
       original: employer?.payPeriodStartDate,
       originalType: typeof employer?.payPeriodStartDate,
@@ -144,7 +142,7 @@ export default function CompanySettings() {
       newType: typeof values.payPeriodStartDate,
       changed: payrollDateChanged
     });
-    
+
     if (payrollDateChanged) {
       console.log('=== PAYROLL DATE CHANGED - SHOWING WARNING ===');
       setPendingFormData(values);

@@ -19,7 +19,7 @@ function getDayOfWeekName(dayNumber: number): string {
 
 interface EmployerFormProps {
   employer?: any;
-  onSuccess: () => void;
+  onSuccess: (employer?: any) => void;
   onCancel: () => void;
 }
 
@@ -59,7 +59,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
 
   // Watch for payroll start date changes to automatically update week start day
   const payPeriodStartDate = form.watch("payPeriodStartDate");
-  
+
   const getDayOfWeekName = (dayNum: number): string => {
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     return days[dayNum] || "Unknown";
@@ -79,13 +79,13 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
       const response = await apiRequest("POST", "/api/employers", data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (employer) => {
       toast({
         title: "Success",
         description: "Company profile created successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
-      onSuccess();
+      onSuccess(employer);
     },
     onError: (error: Error) => {
       toast({
@@ -101,13 +101,15 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
       const response = await apiRequest("PUT", `/api/employers/${employer.id}`, data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedEmployer) => {
       toast({
         title: "Success",
         description: "Company profile updated successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
-      onSuccess();
+      queryClient.invalidateQueries({ queryKey: ["/api/pay-periods", employer.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employer.id] });
+      onSuccess(updatedEmployer);
     },
     onError: (error: Error) => {
       toast({
@@ -146,17 +148,17 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
     console.log('=== EMPLOYER FORM SUBMIT HANDLER CALLED ===');
     console.log('Form data:', data);
     console.log('Current employer:', employer);
-    
+
     if (isEditing) {
       // Check if payroll start date has changed
       const payrollDateChanged = employer?.payPeriodStartDate !== data.payPeriodStartDate;
-      
+
       console.log('Payroll date comparison:', {
         original: employer?.payPeriodStartDate,
         new: data.payPeriodStartDate,
         changed: payrollDateChanged
       });
-      
+
       if (payrollDateChanged) {
         console.log('=== PAYROLL DATE CHANGED - SHOWING WARNING ===');
         setPendingFormData(data);
@@ -235,7 +237,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="email"
@@ -327,7 +329,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
             </FormItem>
           )}
         />
-        
+
         <div className="flex justify-end space-x-3 pt-6">
           <Button 
             type="button" 

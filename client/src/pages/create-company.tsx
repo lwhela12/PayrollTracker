@@ -4,12 +4,16 @@ import { Button } from "@/components/ui/button";
 import { EmployerForm } from "@/components/employer-form";
 import { ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
+import { useCompany } from "@/context/company";
 
 export default function CreateCompany() {
   const [, setLocation] = useLocation();
+  const { setEmployerId } = useCompany();
 
-  const handleSuccess = () => {
-    // Navigate back to the home page after successful creation
+  const handleSuccess = (employer: any) => {
+    // Set the newly created company in context
+    setEmployerId(employer.id);
+    // Navigate to the dashboard
     setLocation("/");
   };
 

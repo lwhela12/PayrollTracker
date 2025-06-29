@@ -18,8 +18,9 @@ export default function Settings() {
 
   const employer = employers[0];
 
-  const handleSuccess = () => {
+  const handleSuccess = (employer?: any) => {
     queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
+    queryClient.invalidateQueries({ queryKey: [`/api/employers/${employer?.id}`] });
     toast({ title: "Success", description: "Company profile updated" });
   };
 

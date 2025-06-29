@@ -104,7 +104,18 @@ export default function CompaniesAdmin() {
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Company" : "New Company"}</DialogTitle>
           </DialogHeader>
-          <EmployerForm employer={editing} onSuccess={handleClose} onCancel={handleClose} />
+          <EmployerForm
+                employer={editing}
+                onSuccess={(employer) => {
+                  setShowForm(false);
+                  setEditing(null);
+                  queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
+                }}
+                onCancel={() => {
+                  setShowForm(false);
+                  setEditing(null);
+                }}
+              />
         </DialogContent>
       </Dialog>
     </div>

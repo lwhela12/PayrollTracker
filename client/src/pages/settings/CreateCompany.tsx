@@ -30,12 +30,12 @@ export default function CreateCompany() {
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const res = await apiRequest("POST", "/api/employers", data);
-      return res.json();
+      const response = await apiRequest("POST", "/api/employers", data);
+      return response;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (employer: any) => {
       toast({ title: "Company Created" });
-      setEmployerId(data.id);
+      setEmployerId(employer.id);
       navigate("/");
     },
     onError: (err: Error) => {

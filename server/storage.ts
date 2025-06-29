@@ -60,6 +60,7 @@ export interface IStorage {
   deleteEmployee(id: number): Promise<void>;
 
   // Pay period operations
+  createPayPeriod(payPeriod: InsertPayPeriod): Promise<PayPeriod>;
   getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]>;
   getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined>;
   getPayPeriod(id: number): Promise<PayPeriod | undefined>;

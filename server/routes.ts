@@ -796,7 +796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ptoHours,
         holidayNonWorked,
         holidayWorked,
-The changes fix the employers endpoint to return companies for test users.        milesDriven,
+        milesDriven,
         miscHours,
         reimbursement,
         notes
@@ -1590,4 +1590,7 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
   }
 
   doc.end();
+}
+
+  return server;
 }

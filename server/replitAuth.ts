@@ -7,6 +7,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import { Request, Response, NextFunction } from 'express';
 
 if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
@@ -132,7 +133,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   if (process.env.NODE_ENV === 'development' && (req as any).session?.testUser) {
     const testUser = (req as any).session.testUser;
     const now = Math.floor(Date.now() / 1000);
-    
+
     if (testUser.expires_at && now <= testUser.expires_at) {
       // Set the user object to match the expected format
       (req as any).user = testUser;
@@ -169,4 +170,20 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
+};
+
+export const testUserMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  const testUserId = req.headers['x-test-user-id'] as string;
+
+  if (testUserId && testUserId.startsWith('test-user-')) {
+    // Create test user object that mimics real user structure
+    req.user = {
+      id: testUserId,
+      email: `${testUserId}@test.local`,
+      name: 'Test User'
+    };
+    return next();
+  }
+
+  next();
 };

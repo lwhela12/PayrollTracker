@@ -43,7 +43,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      
+
       // For test users in development, return mock user data if they don't exist in database
       if (process.env.NODE_ENV === 'development' && userId.startsWith('test-user-')) {
         const testUser = {
@@ -56,7 +56,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         return res.json(testUser);
       }
-      
+
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -74,7 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Generate a unique test user ID
       const testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
+
       // Create a test user that doesn't exist in the database
       const testUser = {
         id: testUserId,
@@ -102,7 +102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Creating employer with data:', req.body);
       const userId = req.user.claims.sub;
-      
+
       // For test users in development, ensure they exist in database first
       if (process.env.NODE_ENV === 'development' && userId.startsWith('test-user-')) {
         try {
@@ -123,17 +123,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: "Failed to create test user" });
         }
       }
-      
+
       const employerData = insertEmployerSchema.parse({ ...req.body, ownerId: userId });
       const employer = await storage.createEmployer(employerData);
-      
+
       // Auto-generate pay periods for the new employer
       try {
         await storage.ensurePayPeriodsExist(employer.id);
       } catch (payPeriodError) {
         console.warn("Failed to generate pay periods for new employer:", payPeriodError);
       }
-      
+
       res.json(employer);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -153,7 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { userId } = req.body;
-      
+
       if (!userId) {
         return res.status(400).json({ message: 'userId required' });
       }
@@ -174,12 +174,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/employers', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      
+
       // For test users in development, return empty array to trigger new user flow
       if (process.env.NODE_ENV === 'development' && userId.startsWith('test-user-')) {
         return res.json([]);
       }
-      
+
       const employers = await storage.getEmployersByOwner(userId);
       res.json(employers);
     } catch (error) {
@@ -796,7 +796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ptoHours,
         holidayNonWorked,
         holidayWorked,
-        milesDriven,
+The changes fix the employers endpoint to return companies for test users.        milesDriven,
         miscHours,
         reimbursement,
         notes

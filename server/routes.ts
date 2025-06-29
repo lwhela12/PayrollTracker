@@ -35,11 +35,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  const getDashboardStatsCached = memoize(
-    (employerId: number, payPeriodId: number) =>
-      storage.getDashboardStats(employerId, payPeriodId),
-    { maxAge: 5 * 60 * 1000, promise: true }
-  );
+  // Remove memoization to prevent stale cache issues during timecard updates
+  const getDashboardStatsCached = (employerId: number, payPeriodId: number) =>
+    storage.getDashboardStats(employerId, payPeriodId);
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -626,7 +624,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Access denied' });
       }
       const entry = await storage.createTimeEntry(entryData);
-      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -661,7 +658,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const entry = await storage.updateTimeEntry(id, insertTimeEntrySchema.partial().parse(req.body));
-      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -676,7 +672,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       await storage.deleteTimeEntry(id);
-      getDashboardStatsCached.clear();
       res.json({ message: 'Deleted' });
     } catch (error) {
       console.error('Error deleting time entry:', error);
@@ -736,10 +731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         employer
       });
 
-      // Clear dashboard stats cache more aggressively
-      getDashboardStatsCached.clear();
-      
-      // Also clear any memoization caches that might exist
+      // Force garbage collection if available to clean up any residual cache
       if (global.gc) {
         global.gc();
       }
@@ -760,7 +752,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
       const entry = await storage.createPtoEntry(data);
-      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -788,7 +779,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const entry = await storage.updatePtoEntry(id, insertPtoEntrySchema.partial().parse(req.body));
-      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -800,7 +790,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/pto-entries/:id', isAuthenticated, async (req: any, res) => {
     try {
       await storage.deletePtoEntry(parseInt(req.params.id));
-      getDashboardStatsCached.clear();
       res.json({ message: 'Deleted' });
     } catch (error) {
       console.error('Error deleting PTO entry:', error);
@@ -817,7 +806,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
       const entry = await storage.createReimbursementEntry(data);
-      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -845,7 +833,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const entry = await storage.updateReimbursementEntry(id, insertReimbursementEntrySchema.partial().parse(req.body));
-      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -857,7 +844,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/reimbursement-entries/:id', isAuthenticated, async (req: any, res) => {
     try {
       await storage.deleteReimbursementEntry(parseInt(req.params.id));
-      getDashboardStatsCached.clear();
       res.json({ message: 'Deleted' });
     } catch (error) {
       console.error('Error deleting reimbursement entry:', error);
@@ -874,7 +860,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employer = await storage.getEmployer(employee.employerId);
       if (!employer || employer.ownerId !== req.user.claims.sub) return res.status(403).json({ message: 'Access denied' });
       const entry = await storage.createMiscHoursEntry(data);
-      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -902,7 +887,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const entry = await storage.updateMiscHoursEntry(id, insertMiscHoursEntrySchema.partial().parse(req.body));
-      getDashboardStatsCached.clear();
       res.json(entry);
     } catch (error: any) {
       if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
@@ -914,7 +898,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/misc-hours-entries/:id', isAuthenticated, async (req: any, res) => {
     try {
       await storage.deleteMiscHoursEntry(parseInt(req.params.id));
-      getDashboardStatsCached.clear();
       res.json({ message: 'Deleted' });
     } catch (error) {
       console.error('Error deleting misc hours entry:', error);
@@ -939,7 +922,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const reimbursement = await storage.createReimbursement(reimbursementData);
-      getDashboardStatsCached.clear();
       res.json(reimbursement);
     } catch (error: any) {
       if (error.name === 'ZodError') {

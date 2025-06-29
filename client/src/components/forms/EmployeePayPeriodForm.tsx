@@ -502,38 +502,10 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       // Clear real-time updates immediately to avoid stale data
       clearEmployee(employeeId);
 
-      // Immediately invalidate dashboard stats to ensure fresh data
-      if (employee?.employerId) {
-        await queryClient.invalidateQueries({
-          queryKey: ["/api/dashboard/stats", employee.employerId],
-          exact: false
-        });
-        
-        // Force refetch of dashboard stats
-        await queryClient.refetchQueries({
-          queryKey: ["/api/dashboard/stats", employee.employerId],
-          exact: false
-        });
-      }
+      // Nuclear option: clear ALL cached data to force fresh fetch
+      queryClient.clear();
 
-      // Remove specific employee queries to force fresh data on next visit
-      queryClient.removeQueries({
-        queryKey: ["/api/time-entries/employee", employeeId],
-      });
-
-      queryClient.removeQueries({
-        queryKey: ["/api/pto-entries/employee", employeeId],
-      });
-
-      queryClient.removeQueries({
-        queryKey: ["/api/misc-hours-entries/employee", employeeId],
-      });
-
-      queryClient.removeQueries({
-        queryKey: ["/api/reimbursement-entries/employee", employeeId],
-      });
-
-      // Navigate after ensuring cache updates
+      // Navigate immediately
       navigate("/");
     },
     onSettled: () => {

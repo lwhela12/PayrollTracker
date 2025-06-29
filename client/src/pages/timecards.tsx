@@ -61,11 +61,11 @@ export default function Timecards() {
   });
 
   const selectedEmployer = employers.find((e: any) => e.id === selectedEmployerId);
-  const selectedPayPeriod = payPeriods.find((p: any) => p.id.toString() === selectedPayPeriodId);
+  const selectedPayPeriod = Array.isArray(payPeriods) ? payPeriods.find((p: any) => p.id.toString() === selectedPayPeriodId) : undefined;
   const currentPayPeriod = dashboardStats?.currentPayPeriod;
 
   useEffect(() => {
-    if (payPeriods.length > 0 && !selectedPayPeriodId) {
+    if (Array.isArray(payPeriods) && payPeriods.length > 0 && !selectedPayPeriodId) {
       // Check if we have a saved pay period to restore
       const savedPayPeriodStart = sessionStorage.getItem('selected-pay-period-start');
       if (savedPayPeriodStart) {
@@ -155,7 +155,7 @@ export default function Timecards() {
         <main className="p-4 md:p-6">
           <div className="w-full">
             {/* Pay Period Selector */}
-            {payPeriods.length > 0 && (
+            {Array.isArray(payPeriods) && payPeriods.length > 0 && (
               <div className="mb-6">
                 <label className="block text-sm font-medium mb-2">Pay Period</label>
                 <Select value={selectedPayPeriodId} onValueChange={setSelectedPayPeriodId}>

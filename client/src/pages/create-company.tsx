@@ -5,14 +5,25 @@ import { EmployerForm } from "@/components/employer-form";
 import { ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { useCompany } from "@/context/company";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function CreateCompany() {
   const [, setLocation] = useLocation();
   const { setEmployerId } = useCompany();
+  const queryClient = useQueryClient();
 
   const handleSuccess = (employer: any) => {
+    console.log('=== COMPANY CREATION SUCCESS ===');
+    console.log('Employer data received:', employer);
+    
     // Set the newly created company in context
     setEmployerId(employer.id);
+    
+    // Invalidate relevant queries to ensure fresh data
+    queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/pay-periods", employer.id] });
+    queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employer.id] });
+    
     // Navigate to the dashboard
     setLocation("/");
   };

@@ -77,7 +77,8 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
   const createEmployerMutation = useMutation({
     mutationFn: async (data: EmployerFormData) => {
       const response = await apiRequest("POST", "/api/employers", data);
-      return response.json();
+      const employer = await response.json();
+      return employer;
     },
     onSuccess: (employer) => {
       toast({

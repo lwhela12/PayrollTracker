@@ -757,14 +757,14 @@ export class DatabaseStorage implements IStorage {
           employeeId,
           entryDate: payPeriodStart,
           description,
-          amount: totalAmount
+          amount: totalAmount.toString()
         });
       } else if (reimbursement && reimbursement.amount > 0) {
         reimbEntriesToInsert.push({
           employeeId,
           entryDate: payPeriodStart,
           description: reimbursement.description || 'Reimbursement',
-          amount: reimbursement.amount
+          amount: reimbursement.amount.toString()
         });
       }
 

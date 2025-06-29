@@ -126,6 +126,7 @@ export const ptoEntries = pgTable('pto_entries', {
   employeeId: integer('employee_id').references(() => employees.id).notNull(),
   entryDate: date('entry_date').notNull(),
   hours: decimal('hours', { precision: 5, scale: 2 }).notNull(),
+  description: text('description'),
 });
 
 // Reimbursement entries table for miscellaneous dollar reimbursements
@@ -144,6 +145,7 @@ export const miscHoursEntries = pgTable('misc_hours_entries', {
   entryDate: date('entry_date').notNull(),
   hours: decimal('hours', { precision: 5, scale: 2 }).notNull(),
   entryType: varchar('entry_type', { length: 20 }).notNull(),
+  description: text('description'),
 });
 
 // Reimbursements table

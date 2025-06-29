@@ -20,6 +20,7 @@ import { CompanyProvider } from "@/context/company";
 import { TimecardUpdatesProvider } from "@/context/timecard-updates";
 import { CompanySetupGuard } from "@/components/company-setup-guard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import DevTools from "@/pages/dev-tools";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -49,6 +50,7 @@ function Router() {
             <Route path="/reports" component={Reports} />
             <Route path="/reports/top-sheet" component={TopSheetReport} />
             <Route path="/admin/companies" component={CompaniesAdmin} />
+            <Route path="/dev-tools" component={DevTools} />
             <Route path="/settings" component={Settings} />
           </>
         </CompanySetupGuard>

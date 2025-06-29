@@ -128,6 +128,21 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // Check for test user session in development
+  if (process.env.NODE_ENV === 'development' && (req as any).session?.testUser) {
+    const testUser = (req as any).session.testUser;
+    const now = Math.floor(Date.now() / 1000);
+    
+    if (testUser.expires_at && now <= testUser.expires_at) {
+      // Set the user object to match the expected format
+      (req as any).user = testUser;
+      return next();
+    } else {
+      // Test session expired
+      delete (req as any).session.testUser;
+    }
+  }
+
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {

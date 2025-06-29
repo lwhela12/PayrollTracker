@@ -51,6 +51,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Development-only route to simulate a new user for testing
+  app.get('/api/auth/test-new-user', async (req: any, res) => {
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(404).json({ message: 'Not found' });
+    }
+
+    try {
+      // Generate a unique test user ID
+      const testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create a test user that doesn't exist in the database
+      const testUser = {
+        id: testUserId,
+        email: `test-${Date.now()}@example.com`,
+        firstName: 'Test',
+        lastName: 'User',
+        profileImageUrl: null,
+        role: 'Admin'
+      };
+
+      // Don't save to database - this simulates a completely new user
+      res.json({
+        message: 'Test user created (not persisted)',
+        user: testUser,
+        instructions: 'This user has no companies and will trigger the new user flow'
+      });
+    } catch (error) {
+      console.error("Error creating test user:", error);
+      res.status(500).json({ message: "Failed to create test user" });
+    }
+  });
+
   // Employer routes
   app.post('/api/employers', isAuthenticated, async (req: any, res) => {
     try {
@@ -66,6 +98,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error creating employer:", error);
       console.error("Full error creating employer:", error);
       res.status(500).json({ message: "Failed to create employer" });
+    }
+  });
+
+  // Development-only route to simulate login as test user
+  app.post('/api/auth/test-login', async (req: any, res) => {
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(404).json({ message: 'Not found' });
+    }
+
+    try {
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: 'userId required' });
+      }
+
+      // Create a mock session for the test user
+      req.session.testUser = {
+        claims: { sub: userId },
+        expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
+      };
+
+      res.json({ message: 'Test login successful', userId });
+    } catch (error) {
+      console.error("Error with test login:", error);
+      res.status(500).json({ message: "Failed to test login" });
     }
   });
 

@@ -15,8 +15,15 @@ export default function CreateCompany() {
   const handleSuccess = (employer: any) => {
     console.log('=== COMPANY CREATION SUCCESS ===');
     console.log('Employer data received:', employer);
+    console.log('Employer ID:', employer?.id);
+    
+    if (!employer || !employer.id) {
+      console.error('=== ERROR: No employer ID received ===');
+      return;
+    }
     
     // Set the newly created company in context
+    console.log('=== SETTING EMPLOYER ID IN CONTEXT ===', employer.id);
     setEmployerId(employer.id);
     
     // Invalidate relevant queries to ensure fresh data
@@ -25,7 +32,10 @@ export default function CreateCompany() {
     queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employer.id] });
     
     // Navigate to the dashboard
-    setLocation("/");
+    console.log('=== NAVIGATING TO DASHBOARD ===');
+    setTimeout(() => {
+      setLocation("/");
+    }, 100);
   };
 
   const handleCancel = () => {

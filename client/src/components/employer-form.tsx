@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -61,11 +62,23 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
 
   const createEmployerMutation = useMutation({
     mutationFn: async (data: EmployerFormData) => {
-      const response = await apiRequest("POST", "/api/employers", data);
+      console.log('=== CREATING EMPLOYER WITH DATA ===', data);
+      const response = await apiRequest("POST", "/api/employers", {
+        ...data,
+        mileageRate: parseFloat(data.mileageRate),
+        weekStartsOn: parseInt(data.weekStartsOn || "0"),
+        // Set empty defaults for optional fields
+        address: "",
+        phone: "",
+        email: "",
+        taxId: "",
+      });
       const employer = await response.json();
+      console.log('=== EMPLOYER CREATED ===', employer);
       return employer;
     },
     onSuccess: (employer) => {
+      console.log('=== CREATE MUTATION SUCCESS ===', employer);
       toast({
         title: "Success",
         description: "Company profile created successfully",
@@ -74,6 +87,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
       onSuccess(employer);
     },
     onError: (error: Error) => {
+      console.error('=== CREATE MUTATION ERROR ===', error);
       toast({
         title: "Error",
         description: error.message,
@@ -84,7 +98,11 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
 
   const updateEmployerMutation = useMutation({
     mutationFn: async (data: EmployerFormData) => {
-      const response = await apiRequest("PUT", `/api/employers/${employer.id}`, data);
+      const response = await apiRequest("PUT", `/api/employers/${employer.id}`, {
+        ...data,
+        mileageRate: parseFloat(data.mileageRate),
+        weekStartsOn: parseInt(data.weekStartsOn || "0"),
+      });
       return response.json();
     },
     onSuccess: (updatedEmployer) => {
@@ -108,7 +126,11 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
 
   const updateEmployerWithPayrollChangeMutation = useMutation({
     mutationFn: async (data: EmployerFormData) => {
-      const response = await apiRequest("PUT", `/api/employers/${employer.id}/reset-payroll`, data);
+      const response = await apiRequest("PUT", `/api/employers/${employer.id}/reset-payroll`, {
+        ...data,
+        mileageRate: parseFloat(data.mileageRate),
+        weekStartsOn: parseInt(data.weekStartsOn || "0"),
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -131,26 +153,16 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
   });
 
   const onSubmit = (data: EmployerFormData) => {
-    console.log('=== EMPLOYER FORM SUBMIT HANDLER CALLED ===');
-    console.log('Form data:', data);
-    console.log('Current employer:', employer);
+    console.log('=== EMPLOYER FORM SUBMIT ===', { data, isEditing, employer });
 
     if (isEditing) {
       // Check if payroll start date has changed
       const payrollDateChanged = employer?.payPeriodStartDate !== data.payPeriodStartDate;
 
-      console.log('Payroll date comparison:', {
-        original: employer?.payPeriodStartDate,
-        new: data.payPeriodStartDate,
-        changed: payrollDateChanged
-      });
-
       if (payrollDateChanged) {
-        console.log('=== PAYROLL DATE CHANGED - SHOWING WARNING ===');
         setPendingFormData(data);
         setShowPayrollWarning(true);
       } else {
-        console.log('=== NO PAYROLL CHANGE - NORMAL UPDATE ===');
         updateEmployerMutation.mutate(data);
       }
     } else {
@@ -205,7 +217,7 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
               </FormControl>
               <FormMessage />
               <p className="text-sm text-gray-500">
-                Select the start date for your pay periods. Week beginning day will be automatically set based on this date.
+                This determines when your weekly pay periods begin
               </p>
             </FormItem>
           )}
@@ -223,7 +235,6 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
                   step="0.001" 
                   placeholder="0.655" 
                   {...field} 
-                  value={field.value || ""}
                 />
               </FormControl>
               <FormMessage />
@@ -235,12 +246,9 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
         />
 
         {payPeriodStartDate && (
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600">
-              <strong>Week Start Day:</strong> {getDayOfWeekName(parseInt(form.watch("weekStartsOn") || "0"))}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              This is automatically set based on your pay period start date
+              <strong>Week starts on:</strong> {getDayOfWeekName(new Date(payPeriodStartDate + 'T00:00:00').getDay())}
             </p>
           </div>
         )}

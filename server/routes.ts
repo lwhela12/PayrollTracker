@@ -736,8 +736,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         employer
       });
 
-      // Clear dashboard stats cache
+      // Clear dashboard stats cache more aggressively
       getDashboardStatsCached.clear();
+      
+      // Also clear any memoization caches that might exist
+      if (global.gc) {
+        global.gc();
+      }
 
       res.json({ message: 'Updated' });
     } catch (error) {

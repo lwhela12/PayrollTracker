@@ -129,16 +129,16 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   useEffect(() => {
     // Always regenerate days structure when existingEntries changes
     const newDays = generateDays(); // Start with fresh 14-day structure
-    
+
     if (existingEntries && existingEntries.length > 0) {
       // Process existing entries and map them to the correct dates
       existingEntries.forEach((e: any) => {
         if (!e || !e.timeIn) return; // Skip entries without timeIn
-        
+
         try {
           const entryDate = e.timeIn.split("T")[0];
           const dayIndex = newDays.findIndex(d => d.date === entryDate);
-          
+
           if (dayIndex >= 0) {
             // If this is the first shift for this day, replace the empty shift
             if (newDays[dayIndex].shifts.length === 1 && !newDays[dayIndex].shifts[0].timeIn) {
@@ -161,7 +161,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         }
       });
     }
-    
+
     setDays(newDays);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingEntries?.length, start, end, generateDays]); // Use length instead of full array
@@ -191,14 +191,14 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         const periodMisc = existingMiscEntries.filter(m => 
           m && m.entryDate >= start && m.entryDate <= end
         );
-        
+
         const holidayHours = periodMisc.filter(m => m.entryType === 'holiday')
           .reduce((sum, m) => sum + (parseFloat(m.hours) || 0), 0);
         const holidayWorkedHours = periodMisc.filter(m => m.entryType === 'holiday-worked')
           .reduce((sum, m) => sum + (parseFloat(m.hours) || 0), 0);
         const miscHoursTotal = periodMisc.filter(m => m.entryType === 'misc')
           .reduce((sum, m) => sum + (parseFloat(m.hours) || 0), 0);
-        
+
         setHolidayNonWorked(holidayHours);
         setHolidayWorked(holidayWorkedHours);
         setMiscHours(miscHoursTotal);
@@ -223,24 +223,24 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         const periodReimb = existingReimbEntries.filter(r => 
           r && r.entryDate >= start && r.entryDate <= end
         );
-        
+
         if (periodReimb.length > 0) {
           const reimbEntry = periodReimb[0]; // Get the first (most recent) entry
           const description = reimbEntry.description || "";
           const totalAmount = parseFloat(reimbEntry.amount) || 0;
-          
+
           // Parse combined reimbursement entry
           let mileageAmount = 0;
           let otherAmount = totalAmount;
           let otherDesc = "";
-          
+
           // Extract mileage info if present
           const mileageMatch = description.match(/Mileage: (\d+(?:\.\d+)?) miles \(\$(\d+(?:\.\d+)?)\)/);
           if (mileageMatch) {
             setMilesDriven(parseFloat(mileageMatch[1]) || 0);
             mileageAmount = parseFloat(mileageMatch[2]) || 0;
             otherAmount = totalAmount - mileageAmount;
-            
+
             // Extract other reimbursement description after the semicolon
             const parts = description.split('; ');
             if (parts.length > 1) {
@@ -250,7 +250,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
             // No mileage, treat entire amount as other reimbursement
             otherDesc = description;
           }
-          
+
           // Set other reimbursement amount and description
           if (otherAmount > 0) {
             setReimbAmt(otherAmount);
@@ -281,7 +281,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   // Split days into two 7-day weeks and calculate overtime separately for each week
   const week1Days = days.slice(0, 7);
   const week2Days = days.slice(7, 14);
-  
+
   const calculateWeeklyHours = (weekDays: DayEntry[]) => {
     const weekTotalHours = weekDays.reduce((sum, d) => sum + calculateDayTotal(d), 0);
     return {
@@ -289,14 +289,14 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       overtimeHours: Math.max(0, weekTotalHours - 40)
     };
   };
-  
+
   const week1 = calculateWeeklyHours(week1Days);
   const week2 = calculateWeeklyHours(week2Days);
-  
+
   const totalRegularHours = week1.regularHours + week2.regularHours;
   const totalOvertimeHours = week1.overtimeHours + week2.overtimeHours;
   const totalWorkedHours = totalRegularHours + totalOvertimeHours;
-  
+
   const totals = {
     regular: totalRegularHours + miscHours, // Add misc hours to regular hours
     overtime: totalOvertimeHours,
@@ -309,7 +309,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       const mileageRate = parseFloat(employer.mileageRate || '0.655');
       const mileageAmount = milesDriven > 0 ? milesDriven * mileageRate : 0;
       const totalReimbursement = reimbAmt + mileageAmount;
-      
+
       updateEmployee(employeeId, {
         totalHours: totals.totalHours + ptoHours + holidayNonWorked + holidayWorked,
         totalOvertimeHours: totals.overtime,
@@ -352,6 +352,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         };
       })
     );
+
   };
 
   const saveTimeEntries = useMutation({
@@ -377,7 +378,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       if (previousStats) {
         try {
           const entryList: TimeEntryLike[] = [];
-          
+
           // Safely process days and shifts
           if (newData.days && Array.isArray(newData.days)) {
             newData.days.forEach((d: any) => {
@@ -403,7 +404,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
             week1End.setDate(startDate.getDate() + 6);
             return entryDate >= startDate.toISOString().split('T')[0] && entryDate <= week1End.toISOString().split('T')[0];
           });
-          
+
           const week2Entries = entryList.filter(e => {
             const entryDate = new Date(e.timeIn).toISOString().split('T')[0];
             const startDate = new Date(newData.payPeriod?.start || payPeriod.start);
@@ -413,7 +414,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
             week2End.setDate(startDate.getDate() + 13);
             return entryDate >= week2Start.toISOString().split('T')[0] && entryDate <= week2End.toISOString().split('T')[0];
           });
-          
+
           const calculateWeekHours = (entries: TimeEntryLike[]) => {
             const totalHours = entries.reduce((sum, entry) => {
               const timeIn = new Date(entry.timeIn);
@@ -429,7 +430,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
               overtimeHours: Math.max(0, totalHours - 40)
             };
           };
-          
+
           const week1Hours = calculateWeekHours(week1Entries);
           const week2Hours = calculateWeekHours(week2Entries);
           const totalRegularHours = week1Hours.regularHours + week2Hours.regularHours;
@@ -449,16 +450,16 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
 
           queryClient.setQueryData<any>(["/api/dashboard/stats", employee.employerId], (old: any) => {
             if (!old || !old.employeeStats) return old;
-            
+
             const employeeStats = [...(old.employeeStats || [])];
             const idx = employeeStats.findIndex((s: any) => s.employeeId === employeeId);
-            
+
             if (idx >= 0) {
               employeeStats[idx] = optimistic;
             } else {
               employeeStats.push(optimistic);
             }
-            
+
             return { ...old, employeeStats };
           });
         } catch (error) {
@@ -474,7 +475,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       if (context?.previousStats && employee?.employerId) {
         queryClient.setQueryData(["/api/dashboard/stats", employee.employerId], context.previousStats);
       }
-      
+
       const errorMessage = err?.message || "Failed to save timecard data";
       toast({ 
         title: "Error", 
@@ -512,15 +513,15 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         queryClient.removeQueries({
           queryKey: ["/api/time-entries/employee", employeeId],
         });
-        
+
         queryClient.removeQueries({
           queryKey: ["/api/pto-entries/employee", employeeId],
         });
-        
+
         queryClient.removeQueries({
           queryKey: ["/api/misc-hours-entries/employee", employeeId],
         });
-        
+
         queryClient.removeQueries({
           queryKey: ["/api/reimbursement-entries/employee", employeeId],
         });
@@ -540,7 +541,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         toast({ title: "Error", description: "Employee ID is required", variant: "destructive" });
         return;
       }
-      
+
       if (!payPeriod || !payPeriod.start || !payPeriod.end) {
         toast({ title: "Error", description: "Pay period is required", variant: "destructive" });
         return;
@@ -580,7 +581,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         },
         notes: notes || "",
       };
-      
+
       console.log("Submitting payload:", payload);
       saveTimeEntries.mutate(payload);
     } catch (error) {

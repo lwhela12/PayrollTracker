@@ -78,7 +78,7 @@ export default function Timecards() {
           return;
         }
       }
-      
+
       // Default behavior if no saved period or no match found
       const defaultPeriod = currentPayPeriod ?? payPeriods[0];
       setSelectedPayPeriodId(defaultPeriod.id.toString());
@@ -110,13 +110,13 @@ export default function Timecards() {
 
   const handleNavigateToTimecard = (employeeId: number) => {
     if (!selectedPayPeriod) return;
-    
+
     // Save current scroll position
     sessionStorage.setItem('timecards-scroll-position', window.scrollY.toString());
-    
+
     // Save selected pay period for restoration
     sessionStorage.setItem('selected-pay-period-start', selectedPayPeriod.startDate);
-    
+
     setLocation(
       `/timecard/employee/${employeeId}/period/${selectedPayPeriod.startDate}`,
     );
@@ -144,14 +144,14 @@ export default function Timecards() {
         currentPayPeriod={currentPayPeriod}
         user={user}
       />
-      
+
       <div className="md:ml-48 min-h-screen">
         <Header 
           title="Dashboard"
           description="Employee timecard management and overview"
           user={user}
         />
-        
+
         <main className="p-4 md:p-6">
           <div className="w-full">
             {/* Pay Period Selector */}
@@ -238,7 +238,7 @@ export default function Timecards() {
 
                               const handleMouseEnter = () => {
                                 if (!selectedPayPeriod) return;
-                                
+
                                 // Only prefetch if data isn't already cached
                                 const timeEntriesKey = ["/api/time-entries/employee", employee.id, selectedPayPeriod.startDate, selectedPayPeriod.endDate];
                                 if (!queryClient.getQueryData(timeEntriesKey)) {
@@ -272,7 +272,7 @@ export default function Timecards() {
                                   }
                                 });
                               };
-                              
+
                               // Combine saved data with real-time updates
                               const displayStats = {
                                 ...stats,
@@ -285,7 +285,7 @@ export default function Timecards() {
                               const regularHours =
                                 (displayStats.totalHours ?? 0) -
                                 (displayStats.totalOvertimeHours ?? 0);
-                              
+
                               return (
                                 <tr
                                   key={employee.id}
@@ -319,7 +319,7 @@ export default function Timecards() {
 
                           const handleMouseEnter = () => {
                             if (!selectedPayPeriod) return;
-                            
+
                             // Only prefetch if data isn't already cached
                             const timeEntriesKey = ["/api/time-entries/employee", employee.id, selectedPayPeriod.startDate, selectedPayPeriod.endDate];
                             if (!queryClient.getQueryData(timeEntriesKey)) {
@@ -353,7 +353,7 @@ export default function Timecards() {
                               }
                             });
                           };
-                          
+
                           // Combine saved data with real-time updates
                           const displayStats = {
                             ...stats,
@@ -366,7 +366,7 @@ export default function Timecards() {
                           const regularHours =
                             (displayStats.totalHours ?? 0) -
                             (displayStats.totalOvertimeHours ?? 0);
-                          
+
                           return (
                             <Card
                               key={employee.id}

@@ -305,23 +305,28 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
 
   // Real-time updates to pay period summary when any values change
   useEffect(() => {
-    if (employee && employer) {
+    if (employee && employer && totals) {
       const mileageRate = parseFloat(employer.mileageRate || '0.655');
       const mileageAmount = milesDriven > 0 ? milesDriven * mileageRate : 0;
       const totalReimbursement = reimbAmt + mileageAmount;
 
-      updateEmployee(employeeId, {
-        totalHours: totals.totalHours + ptoHours + holidayNonWorked + holidayWorked,
-        totalOvertimeHours: totals.overtime,
-        mileage: milesDriven,
-        reimbursement: totalReimbursement,
-        ptoHours,
-        holidayHours: holidayNonWorked,
-        holidayWorkedHours: holidayWorked
-      });
+      // Debounce updates to avoid excessive calls
+      const timeoutId = setTimeout(() => {
+        updateEmployee(employeeId, {
+          totalHours: totals.totalHours + ptoHours + holidayNonWorked + holidayWorked,
+          totalOvertimeHours: totals.overtime,
+          mileage: milesDriven,
+          reimbursement: totalReimbursement,
+          ptoHours,
+          holidayHours: holidayNonWorked,
+          holidayWorkedHours: holidayWorked
+        });
+      }, 100);
+
+      return () => clearTimeout(timeoutId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [days, milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, miscHours, employee, employer, employeeId, totals.totalHours, totals.overtime]);
+  }, [totals.totalHours, totals.overtime, milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, miscHours, employee?.id, employer?.id]);
 
   const addShift = (date: string) => {
     setDays((prev) =>
@@ -497,35 +502,39 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       // Clear real-time updates immediately to avoid stale data
       clearEmployee(employeeId);
 
-      // Navigate immediately - don't wait for query invalidations
+      // Immediately invalidate dashboard stats to ensure fresh data
+      if (employee?.employerId) {
+        await queryClient.invalidateQueries({
+          queryKey: ["/api/dashboard/stats", employee.employerId],
+          exact: false
+        });
+        
+        // Force refetch of dashboard stats
+        await queryClient.refetchQueries({
+          queryKey: ["/api/dashboard/stats", employee.employerId],
+          exact: false
+        });
+      }
+
+      // Remove specific employee queries to force fresh data on next visit
+      queryClient.removeQueries({
+        queryKey: ["/api/time-entries/employee", employeeId],
+      });
+
+      queryClient.removeQueries({
+        queryKey: ["/api/pto-entries/employee", employeeId],
+      });
+
+      queryClient.removeQueries({
+        queryKey: ["/api/misc-hours-entries/employee", employeeId],
+      });
+
+      queryClient.removeQueries({
+        queryKey: ["/api/reimbursement-entries/employee", employeeId],
+      });
+
+      // Navigate after ensuring cache updates
       navigate("/");
-
-      // Perform invalidations in background after navigation
-      setTimeout(async () => {
-        // Only invalidate the queries we actually need
-        if (employee?.employerId) {
-          await queryClient.invalidateQueries({
-            queryKey: ["/api/dashboard/stats", employee.employerId],
-          });
-        }
-
-        // Remove specific employee queries to force fresh data on next visit
-        queryClient.removeQueries({
-          queryKey: ["/api/time-entries/employee", employeeId],
-        });
-
-        queryClient.removeQueries({
-          queryKey: ["/api/pto-entries/employee", employeeId],
-        });
-
-        queryClient.removeQueries({
-          queryKey: ["/api/misc-hours-entries/employee", employeeId],
-        });
-
-        queryClient.removeQueries({
-          queryKey: ["/api/reimbursement-entries/employee", employeeId],
-        });
-      }, 100);
     },
     onSettled: () => {
       if (employee?.employerId) {

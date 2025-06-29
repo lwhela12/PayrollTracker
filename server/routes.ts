@@ -126,6 +126,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const employerData = insertEmployerSchema.parse({ ...req.body, ownerId: userId });
       const employer = await storage.createEmployer(employerData);
+      
+      // Auto-generate pay periods for the new employer
+      try {
+        await storage.ensurePayPeriodsExist(employer.id);
+      } catch (payPeriodError) {
+        console.warn("Failed to generate pay periods for new employer:", payPeriodError);
+      }
+      
       res.json(employer);
     } catch (error: any) {
       if (error.name === 'ZodError') {

@@ -51,6 +51,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Delete all user's employers and associated data
+      const employers = await storage.getEmployersByOwner(userId);
+      for (const employer of employers) {
+        await storage.deleteEmployer(employer.id);
+      }
+      
+      // Delete the user account
+      await storage.deleteUser(userId);
+      
+      // Clear the session
+      req.logout(() => {
+        res.json({ message: "Account deleted successfully" });
+      });
+    } catch (error) {
+      console.error("Error deleting user account:", error);
+      res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
+
   // Employer routes
   app.post('/api/employers', isAuthenticated, async (req: any, res) => {
     try {

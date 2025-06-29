@@ -43,6 +43,7 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  deleteUser(id: string): Promise<void>;
 
   // Employer operations
   createEmployer(employer: InsertEmployer): Promise<Employer>;
@@ -132,6 +133,10 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async deleteUser(userId: string) {
+    await db.delete(users).where(eq(users.id, userId));
   }
 
   // Employer operations
@@ -351,7 +356,7 @@ export class DatabaseStorage implements IStorage {
   async getPayPeriodByDates(employerId: number, startDate: Date, endDate: Date): Promise<PayPeriod | undefined> {
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
-    
+
     const [payPeriod] = await db.select().from(payPeriods).where(
       and(
         eq(payPeriods.employerId, employerId),
@@ -659,15 +664,15 @@ export class DatabaseStorage implements IStorage {
                   // Ensure time format is HH:MM
                   const timeInFormatted = shift.timeIn.includes(':') ? shift.timeIn : `${shift.timeIn}:00`;
                   const timeOutFormatted = shift.timeOut.includes(':') ? shift.timeOut : `${shift.timeOut}:00`;
-                  
+
                   const timeInDate = new Date(`${day.date}T${timeInFormatted}:00`);
                   let timeOutDate = new Date(`${day.date}T${timeOutFormatted}:00`);
-                  
+
                   // Handle overnight shifts - if timeOut < timeIn, add a day
                   if (timeOutDate <= timeInDate) {
                     timeOutDate = new Date(timeOutDate.getTime() + 24 * 60 * 60 * 1000);
                   }
-                  
+
                   // Validate dates before inserting
                   if (!isNaN(timeInDate.getTime()) && !isNaN(timeOutDate.getTime())) {
                     timeEntriesToInsert.push({
@@ -702,7 +707,7 @@ export class DatabaseStorage implements IStorage {
 
       // Insert misc hours entries
       const miscEntriesToInsert = [];
-      
+
       if (holidayNonWorked && holidayNonWorked > 0) {
         miscEntriesToInsert.push({
           employeeId,
@@ -739,20 +744,20 @@ export class DatabaseStorage implements IStorage {
 
       // Insert reimbursement entries
       const reimbEntriesToInsert = [];
-      
+
       if (milesDriven && milesDriven > 0) {
         const mileageRate = parseFloat(employer.mileageRate || '0.655');
         const mileageAmount = milesDriven * mileageRate;
-        
+
         let description = `Mileage: ${milesDriven} miles ($${mileageAmount.toFixed(2)})`;
         let totalAmount = mileageAmount;
-        
+
         // Combine with other reimbursement if present
         if (reimbursement && reimbursement.amount > 0) {
           description += `; ${reimbursement.description}`;
           totalAmount += reimbursement.amount;
         }
-        
+
         reimbEntriesToInsert.push({
           employeeId,
           entryDate: payPeriodStart,

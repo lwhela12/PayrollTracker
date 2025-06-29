@@ -60,7 +60,6 @@ export interface IStorage {
   deleteEmployee(id: number): Promise<void>;
 
   // Pay period operations
-  createPayPeriod(payPeriod: InsertPayPeriod): Promise<PayPeriod>;
   getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]>;
   getCurrentPayPeriod(employerId: number): Promise<PayPeriod | undefined>;
   getPayPeriod(id: number): Promise<PayPeriod | undefined>;
@@ -137,17 +136,12 @@ export class DatabaseStorage implements IStorage {
 
   // Employer operations
   async createEmployer(employer: InsertEmployer): Promise<Employer> {
-    console.log("Creating employer with data:", employer);
     const [newEmployer] = await db.insert(employers).values(employer).returning();
-    console.log("Created employer:", newEmployer);
     return newEmployer;
   }
 
   async getEmployersByOwner(ownerId: string): Promise<Employer[]> {
-    console.log("Getting employers for owner:", ownerId);
-    const result = await db.select().from(employers).where(eq(employers.ownerId, ownerId));
-    console.log("Retrieved employers:", result);
-    return result;
+    return await db.select().from(employers).where(eq(employers.ownerId, ownerId));
   }
 
   async getEmployer(id: number): Promise<Employer | undefined> {
@@ -340,11 +334,6 @@ export class DatabaseStorage implements IStorage {
     return finalPeriods;
   }
 
-  async createPayPeriod(payPeriod: InsertPayPeriod): Promise<PayPeriod> {
-    const [newPayPeriod] = await db.insert(payPeriods).values(payPeriod).returning();
-    return newPayPeriod;
-  }
-
   async getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]> {
     return this.getRelevantPayPeriods(employerId, new Date());
   }
@@ -362,7 +351,7 @@ export class DatabaseStorage implements IStorage {
   async getPayPeriodByDates(employerId: number, startDate: Date, endDate: Date): Promise<PayPeriod | undefined> {
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
-
+    
     const [payPeriod] = await db.select().from(payPeriods).where(
       and(
         eq(payPeriods.employerId, employerId),
@@ -670,15 +659,15 @@ export class DatabaseStorage implements IStorage {
                   // Ensure time format is HH:MM
                   const timeInFormatted = shift.timeIn.includes(':') ? shift.timeIn : `${shift.timeIn}:00`;
                   const timeOutFormatted = shift.timeOut.includes(':') ? shift.timeOut : `${shift.timeOut}:00`;
-
+                  
                   const timeInDate = new Date(`${day.date}T${timeInFormatted}:00`);
                   let timeOutDate = new Date(`${day.date}T${timeOutFormatted}:00`);
-
+                  
                   // Handle overnight shifts - if timeOut < timeIn, add a day
                   if (timeOutDate <= timeInDate) {
                     timeOutDate = new Date(timeOutDate.getTime() + 24 * 60 * 60 * 1000);
                   }
-
+                  
                   // Validate dates before inserting
                   if (!isNaN(timeInDate.getTime()) && !isNaN(timeOutDate.getTime())) {
                     timeEntriesToInsert.push({
@@ -713,7 +702,7 @@ export class DatabaseStorage implements IStorage {
 
       // Insert misc hours entries
       const miscEntriesToInsert = [];
-
+      
       if (holidayNonWorked && holidayNonWorked > 0) {
         miscEntriesToInsert.push({
           employeeId,
@@ -750,20 +739,20 @@ export class DatabaseStorage implements IStorage {
 
       // Insert reimbursement entries
       const reimbEntriesToInsert = [];
-
+      
       if (milesDriven && milesDriven > 0) {
         const mileageRate = parseFloat(employer.mileageRate || '0.655');
         const mileageAmount = milesDriven * mileageRate;
-
+        
         let description = `Mileage: ${milesDriven} miles ($${mileageAmount.toFixed(2)})`;
         let totalAmount = mileageAmount;
-
+        
         // Combine with other reimbursement if present
         if (reimbursement && reimbursement.amount > 0) {
           description += `; ${reimbursement.description}`;
           totalAmount += reimbursement.amount;
         }
-
+        
         reimbEntriesToInsert.push({
           employeeId,
           entryDate: payPeriodStart,
@@ -896,22 +885,6 @@ export class DatabaseStorage implements IStorage {
       timecardCount: 0,
       approvedCount: 0,
     }));
-  }
-
-  async getPayPeriods(employerId: number): Promise<PayPeriod[]> {
-    const periods = await db.select().from(payPeriods).where(eq(payPeriods.employerId, employerId)).orderBy(desc(payPeriods.startDate));
-
-    if (periods.length === 0) {
-      // Generate pay periods if none exist
-      return await this.getRelevantPayPeriods(employerId, new Date());
-    }
-
-    return periods;
-  }
-
-  async ensurePayPeriodsExist(employerId: number): Promise<PayPeriod[]> {
-    const periods = await this.getPayPeriodsByEmployer(employerId);
-    return periods;
   }
 }
 

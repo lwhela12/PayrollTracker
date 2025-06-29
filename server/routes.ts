@@ -43,20 +43,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-
-      // For test users in development, return mock user data if they don't exist in database
-      if (process.env.NODE_ENV === 'development' && userId.startsWith('test-user-')) {
-        const testUser = {
-          id: userId,
-          email: `test-${Date.now()}@example.com`,
-          firstName: 'Test',
-          lastName: 'User',
-          profileImageUrl: null,
-          role: 'Admin'
-        };
-        return res.json(testUser);
-      }
-
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -65,75 +51,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Development-only route to simulate a new user for testing
-  app.get('/api/auth/test-new-user', async (req: any, res) => {
-    if (process.env.NODE_ENV !== 'development') {
-      return res.status(404).json({ message: 'Not found' });
-    }
-
-    try {
-      // Generate a unique test user ID
-      const testUserId = `test-user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      // Create a test user that doesn't exist in the database
-      const testUser = {
-        id: testUserId,
-        email: `test-${Date.now()}@example.com`,
-        firstName: 'Test',
-        lastName: 'User',
-        profileImageUrl: null,
-        role: 'Admin'
-      };
-
-      // Don't save to database - this simulates a completely new user
-      res.json({
-        message: 'Test user created (not persisted)',
-        user: testUser,
-        instructions: 'This user has no companies and will trigger the new user flow'
-      });
-    } catch (error) {
-      console.error("Error creating test user:", error);
-      res.status(500).json({ message: "Failed to create test user" });
-    }
-  });
-
   // Employer routes
   app.post('/api/employers', isAuthenticated, async (req: any, res) => {
     try {
       console.log('Creating employer with data:', req.body);
       const userId = req.user.claims.sub;
-
-      // For test users in development, ensure they exist in database first
-      if (process.env.NODE_ENV === 'development' && userId.startsWith('test-user-')) {
-        try {
-          let user = await storage.getUser(userId);
-          if (!user) {
-            user = await storage.upsertUser({
-              id: userId,
-              email: `test-${Date.now()}@example.com`,
-              firstName: 'Test',
-              lastName: 'User',
-              profileImageUrl: null,
-              role: 'Admin'
-            });
-            console.log('Created test user in database:', user);
-          }
-        } catch (userError) {
-          console.error('Error creating test user:', userError);
-          return res.status(500).json({ message: "Failed to create test user" });
-        }
-      }
-
       const employerData = insertEmployerSchema.parse({ ...req.body, ownerId: userId });
       const employer = await storage.createEmployer(employerData);
-
-      // Auto-generate pay periods for the new employer
-      try {
-        await storage.ensurePayPeriodsExist(employer.id);
-      } catch (payPeriodError) {
-        console.warn("Failed to generate pay periods for new employer:", payPeriodError);
-      }
-
       res.json(employer);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -145,41 +69,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Development-only route to simulate login as test user
-  app.post('/api/auth/test-login', async (req: any, res) => {
-    if (process.env.NODE_ENV !== 'development') {
-      return res.status(404).json({ message: 'Not found' });
-    }
-
-    try {
-      const { userId } = req.body;
-
-      if (!userId) {
-        return res.status(400).json({ message: 'userId required' });
-      }
-
-      // Create a mock session for the test user
-      req.session.testUser = {
-        claims: { sub: userId },
-        expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
-      };
-
-      res.json({ message: 'Test login successful', userId });
-    } catch (error) {
-      console.error("Error with test login:", error);
-      res.status(500).json({ message: "Failed to test login" });
-    }
-  });
-
   app.get('/api/employers', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-
-      // For test users in development, return empty array to trigger new user flow
-      if (process.env.NODE_ENV === 'development' && userId.startsWith('test-user-')) {
-        return res.json([]);
-      }
-
       const employers = await storage.getEmployersByOwner(userId);
       res.json(employers);
     } catch (error) {
@@ -1454,7 +1346,7 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
   await workbook.xlsx.writeFile(filePath);
 }
 
-  async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any, employees: any[], timecardData: any[], filePath: string) {
+async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any, employees: any[], timecardData: any[], filePath: string) {
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
   doc.pipe(fs.createWriteStream(filePath));
 
@@ -1590,7 +1482,4 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
   }
 
   doc.end();
-}
-
-  return server;
 }

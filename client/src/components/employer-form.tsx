@@ -79,18 +79,12 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
       const response = await apiRequest("POST", "/api/employers", data);
       return response.json();
     },
-    onSuccess: (newEmployer) => {
+    onSuccess: () => {
       toast({
         title: "Success",
         description: "Company profile created successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
-      
-      // Set the newly created company as the selected company
-      if (newEmployer?.id && typeof window !== 'undefined') {
-        localStorage.setItem('selectedEmployerId', newEmployer.id.toString());
-      }
-      
       onSuccess();
     },
     onError: (error: Error) => {

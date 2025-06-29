@@ -13,9 +13,7 @@ import { useCompany } from "@/context/company";
 
 const schema = z.object({
   name: z.string().min(1, "Company name is required"),
-  payPeriodStartDate: z.string().min(1, "Pay period start date is required"),
-  weekStartsOn: z.coerce.number().min(0).max(6),
-  mileageRate: z.string().default("0.655")
+  weekStartsOn: z.coerce.number().min(0).max(6)
 });
 
 type FormData = z.infer<typeof schema>;
@@ -27,12 +25,7 @@ export default function CreateCompany() {
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { 
-      name: "", 
-      payPeriodStartDate: "", 
-      weekStartsOn: 0,
-      mileageRate: "0.655"
-    }
+    defaultValues: { name: "", weekStartsOn: 0 }
   });
 
   const mutation = useMutation({
@@ -40,22 +33,9 @@ export default function CreateCompany() {
       const res = await apiRequest("POST", "/api/employers", data);
       return res.json();
     },
-    onSuccess: async (newEmployer: any) => {
+    onSuccess: (data: any) => {
       toast({ title: "Company Created" });
-      setEmployerId(newEmployer.id);
-      
-      // Also set in localStorage for consistency
-      if (newEmployer?.id && typeof window !== 'undefined') {
-        localStorage.setItem('selectedEmployerId', newEmployer.id.toString());
-      }
-      
-      // Ensure pay periods are generated for the new employer
-      try {
-        await apiRequest("GET", `/api/pay-periods/${newEmployer.id}`);
-      } catch (error) {
-        console.warn("Pay periods may not be generated yet, but continuing to main screen");
-      }
-      
+      setEmployerId(data.id);
       navigate("/");
     },
     onError: (err: Error) => {
@@ -81,75 +61,27 @@ export default function CreateCompany() {
                   <FormMessage />
                 </FormItem>
               )} />
-              
-              <FormField name="payPeriodStartDate" control={form.control} render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Pay Period Start Date *</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="date" 
-                      {...field} 
-                      onChange={(e) => {
-                        field.onChange(e);
-                        // Auto-calculate week start day
-                        if (e.target.value) {
-                          const date = new Date(e.target.value + 'T00:00:00');
-                          const dayOfWeek = date.getDay();
-                          form.setValue('weekStartsOn', dayOfWeek);
-                        }
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                  <p className="text-sm text-gray-500">
-                    This determines when your pay periods start and end
-                  </p>
-                </FormItem>
-              )} />
-              
               <FormField name="weekStartsOn" control={form.control} render={({ field }) => (
                 <FormItem>
                   <FormLabel>Week Starts On</FormLabel>
                   <FormControl>
-                    <Input 
-                      {...field} 
-                      value={(() => {
-                        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-                        return days[parseInt(field.value?.toString() || "0")] || "Select pay period start date first";
-                      })()}
-                      readOnly
-                      className="bg-gray-50 cursor-not-allowed"
-                    />
+                    <select {...field} className="border rounded p-2 w-full">
+                      <option value={0}>Sunday</option>
+                      <option value={1}>Monday</option>
+                      <option value={2}>Tuesday</option>
+                      <option value={3}>Wednesday</option>
+                      <option value={4}>Thursday</option>
+                      <option value={5}>Friday</option>
+                      <option value={6}>Saturday</option>
+                    </select>
                   </FormControl>
                   <FormMessage />
-                  <p className="text-sm text-gray-500">
-                    Week beginning day is automatically set based on your pay period start date
-                  </p>
                 </FormItem>
               )} />
-              
-              <FormField name="mileageRate" control={form.control} render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Mileage Rate (per mile)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      step="0.001" 
-                      {...field} 
-                      placeholder="0.655"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                  <p className="text-sm text-gray-500">
-                    Current IRS standard rate is $0.655 per mile
-                  </p>
-                </FormItem>
-              )} />
-              
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => navigate("/")}>Cancel</Button>
                 <Button type="submit" disabled={mutation.isPending} className="payroll-button-primary">
-                  {mutation.isPending ? "Creating..." : "Create"}
+                  Create
                 </Button>
               </div>
             </form>

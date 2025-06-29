@@ -104,18 +104,6 @@ export function Header({ title, description, user, onGenerateReports }: HeaderPr
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </DropdownMenuItem>
-              {process.env.NODE_ENV === 'development' && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={() => navigate("/dev-tools")}
-                    className="cursor-pointer text-blue-600"
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Dev Tools
-                  </DropdownMenuItem>
-                </>
-              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 onClick={handleLogout}

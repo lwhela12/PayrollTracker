@@ -9,7 +9,7 @@ export default function CreateCompany() {
   const [, setLocation] = useLocation();
 
   const handleSuccess = () => {
-    // Navigate to the dashboard after successful creation
+    // Navigate back to the home page after successful creation
     setLocation("/");
   };
 

@@ -180,6 +180,10 @@ export const insertEmployerSchema = createInsertSchema(employers).omit({
   createdAt: true,
 }).extend({
   weekStartsOn: z.coerce.number().min(0).max(6).default(0),
+  mileageRate: z.union([z.string(), z.number()]).transform((val) => {
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    return isNaN(num) ? 0.655 : num;
+  }),
 });
 
 export const insertEmployeeSchema = createInsertSchema(employees).omit({

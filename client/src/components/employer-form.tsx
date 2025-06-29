@@ -65,7 +65,6 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
       console.log('=== CREATING EMPLOYER WITH DATA ===', data);
       const response = await apiRequest("POST", "/api/employers", {
         ...data,
-        mileageRate: parseFloat(data.mileageRate),
         weekStartsOn: parseInt(data.weekStartsOn || "0"),
         // Set empty defaults for optional fields
         address: "",
@@ -100,7 +99,6 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
     mutationFn: async (data: EmployerFormData) => {
       const response = await apiRequest("PUT", `/api/employers/${employer.id}`, {
         ...data,
-        mileageRate: parseFloat(data.mileageRate),
         weekStartsOn: parseInt(data.weekStartsOn || "0"),
       });
       return response.json();
@@ -128,7 +126,6 @@ export function EmployerForm({ employer, onSuccess, onCancel }: EmployerFormProp
     mutationFn: async (data: EmployerFormData) => {
       const response = await apiRequest("PUT", `/api/employers/${employer.id}/reset-payroll`, {
         ...data,
-        mileageRate: parseFloat(data.mileageRate),
         weekStartsOn: parseInt(data.weekStartsOn || "0"),
       });
       return response.json();

@@ -80,14 +80,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Creating employer with data:', req.body);
       const userId = req.user.claims.sub;
       const employerData = insertEmployerSchema.parse({ ...req.body, ownerId: userId });
+      console.log('Parsed employer data:', employerData);
       const employer = await storage.createEmployer(employerData);
       res.json(employer);
     } catch (error: any) {
       if (error.name === 'ZodError') {
+        console.error('Validation error:', error.errors);
         return res.status(400).json({ message: fromZodError(error).toString() });
       }
       console.error("Error creating employer:", error);
-      console.error("Full error creating employer:", error);
       res.status(500).json({ message: "Failed to create employer" });
     }
   });

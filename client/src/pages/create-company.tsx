@@ -12,7 +12,7 @@ export default function CreateCompany() {
   const { setEmployerId } = useCompany();
   const queryClient = useQueryClient();
 
-  const handleSuccess = (employer: any) => {
+  const handleSuccess = async (employer: any) => {
     console.log('=== COMPANY CREATION SUCCESS ===');
     console.log('Employer data received:', employer);
     console.log('Employer ID:', employer?.id);
@@ -27,15 +27,22 @@ export default function CreateCompany() {
     setEmployerId(employer.id);
     
     // Invalidate relevant queries to ensure fresh data
-    queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/pay-periods", employer.id] });
-    queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employer.id] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/pay-periods", employer.id] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employer.id] });
     
-    // Navigate to the dashboard
+    // Force refetch of employer data to ensure it's available
+    await queryClient.prefetchQuery({
+      queryKey: ["/api/employers"],
+      queryFn: async () => {
+        const response = await fetch("/api/employers");
+        return response.json();
+      }
+    });
+    
+    // Navigate to the dashboard immediately
     console.log('=== NAVIGATING TO DASHBOARD ===');
-    setTimeout(() => {
-      setLocation("/");
-    }, 100);
+    setLocation("/");
   };
 
   const handleCancel = () => {

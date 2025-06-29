@@ -33,9 +33,15 @@ export default function CreateCompany() {
       const res = await apiRequest("POST", "/api/employers", data);
       return res.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (newEmployer: any) => {
       toast({ title: "Company Created" });
-      setEmployerId(data.id);
+      setEmployerId(newEmployer.id);
+      
+      // Also set in localStorage for consistency
+      if (newEmployer?.id && typeof window !== 'undefined') {
+        localStorage.setItem('selectedEmployerId', newEmployer.id.toString());
+      }
+      
       navigate("/");
     },
     onError: (err: Error) => {

@@ -340,6 +340,11 @@ export class DatabaseStorage implements IStorage {
     return finalPeriods;
   }
 
+  async createPayPeriod(payPeriod: InsertPayPeriod): Promise<PayPeriod> {
+    const [newPayPeriod] = await db.insert(payPeriods).values(payPeriod).returning();
+    return newPayPeriod;
+  }
+
   async getPayPeriodsByEmployer(employerId: number): Promise<PayPeriod[]> {
     return this.getRelevantPayPeriods(employerId, new Date());
   }

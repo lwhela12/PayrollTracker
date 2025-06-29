@@ -137,3 +137,61 @@
     @apply space-y-4;
   }
 }
+
+/* Mobile-specific enhancements */
+@layer utilities {
+  /* Prevent zoom on inputs on iOS */
+  @media screen and (max-width: 767px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+  /* Smooth touch scrolling */
+  .touch-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Better touch targets */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  /* Prevent text selection on touch */
+  .no-touch-select {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Mobile-specific component styles */
+@media (max-width: 767px) {
+  .card {
+    @apply rounded-xl p-4 shadow-lg;
+  }
+
+  .btn {
+    @apply min-h-[44px] px-6;
+  }
+
+  .btn-sm {
+    @apply min-h-[40px] px-4;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

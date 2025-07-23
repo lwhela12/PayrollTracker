@@ -1265,6 +1265,14 @@ async function generatePDFReport(
   // Manually add the header for the FIRST page
   addHeader();
 
+  // Initialize totals
+  let totalRegularHours = 0;
+  let totalOvertimeHours = 0;
+  let totalPtoHours = 0;
+  let totalHolidayHours = 0;
+  let totalHolidayWorked = 0;
+  let totalReimbursement = 0;
+
   for (const emp of employees) {
     // Check if a new page is needed BEFORE drawing the row
     if (doc.y + 15 > doc.page.height - doc.page.margins.bottom) {
@@ -1289,6 +1297,14 @@ async function generatePDFReport(
     const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
       .reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
 
+    // Add to totals
+    totalRegularHours += adjustedRegularHours;
+    totalOvertimeHours += overtimeHours;
+    totalPtoHours += periodPto;
+    totalHolidayHours += holidayNonWorked;
+    totalHolidayWorked += holidayWorked;
+    totalReimbursement += periodReimb;
+
     // --- Draw the row at the current Y position ---
     const currentY = doc.y;
     doc.fontSize(9);
@@ -1300,6 +1316,30 @@ async function generatePDFReport(
     doc.text(holidayWorked.toFixed(2), 520, currentY);
     doc.text(`$${periodReimb.toFixed(2)}`, 620, currentY);
   }
+
+  // Add totals section
+  doc.y += 30; // Add some space before totals
+  
+  // Check if we need a new page for totals
+  if (doc.y + 40 > doc.page.height - doc.page.margins.bottom) {
+    doc.addPage();
+    doc.y += 20; // Add some space from top on new page
+  }
+
+  // Draw separator line
+  doc.moveTo(50, doc.y - 10).lineTo(720, doc.y - 10).stroke();
+
+  // Draw totals row
+  const totalsY = doc.y + 10;
+  doc.fontSize(10);
+  doc.font('Helvetica-Bold');
+  doc.text('TOTALS', 50, totalsY, { width: 160 });
+  doc.text(totalRegularHours.toFixed(2), 220, totalsY);
+  doc.text(totalOvertimeHours.toFixed(2), 300, totalsY);
+  doc.text(totalPtoHours.toFixed(2), 370, totalsY);
+  doc.text(totalHolidayHours.toFixed(2), 440, totalsY);
+  doc.text(totalHolidayWorked.toFixed(2), 520, totalsY);
+  doc.text(`$${totalReimbursement.toFixed(2)}`, 620, totalsY);
 
   doc.end();
 }
@@ -1317,6 +1357,14 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
 
   // Employee data headers
   worksheet.addRow(['Employee', 'Regular Hours', 'OT Hours', 'PTO Hours', 'Holiday Hours', 'Holiday Worked', 'Reimbursement']);
+
+  // Initialize totals
+  let totalRegularHours = 0;
+  let totalOvertimeHours = 0;
+  let totalPtoHours = 0;
+  let totalHolidayHours = 0;
+  let totalHolidayWorked = 0;
+  let totalReimbursement = 0;
 
   // Process each employee
   for (const emp of employees) {
@@ -1346,6 +1394,14 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
     const periodReimb = reimbEntries.filter(r => r.entryDate >= payPeriod.startDate && r.entryDate <= payPeriod.endDate)
       .reduce((sum, r) => sum + parseFloat(r.amount as any), 0);
 
+    // Add to totals
+    totalRegularHours += adjustedRegularHours;
+    totalOvertimeHours += overtimeHours;
+    totalPtoHours += periodPto;
+    totalHolidayHours += holidayNonWorked;
+    totalHolidayWorked += holidayWorked;
+    totalReimbursement += periodReimb;
+
     // Add employee row
     worksheet.addRow([
       `${emp.firstName} ${emp.lastName}`,
@@ -1357,6 +1413,28 @@ async function generateExcelReport(employer: any, payPeriod: any, employees: any
       periodReimb.toFixed(2)
     ]);
   }
+
+  // Add empty row for spacing
+  worksheet.addRow([]);
+
+  // Add totals row
+  const totalsRow = worksheet.addRow([
+    'TOTALS',
+    totalRegularHours.toFixed(2),
+    totalOvertimeHours.toFixed(2),
+    totalPtoHours.toFixed(2),
+    totalHolidayHours.toFixed(2),
+    totalHolidayWorked.toFixed(2),
+    totalReimbursement.toFixed(2)
+  ]);
+
+  // Style the totals row
+  totalsRow.font = { bold: true };
+  totalsRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE6E6E6' }
+  };
 
   // Style the worksheet
   worksheet.getRow(1).font = { bold: true, size: 16 };

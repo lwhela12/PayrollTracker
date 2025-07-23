@@ -10,6 +10,9 @@ import {
   miscHoursEntries,
   reimbursements,
   reports,
+  userEmployers,
+  pendingInvitations,
+  auditLogs,
   type User,
   type UpsertUser,
   type Employer,
@@ -32,6 +35,12 @@ import {
   type InsertReimbursement,
   type Report,
   type InsertReport,
+  type UserEmployer,
+  type InsertUserEmployer,
+  type PendingInvitation,
+  type InsertPendingInvitation,
+  type AuditLog,
+  type InsertAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, asc, between } from "drizzle-orm";
@@ -48,9 +57,28 @@ export interface IStorage {
   // Employer operations
   createEmployer(employer: InsertEmployer): Promise<Employer>;
   getEmployersByOwner(ownerId: string): Promise<Employer[]>;
+  getEmployersByUser(userId: string): Promise<Employer[]>;
   getEmployer(id: number): Promise<Employer | undefined>;
   updateEmployer(id: number, employer: Partial<InsertEmployer>): Promise<Employer>;
   deleteEmployer(id: number): Promise<void>;
+
+  // Multi-user operations
+  getUserEmployer(userId: string, employerId: number): Promise<UserEmployer | undefined>;
+  getUserRole(userId: string, employerId: number): Promise<string | undefined>;
+  addUserToEmployer(userEmployer: InsertUserEmployer): Promise<UserEmployer>;
+  getUsersByEmployer(employerId: number): Promise<{ user: User; role: string; joinedAt: Date }[]>;
+  removeUserFromEmployer(userId: string, employerId: number): Promise<void>;
+
+  // Invitation operations
+  createInvitation(invitation: InsertPendingInvitation): Promise<PendingInvitation>;
+  getPendingInvitationsByEmployer(employerId: number): Promise<PendingInvitation[]>;
+  getPendingInvitationByEmail(email: string, employerId: number): Promise<PendingInvitation | undefined>;
+  acceptInvitation(invitationId: number, userId: string): Promise<UserEmployer>;
+  deleteInvitation(id: number): Promise<void>;
+
+  // Audit log operations
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogsByEmployer(employerId: number, limit?: number): Promise<AuditLog[]>;
 
   // Employee operations
   createEmployee(employee: InsertEmployee): Promise<Employee>;
@@ -141,12 +169,40 @@ export class DatabaseStorage implements IStorage {
 
   // Employer operations
   async createEmployer(employer: InsertEmployer): Promise<Employer> {
-    const [newEmployer] = await db.insert(employers).values(employer).returning();
+    const insertData = { ...employer } as any;
+    // Convert mileageRate to string if it's a number
+    if (typeof insertData.mileageRate === 'number') {
+      insertData.mileageRate = insertData.mileageRate.toString();
+    }
+    
+    const [newEmployer] = await db.insert(employers).values(insertData).returning();
     return newEmployer;
   }
 
   async getEmployersByOwner(ownerId: string): Promise<Employer[]> {
     return await db.select().from(employers).where(eq(employers.ownerId, ownerId));
+  }
+
+  async getEmployersByUser(userId: string): Promise<Employer[]> {
+    const result = await db
+      .select({
+        id: employers.id,
+        name: employers.name,
+        address: employers.address,
+        phone: employers.phone,
+        email: employers.email,
+        taxId: employers.taxId,
+        weekStartsOn: employers.weekStartsOn,
+        payPeriodStartDate: employers.payPeriodStartDate,
+        mileageRate: employers.mileageRate,
+        ownerId: employers.ownerId,
+        createdAt: employers.createdAt,
+      })
+      .from(employers)
+      .innerJoin(userEmployers, eq(employers.id, userEmployers.employerId))
+      .where(eq(userEmployers.userId, userId));
+    
+    return result;
   }
 
   async getEmployer(id: number): Promise<Employer | undefined> {
@@ -157,9 +213,15 @@ export class DatabaseStorage implements IStorage {
   async updateEmployer(id: number, employer: Partial<InsertEmployer>): Promise<Employer> {
     const needsPayPeriodReset = employer.payPeriodStartDate && employer.payPeriodStartDate !== (await this.getEmployer(id))?.payPeriodStartDate;
 
+    const updateData = { ...employer } as any;
+    // Convert mileageRate to string if it's a number
+    if (typeof updateData.mileageRate === 'number') {
+      updateData.mileageRate = updateData.mileageRate.toString();
+    }
+
     const [updated] = await db
       .update(employers)
-      .set(employer)
+      .set(updateData)
       .where(eq(employers.id, id))
       .returning();
 
@@ -192,6 +254,121 @@ export class DatabaseStorage implements IStorage {
 
       await tx.delete(employers).where(eq(employers.id, id));
     });
+  }
+
+  // Multi-user operations
+  async getUserEmployer(userId: string, employerId: number): Promise<UserEmployer | undefined> {
+    const [result] = await db
+      .select()
+      .from(userEmployers)
+      .where(and(eq(userEmployers.userId, userId), eq(userEmployers.employerId, employerId)));
+    return result;
+  }
+
+  async getUserRole(userId: string, employerId: number): Promise<string | undefined> {
+    const userEmployer = await this.getUserEmployer(userId, employerId);
+    return userEmployer?.role;
+  }
+
+  async addUserToEmployer(userEmployer: InsertUserEmployer): Promise<UserEmployer> {
+    const [result] = await db.insert(userEmployers).values(userEmployer).returning();
+    return result;
+  }
+
+  async getUsersByEmployer(employerId: number): Promise<{ user: User; role: string; joinedAt: Date }[]> {
+    const result = await db
+      .select({
+        user: users,
+        role: userEmployers.role,
+        joinedAt: userEmployers.joinedAt,
+      })
+      .from(userEmployers)
+      .innerJoin(users, eq(userEmployers.userId, users.id))
+      .where(eq(userEmployers.employerId, employerId))
+      .orderBy(asc(userEmployers.joinedAt));
+    
+    return result.map(r => ({
+      user: r.user,
+      role: r.role,
+      joinedAt: r.joinedAt!
+    }));
+  }
+
+  async removeUserFromEmployer(userId: string, employerId: number): Promise<void> {
+    await db
+      .delete(userEmployers)
+      .where(and(eq(userEmployers.userId, userId), eq(userEmployers.employerId, employerId)));
+  }
+
+  // Invitation operations
+  async createInvitation(invitation: InsertPendingInvitation): Promise<PendingInvitation> {
+    const [result] = await db.insert(pendingInvitations).values(invitation).returning();
+    return result;
+  }
+
+  async getPendingInvitationsByEmployer(employerId: number): Promise<PendingInvitation[]> {
+    return await db
+      .select()
+      .from(pendingInvitations)
+      .where(eq(pendingInvitations.employerId, employerId))
+      .orderBy(desc(pendingInvitations.createdAt));
+  }
+
+  async getPendingInvitationByEmail(email: string, employerId: number): Promise<PendingInvitation | undefined> {
+    const [result] = await db
+      .select()
+      .from(pendingInvitations)
+      .where(and(eq(pendingInvitations.email, email), eq(pendingInvitations.employerId, employerId)));
+    return result;
+  }
+
+  async acceptInvitation(invitationId: number, userId: string): Promise<UserEmployer> {
+    return await db.transaction(async (tx) => {
+      // Get the invitation
+      const [invitation] = await tx
+        .select()
+        .from(pendingInvitations)
+        .where(eq(pendingInvitations.id, invitationId));
+      
+      if (!invitation) {
+        throw new Error('Invitation not found');
+      }
+
+      // Add user to employer
+      const [userEmployer] = await tx
+        .insert(userEmployers)
+        .values({
+          userId,
+          employerId: invitation.employerId,
+          role: invitation.role,
+          invitedBy: invitation.invitedBy,
+        })
+        .returning();
+
+      // Delete the invitation
+      await tx.delete(pendingInvitations).where(eq(pendingInvitations.id, invitationId));
+
+      return userEmployer;
+    });
+  }
+
+  async deleteInvitation(id: number): Promise<void> {
+    await db.delete(pendingInvitations).where(eq(pendingInvitations.id, id));
+  }
+
+  // Audit log operations
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [result] = await db.insert(auditLogs).values(log).returning();
+    return result;
+  }
+
+  async getAuditLogsByEmployer(employerId: number, limit: number = 100): Promise<AuditLog[]> {
+    return await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.employerId, employerId))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
   }
 
   // Employee operations

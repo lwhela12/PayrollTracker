@@ -35,6 +35,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // Helper function to check if user has access to employer
+  const hasAccessToEmployer = async (userId: string, employerId: number): Promise<boolean> => {
+    const userEmployer = await storage.getUserEmployer(userId, employerId);
+    return !!userEmployer;
+  };
+
+  // Helper function to get user role for employer
+  const getUserRoleForEmployer = async (userId: string, employerId: number): Promise<string | undefined> => {
+    return await storage.getUserRole(userId, employerId);
+  };
+
+  // Helper function to log user actions
+  const logUserAction = async (userId: string, employerId: number, action: string, resourceType?: string, resourceId?: number, details?: any) => {
+    try {
+      await storage.createAuditLog({
+        userId,
+        employerId,
+        action,
+        resourceType,
+        resourceId,
+        details: details ? JSON.stringify(details) : null
+      });
+    } catch (error) {
+      console.error('Failed to log user action:', error);
+    }
+  };
+
   // Remove memoization to prevent stale cache issues during timecard updates
   const getDashboardStatsCached = (employerId: number, payPeriodId: number) =>
     storage.getDashboardStats(employerId, payPeriodId);
@@ -77,15 +104,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Employer routes
   app.post('/api/employers', isAuthenticated, async (req: any, res) => {
     try {
-      console.log('Creating employer with data:', req.body);
       const userId = req.user.claims.sub;
       const employerData = insertEmployerSchema.parse({ ...req.body, ownerId: userId });
-      console.log('Parsed employer data:', employerData);
       const employer = await storage.createEmployer(employerData);
+      
+      // Automatically add creator as Admin to the new employer
+      await storage.addUserToEmployer({
+        userId,
+        employerId: employer.id, 
+        role: 'Admin'
+      });
+
+      await logUserAction(userId, employer.id, 'created_employer', 'employer', employer.id);
       res.json(employer);
     } catch (error: any) {
       if (error.name === 'ZodError') {
-        console.error('Validation error:', error.errors);
         return res.status(400).json({ message: fromZodError(error).toString() });
       }
       console.error("Error creating employer:", error);
@@ -96,7 +129,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/employers', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const employers = await storage.getEmployersByOwner(userId);
+      // Get all employers the user has access to (both owned and invited)
+      const employers = await storage.getEmployersByUser(userId);
       res.json(employers);
     } catch (error) {
       console.error("Error fetching employers:", error);
@@ -106,10 +140,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/employers/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const employerId = parseInt(req.params.id);
       const employer = await storage.getEmployer(employerId);
 
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
+      if (!employer || !(await hasAccessToEmployer(userId, employerId))) {
         return res.status(404).json({ message: "Employer not found" });
       }
 
@@ -120,34 +155,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get individual employer
-  app.get('/api/employers/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const employerId = parseInt(req.params.id);
-      const employer = await storage.getEmployer(employerId);
-
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
-      res.json(employer);
-    } catch (error: any) {
-      console.error("Error fetching employer:", error);
-      res.status(500).json({ message: "Failed to fetch employer" });
-    }
-  });
-
   app.put('/api/employers/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const employerId = parseInt(req.params.id);
       const employer = await storage.getEmployer(employerId);
 
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
+      if (!employer || !(await hasAccessToEmployer(userId, employerId))) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
+
+      // Only admins can update employer settings
+      const userRole = await getUserRoleForEmployer(userId, employerId);
+      if (userRole !== 'Admin') {
         return res.status(403).json({ message: "Access denied" });
       }
 
       const updateData = insertEmployerSchema.partial().parse(req.body);
       const updated = await storage.updateEmployer(employerId, updateData);
+      await logUserAction(userId, employerId, 'updated_employer', 'employer', employerId, updateData);
       res.json(updated);
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -161,10 +187,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update employer with payroll date change and entry clearing
   app.put('/api/employers/:id/reset-payroll', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const employerId = parseInt(req.params.id);
       const employer = await storage.getEmployer(employerId);
 
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
+      if (!employer || !(await hasAccessToEmployer(userId, employerId))) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
+
+      // Only admins can reset payroll
+      const userRole = await getUserRoleForEmployer(userId, employerId);
+      if (userRole !== 'Admin') {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -175,6 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Clear existing pay periods and regenerate
       await storage.clearAndRegeneratePayPeriods(employerId);
+      await logUserAction(userId, employerId, 'reset_payroll', 'employer', employerId);
 
       res.json(updated);
     } catch (error: any) {
@@ -188,18 +222,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/employers/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const employerId = parseInt(req.params.id);
       const employer = await storage.getEmployer(employerId);
 
-      if (!employer || employer.ownerId !== req.user.claims.sub) {
-        return res.status(403).json({ message: 'Access denied' });
+      if (!employer || !(await hasAccessToEmployer(userId, employerId))) {
+        return res.status(404).json({ message: "Employer not found" });
       }
 
+      // Only admins can delete employers
+      const userRole = await getUserRoleForEmployer(userId, employerId);
+      if (userRole !== 'Admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await logUserAction(userId, employerId, 'deleted_employer', 'employer', employerId);
       await storage.deleteEmployer(employerId);
       res.json({ message: 'Employer deleted successfully' });
     } catch (error) {
       console.error('Error deleting employer:', error);
       res.status(500).json({ message: 'Failed to delete employer' });
+    }
+  });
+
+  // Multi-user management routes
+  
+  // Get team members for an employer
+  app.get('/api/employers/:id/users', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const employerId = parseInt(req.params.id);
+      
+      if (!(await hasAccessToEmployer(userId, employerId))) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
+
+      const users = await storage.getUsersByEmployer(employerId);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching employer users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Invite user to employer (Admin only)
+  app.post('/api/employers/:id/invite', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const employerId = parseInt(req.params.id);
+      const { email, role = 'Employee' } = req.body;
+
+      if (!(await hasAccessToEmployer(userId, employerId))) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
+
+      const userRole = await getUserRoleForEmployer(userId, employerId);
+      if (userRole !== 'Admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Check if user is already invited or has access
+      const existingInvite = await storage.getPendingInvitationByEmail(email, employerId);
+      if (existingInvite) {
+        return res.status(400).json({ message: "User already invited" });
+      }
+
+      // Create invitation that expires in 7 days
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      const invitation = await storage.createInvitation({
+        email,
+        employerId,
+        invitedBy: userId,
+        role,
+        expiresAt
+      });
+
+      await logUserAction(userId, employerId, 'invited_user', 'invitation', invitation.id, { email, role });
+      res.json({ message: "Invitation sent successfully", invitation });
+    } catch (error) {
+      console.error("Error creating invitation:", error);
+      res.status(500).json({ message: "Failed to send invitation" });
+    }
+  });
+
+  // Get pending invitations for employer (Admin only)
+  app.get('/api/employers/:id/invitations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const employerId = parseInt(req.params.id);
+
+      if (!(await hasAccessToEmployer(userId, employerId))) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
+
+      const userRole = await getUserRoleForEmployer(userId, employerId);
+      if (userRole !== 'Admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const invitations = await storage.getPendingInvitationsByEmployer(employerId);
+      res.json(invitations);
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+
+  // Accept invitation (called when user with pending invitation logs in)
+  app.post('/api/invitations/:id/accept', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const invitationId = parseInt(req.params.id);
+
+      const userEmployer = await storage.acceptInvitation(invitationId, userId);
+      await logUserAction(userId, userEmployer.employerId, 'accepted_invitation', 'user_employer', userEmployer.id);
+      
+      res.json({ message: "Invitation accepted successfully", userEmployer });
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      res.status(500).json({ message: "Failed to accept invitation" });
+    }
+  });
+
+  // Remove user from employer (Admin only)
+  app.delete('/api/employers/:id/users/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUserId = req.user.claims.sub;
+      const employerId = parseInt(req.params.id);
+      const targetUserId = req.params.userId;
+
+      if (!(await hasAccessToEmployer(currentUserId, employerId))) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
+
+      const userRole = await getUserRoleForEmployer(currentUserId, employerId);
+      if (userRole !== 'Admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Can't remove yourself if you're the only admin
+      if (currentUserId === targetUserId) {
+        const users = await storage.getUsersByEmployer(employerId);
+        const adminCount = users.filter(u => u.role === 'Admin').length;
+        if (adminCount <= 1) {
+          return res.status(400).json({ message: "Cannot remove the only admin" });
+        }
+      }
+
+      await storage.removeUserFromEmployer(targetUserId, employerId);
+      await logUserAction(currentUserId, employerId, 'removed_user', 'user_employer', undefined, { removedUserId: targetUserId });
+      
+      res.json({ message: "User removed successfully" });
+    } catch (error) {
+      console.error("Error removing user:", error);
+      res.status(500).json({ message: "Failed to remove user" });
+    }
+  });
+
+  // Get audit log for employer (Admin only)
+  app.get('/api/employers/:id/audit-log', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const employerId = parseInt(req.params.id);
+      const limit = parseInt(req.query.limit as string) || 100;
+
+      if (!(await hasAccessToEmployer(userId, employerId))) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
+
+      const userRole = await getUserRoleForEmployer(userId, employerId);
+      if (userRole !== 'Admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const auditLogs = await storage.getAuditLogsByEmployer(employerId, limit);
+      res.json(auditLogs);
+    } catch (error) {
+      console.error("Error fetching audit log:", error);
+      res.status(500).json({ message: "Failed to fetch audit log" });
     }
   });
 

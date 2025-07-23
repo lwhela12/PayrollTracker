@@ -16,7 +16,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const userRoles = ["Admin", "Manager"] as const;
+export const userRoles = ["Admin", "Employee"] as const;
 export type UserRole = (typeof userRoles)[number];
 
 // Session storage table (mandatory for Replit Auth)
@@ -37,7 +37,6 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role", { length: 20 }).notNull().default("Admin"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -54,6 +53,41 @@ export const employers = pgTable("employers", {
   payPeriodStartDate: date("pay_period_start_date"),
   mileageRate: decimal("mileage_rate", { precision: 10, scale: 4 }).default("0.655"), // IRS standard rate
   ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Junction table for user-employer relationships (multi-user workspaces)  
+export const userEmployers = pgTable("user_employers", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  employerId: integer("employer_id").notNull().references(() => employers.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 20 }).notNull().default("Employee"),
+  invitedBy: varchar("invited_by").references(() => users.id),
+  joinedAt: timestamp("joined_at").defaultNow(),
+}, (table) => ({
+  userEmployerIdx: uniqueIndex("IDX_user_employer_unique").on(table.userId, table.employerId)
+}));
+
+// Pending invitations for multi-user access
+export const pendingInvitations = pgTable("pending_invitations", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull(),
+  employerId: integer("employer_id").notNull().references(() => employers.id, { onDelete: "cascade" }),
+  invitedBy: varchar("invited_by").notNull().references(() => users.id),
+  role: varchar("role", { length: 20 }).notNull().default("Employee"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Audit log for tracking user actions
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  employerId: integer("employer_id").notNull().references(() => employers.id, { onDelete: "cascade" }),
+  action: varchar("action", { length: 100 }).notNull(),
+  resourceType: varchar("resource_type", { length: 50 }),
+  resourceId: integer("resource_id"),
+  details: jsonb("details"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -241,6 +275,21 @@ export const insertReportSchema = createInsertSchema(reports).omit({
   createdAt: true,
 });
 
+export const insertUserEmployerSchema = createInsertSchema(userEmployers).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export const insertPendingInvitationSchema = createInsertSchema(pendingInvitations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -264,3 +313,9 @@ export type InsertMiscHoursEntry = z.infer<typeof insertMiscHoursEntrySchema>;
 export type MiscHoursEntry = typeof miscHoursEntries.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Report = typeof reports.$inferSelect;
+export type InsertUserEmployer = z.infer<typeof insertUserEmployerSchema>;
+export type UserEmployer = typeof userEmployers.$inferSelect;
+export type InsertPendingInvitation = z.infer<typeof insertPendingInvitationSchema>;
+export type PendingInvitation = typeof pendingInvitations.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;

@@ -11,6 +11,17 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
+- **2025-07-23**: Implemented multi-user access with admin/employee roles, invitation system, and audit logging
+  - Added junction table architecture for user-employer relationships allowing team collaboration
+  - Implemented role-based permissions: Admin (full access) and Employee (standard operations)
+  - Created email-based invitation system with 7-day expiration for adding team members
+  - Added comprehensive audit logging tracking logins, data changes, and user management actions
+  - Auto-migrated existing single-user workspaces to new multi-user system (owners become Admins)
+  - Supports concurrent sessions - multiple users can work simultaneously with "last save wins" behavior
+  - Added API endpoints for user management, invitations, and audit log viewing (Admin-only features)
+  - Updated all employer routes to use multi-user authentication and authorization
+  - Preserved OAuth architecture while adding team workspace functionality
+
 - **2025-06-28**: Fixed app startup crash, pay period duplication, and date override issues
   - Removed undefined cleanupDuplicatePayPeriods method call that was causing startup failure
   - Fixed Drizzle schema syntax error with uniqueIndex definition

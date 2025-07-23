@@ -439,7 +439,7 @@ export class DatabaseStorage implements IStorage {
   async getTimeEntriesByEmployee(employeeId: number, start?: string, end?: string): Promise<TimeEntry[]> {
     const conditions: any[] = [eq(timeEntries.employeeId, employeeId)];
     if (start) conditions.push(gte(timeEntries.timeIn, new Date(start)));
-    if (end) conditions.push(lte(timeEntries.timeIn, new Date(end)));
+    if (end) conditions.push(lte(timeEntries.timeIn, new Date(end + 'T23:59:59')));
     return await db
       .select()
       .from(timeEntries)
@@ -795,7 +795,7 @@ export class DatabaseStorage implements IStorage {
               EXTRACT(EPOCH FROM (time_out + interval '24 hours' - time_in))/3600 - COALESCE(lunch_minutes, 0)/60.0
           END) AS hours
         FROM time_entries
-        WHERE time_in >= $2 AND time_in <= $3
+        WHERE time_in >= $2::date AND time_in < ($3::date + interval '1 day')
           AND employee_id IN (SELECT id FROM employees WHERE employer_id = $1 AND is_active = true)
         GROUP BY employee_id, week
       ),

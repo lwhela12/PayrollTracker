@@ -338,3 +338,44 @@ const handleNavigateToTimecard = (employeeId: number) => {
 - **Use Prefix Matching for Cache Invalidation:** Invalidate React Query caches by passing array keys (not deep objects) so that prefix matches clear all relevant entries.
 
 ---
+
+## Error: Last-Day Pay Period Persistence Issue
+**Date:** July 23, 2025
+**Status:** FIXED
+
+### Problem Description
+User reported that entries for the last date of a pay period don't persist in memory and don't show up on reports, despite appearing to save successfully.
+
+### Root Cause Analysis
+After comprehensive diagnostic including database queries and code analysis:
+- **Database Storage**: Last-day entries ARE being saved correctly to the database
+- **Real Problem**: Date boundary query logic in data retrieval methods excludes last-day entries
+- **Evidence**: Query `lte(timeEntries.timeIn, new Date(end))` excludes any entries after midnight on the end date
+
+### Technical Details
+The issue occurred in two critical retrieval methods:
+1. `getTimeEntriesByEmployee()` - Used for loading timecard form data
+2. Dashboard stats query - Used for generating reports and summary data
+
+Both used improper date boundary comparisons that excluded the full last day of pay periods.
+
+### Solution Applied
+**Fixed Date Boundary Logic:**
+1. **getTimeEntriesByEmployee method (line 445):**
+   - Changed: `lte(timeEntries.timeIn, new Date(end))`  
+   - To: `lte(timeEntries.timeIn, new Date(end + 'T23:59:59'))`
+
+2. **Dashboard stats query (line 801):**
+   - Changed: `WHERE time_in >= $2 AND time_in <= $3`
+   - To: `WHERE time_in >= $2::date AND time_in < ($3::date + interval '1 day')`
+
+### Files Changed
+- `server/storage.ts` (lines 445, 801)
+
+### Test Required
+Verify that:
+1. Last-day timecard entries now appear in timecard forms
+2. Last-day entries are included in reports and dashboard summaries
+3. Pay period boundaries work correctly for all dates
+
+---

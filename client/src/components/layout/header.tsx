@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 
 interface HeaderProps {
   title: string;
@@ -52,6 +53,7 @@ export function Header({
   onGenerateReports,
 }: HeaderProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [, navigate] = useLocation();
 
   const deleteAccountMutation = useMutation({
     mutationFn: async () => {
@@ -84,6 +86,15 @@ export function Header({
   const confirmDeleteAccount = () => {
     deleteAccountMutation.mutate();
     setShowDeleteDialog(false);
+  };
+
+  const handleProfileClick = () => {
+    // For now, just navigate to settings since we don't have a separate profile page
+    navigate("/settings");
+  };
+
+  const handleSettingsClick = () => {
+    navigate("/settings");
   };
 
   const { employerId, setEmployerId } = useCompany();
@@ -165,11 +176,11 @@ export function Header({
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem className="cursor-pointer">
+              <DropdownMenuItem onClick={handleProfileClick} className="cursor-pointer">
                 <User className="h-4 w-4 mr-2" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">
+              <DropdownMenuItem onClick={handleSettingsClick} className="cursor-pointer">
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </DropdownMenuItem>

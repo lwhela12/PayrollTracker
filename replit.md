@@ -11,13 +11,15 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
-- **2025-07-29**: Implemented true workspace duplication for invited users
-  - **BREAKING CHANGE**: Invited users now get access to ALL companies the inviting user has access to
-  - When someone accepts an invitation, they automatically receive Admin access to every company the inviter can access
-  - Enhanced auto-acceptance logic to grant multi-company access during login
-  - Removed role selection system - all team members have identical workspace access
-  - Updated invitation UI to clearly indicate full workspace sharing
-  - Fixed dashboard authentication and cleaned up problematic user data for testing
+- **2025-07-29**: Implemented comprehensive role-based access control system
+  - **NEW FEATURE**: Two-tier role system with Admin and Employee access levels
+  - Admin users: Full access to team management, activity logs, user invitations, and all standard features
+  - Employee users: Standard access to employees, timecards, reports - no team management or activity logs
+  - Fixed auto-acceptance logic to respect invited roles instead of hardcoding Admin access
+  - Enhanced Settings UI with role-based tab visibility and user management controls
+  - Added role editing functionality allowing admins to upgrade/downgrade user access levels
+  - Removed redundant multi-company invitation checkbox for cleaner interface
+  - Role badges and edit controls now properly reflect user permissions
 
 - **2025-07-29**: Enhanced multi-company invitation system with flexible company selection
   - Implemented multi-company invitation API allowing admins to invite users to multiple companies at once

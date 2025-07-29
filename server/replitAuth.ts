@@ -83,10 +83,10 @@ async function upsertUser(
             await storage.addUserToEmployer({
               userId: claims["sub"],
               employerId: company.employerId,
-              role: 'Admin',
+              role: invitation.role, // Use the role from the invitation instead of hardcoded 'Admin'
               invitedBy: invitation.invitedBy
             });
-            console.log(`Granted access to company ${company.employerId} for user ${claims["email"]}`);
+            console.log(`Granted ${invitation.role} access to company ${company.employerId} for user ${claims["email"]}`);
           }
         }
       } catch (error) {

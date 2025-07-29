@@ -308,7 +308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email,
           employerId: company.employerId,
           invitedBy: userId,
-          role: company.role || 'Employee',
+          role: 'Admin', // All invited users get Admin access (full access except activity log)
           expiresAt
         });
 
@@ -357,7 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email,
         employerId,
         invitedBy: userId,
-        role,
+        role: 'Admin', // All invited users get Admin access (full access except activity log)
         expiresAt
       });
 

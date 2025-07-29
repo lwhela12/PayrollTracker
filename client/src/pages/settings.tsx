@@ -32,7 +32,7 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const { employerId } = useCompany();
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("Employee");
+  const [inviteRole, setInviteRole] = useState("Admin");
   const [selectedCompanies, setSelectedCompanies] = useState<any[]>([]);
   const [useMultiCompany, setUseMultiCompany] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
@@ -320,27 +320,18 @@ export default function Settings() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant={member.role === 'Admin' ? 'default' : 'secondary'}>
+                            <Badge variant="default">
                               <Shield className="h-3 w-3 mr-1" />
-                              {member.role}
+                              Full Access
                             </Badge>
                             {isAdmin && (member.user?.id !== user?.id && member.userId !== user?.id) && (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditRole(member)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleRemoveUser(member)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRemoveUser(member)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             )}
                           </div>
                         </div>
@@ -374,16 +365,18 @@ export default function Settings() {
                           </div>
                           {!useMultiCompany && (
                             <div>
-                              <Label htmlFor="role">Role</Label>
-                              <Select value={inviteRole} onValueChange={setInviteRole}>
+                              <Label htmlFor="role">Access Level</Label>
+                              <Select value={inviteRole} onValueChange={setInviteRole} disabled>
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="Employee">Employee</SelectItem>
-                                  <SelectItem value="Admin">Admin</SelectItem>
+                                  <SelectItem value="Admin">Full Access</SelectItem>
                                 </SelectContent>
                               </Select>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Invited users get full workspace access (same as yours)
+                              </p>
                             </div>
                           )}
                         </div>
@@ -424,7 +417,7 @@ export default function Settings() {
                                         checked={isSelected}
                                         onChange={(e) => {
                                           if (e.target.checked) {
-                                            toggleCompanySelection(company, 'Employee');
+                                            toggleCompanySelection(company, 'Admin');
                                           } else {
                                             setSelectedCompanies(prev => prev.filter(c => c.employerId !== company.id));
                                           }
@@ -435,15 +428,14 @@ export default function Settings() {
                                     </div>
                                     {isSelected && (
                                       <Select 
-                                        value={selectedCompany?.role || 'Employee'}
+                                        value={selectedCompany?.role || 'Admin'}
                                         onValueChange={(role) => toggleCompanySelection(company, role)}
                                       >
                                         <SelectTrigger className="w-32">
                                           <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                          <SelectItem value="Employee">Employee</SelectItem>
-                                          <SelectItem value="Admin">Admin</SelectItem>
+                                          <SelectItem value="Admin">Full Access</SelectItem>
                                         </SelectContent>
                                       </Select>
                                     )}
@@ -573,38 +565,7 @@ export default function Settings() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Edit Role Dialog */}
-      <AlertDialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Edit User Role</AlertDialogTitle>
-            <AlertDialogDescription>
-              Change the role for {editingUser?.userEmail || editingUser?.user?.email}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4">
-            <Label htmlFor="editRole">Role</Label>
-            <Select value={editingRole} onValueChange={setEditingRole}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Employee">Employee</SelectItem>
-                <SelectItem value="Admin">Admin</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmRoleUpdate}
-              disabled={updateUserRoleMutation.isPending || !editingRole}
-            >
-              {updateUserRoleMutation.isPending ? "Updating..." : "Update Role"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </div>
   );
 }

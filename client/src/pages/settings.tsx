@@ -257,19 +257,24 @@ export default function Settings() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                {/* Show role badges for each company or fallback to single role */}
+                                {/* Show consolidated role badges */}
                                 {member.companies && member.companies.length > 0 ? (
                                   <div className="flex flex-wrap gap-1">
-                                    {member.companies.map((company: any, idx: number) => (
-                                      <Badge 
-                                        key={idx} 
-                                        variant={company.role === 'Admin' ? 'default' : 'secondary'}
-                                        className="text-xs"
-                                      >
-                                        <Shield className="h-2 w-2 mr-1" />
-                                        {company.role}
-                                      </Badge>
-                                    ))}
+                                    {/* Get unique roles across all companies */}
+                                    {Array.from(new Set(member.companies.map((c: any) => c.role))).map((role: string) => {
+                                      const count = member.companies.filter((c: any) => c.role === role).length;
+                                      return (
+                                        <Badge 
+                                          key={role} 
+                                          variant={role === 'Admin' ? 'default' : 'secondary'}
+                                          className="text-xs"
+                                        >
+                                          <Shield className="h-2 w-2 mr-1" />
+                                          {role}
+                                          {count > 1 && ` (${count})`}
+                                        </Badge>
+                                      );
+                                    })}
                                   </div>
                                 ) : (
                                   <Badge variant={member.role === 'Admin' ? 'default' : 'secondary'}>
@@ -390,18 +395,23 @@ export default function Settings() {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  {/* Show role badges for each company or fallback to single role */}
+                                  {/* Show consolidated role badges for invitations */}
                                   {invitation.companies && invitation.companies.length > 0 ? (
                                     <div className="flex flex-wrap gap-1">
-                                      {invitation.companies.map((company: any, idx: number) => (
-                                        <Badge 
-                                          key={idx} 
-                                          variant="outline"
-                                          className="text-xs"
-                                        >
-                                          {company.role}
-                                        </Badge>
-                                      ))}
+                                      {/* Get unique roles across all companies */}
+                                      {Array.from(new Set(invitation.companies.map((c: any) => c.role))).map((role: string) => {
+                                        const count = invitation.companies.filter((c: any) => c.role === role).length;
+                                        return (
+                                          <Badge 
+                                            key={role} 
+                                            variant="outline"
+                                            className="text-xs"
+                                          >
+                                            {role}
+                                            {count > 1 && ` (${count})`}
+                                          </Badge>
+                                        );
+                                      })}
                                     </div>
                                   ) : (
                                     <Badge variant="outline">

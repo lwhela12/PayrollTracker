@@ -385,11 +385,11 @@ export default function Settings() {
                                   <span className="font-medium">{log.userEmail}</span> {log.action.replace(/_/g, ' ')}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {new Date(log.timestamp).toLocaleString()}
+                                  {new Date(log.createdAt).toLocaleString()}
                                 </p>
                                 {log.details && (
                                   <p className="text-xs text-muted-foreground mt-1">
-                                    {JSON.stringify(log.details)}
+                                    {typeof log.details === 'string' ? log.details : JSON.stringify(log.details, null, 2)}
                                   </p>
                                 )}
                               </div>

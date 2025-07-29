@@ -395,10 +395,21 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getAuditLogsByEmployer(employerId: number, limit: number = 100): Promise<AuditLog[]> {
+  async getAuditLogsByEmployer(employerId: number, limit: number = 100): Promise<any[]> {
     return await db
-      .select()
+      .select({
+        id: auditLogs.id,
+        userId: auditLogs.userId,
+        employerId: auditLogs.employerId,
+        action: auditLogs.action,
+        resourceType: auditLogs.resourceType,
+        resourceId: auditLogs.resourceId,
+        details: auditLogs.details,
+        createdAt: auditLogs.createdAt,
+        userEmail: users.email
+      })
       .from(auditLogs)
+      .leftJoin(users, eq(auditLogs.userId, users.id))
       .where(eq(auditLogs.employerId, employerId))
       .orderBy(desc(auditLogs.createdAt))
       .limit(limit);

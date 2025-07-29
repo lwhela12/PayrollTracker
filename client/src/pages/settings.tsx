@@ -45,16 +45,16 @@ export default function Settings() {
 
   const employer = employers[0];
 
-  // Fetch team members
+  // Fetch global team members across all companies
   const { data: teamMembers = [] } = useQuery<any[]>({
-    queryKey: [`/api/employers/${employerId}/users`],
-    enabled: !!employerId,
+    queryKey: ['/api/team/users'],
+    enabled: !!user,
   });
 
-  // Fetch pending invitations
+  // Fetch global pending invitations across all companies
   const { data: invitations = [] } = useQuery<any[]>({
-    queryKey: [`/api/employers/${employerId}/invitations`],
-    enabled: !!employerId,
+    queryKey: ['/api/team/invitations'],
+    enabled: !!user,
   });
 
   // Fetch audit log
@@ -63,11 +63,14 @@ export default function Settings() {
     enabled: !!employerId,
   });
 
-  // Get current user's role
-  const currentUserRole = (teamMembers as any[]).find((member: any) => 
+  // Get current user's role (check if admin in any company)
+  const currentUser = (teamMembers as any[]).find((member: any) => 
     (member.user?.id === user?.id) || (member.userId === user?.id)
-  )?.role;
-  const isAdmin = currentUserRole === 'Admin';
+  );
+  
+  // User is admin if they have admin role in any company
+  const isAdmin = currentUser?.companies?.some((company: any) => company.role === 'Admin') || 
+                 currentUser?.role === 'Admin';
 
   // Single-company invite mutation
   const inviteUserMutation = useMutation({
@@ -82,8 +85,8 @@ export default function Settings() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}/users`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}/invitations`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/team/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/team/invitations'] });
       setInviteEmail("");
       setInviteRole("Admin");
       toast({ title: "Success", description: "Invitation sent successfully" });
@@ -108,7 +111,7 @@ export default function Settings() {
       return response.json();
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}/users`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/team/users'] });
       setShowRemoveDialog(false);
       setUserToRemove(null);
       const message = data.companiesRemoved > 1 
@@ -138,7 +141,7 @@ export default function Settings() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}/users`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/team/users'] });
       setEditingUser(null);
       setEditingRole("");
       toast({ title: "Success", description: "User role updated successfully" });
@@ -230,8 +233,11 @@ export default function Settings() {
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <Users className="h-5 w-5" />
-                          Team Members
+                          Global Team Members
                         </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          All users across all companies in your workspace
+                        </p>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
@@ -243,13 +249,34 @@ export default function Settings() {
                                   <p className="text-sm text-muted-foreground">
                                     Joined {new Date(member.joinedAt).toLocaleDateString()}
                                   </p>
+                                  {member.companies && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Access to {member.companies.length} compan{member.companies.length === 1 ? 'y' : 'ies'}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Badge variant={member.role === 'Admin' ? 'default' : 'secondary'}>
-                                  <Shield className="h-3 w-3 mr-1" />
-                                  {member.role}
-                                </Badge>
+                                {/* Show role badges for each company or fallback to single role */}
+                                {member.companies ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {member.companies.map((company: any, idx: number) => (
+                                      <Badge 
+                                        key={idx} 
+                                        variant={company.role === 'Admin' ? 'default' : 'secondary'}
+                                        className="text-xs"
+                                      >
+                                        <Shield className="h-2 w-2 mr-1" />
+                                        {company.role}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <Badge variant={member.role === 'Admin' ? 'default' : 'secondary'}>
+                                    <Shield className="h-3 w-3 mr-1" />
+                                    {member.role}
+                                  </Badge>
+                                )}
                                 {isAdmin && (member.user?.id !== user?.id && member.userId !== user?.id) && (
                                   <>
                                     <Button
@@ -340,8 +367,11 @@ export default function Settings() {
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2">
                             <Mail className="h-5 w-5" />
-                            Pending Invitations
+                            Global Pending Invitations
                           </CardTitle>
+                          <p className="text-sm text-muted-foreground">
+                            Invitations pending across all companies
+                          </p>
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
@@ -353,10 +383,32 @@ export default function Settings() {
                                     Invited {new Date(invitation.createdAt).toLocaleDateString()} • 
                                     Expires {new Date(invitation.expiresAt).toLocaleDateString()}
                                   </p>
+                                  {invitation.companies && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Invited to {invitation.companies.length} compan{invitation.companies.length === 1 ? 'y' : 'ies'}
+                                    </p>
+                                  )}
                                 </div>
-                                <Badge variant="outline">
-                                  {invitation.role}
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  {/* Show role badges for each company or fallback to single role */}
+                                  {invitation.companies ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {invitation.companies.map((company: any, idx: number) => (
+                                        <Badge 
+                                          key={idx} 
+                                          variant="outline"
+                                          className="text-xs"
+                                        >
+                                          {company.role}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <Badge variant="outline">
+                                      {invitation.role}
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>

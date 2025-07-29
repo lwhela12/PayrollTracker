@@ -271,6 +271,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all team members across all companies the current user has access to
+  app.get('/api/team/users', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get all employers the current user has access to
+      const userEmployers = await storage.getEmployersByUser(userId);
+      
+      if (userEmployers.length === 0) {
+        return res.json([]);
+      }
+
+      // Get unique users across all companies (remove duplicates)
+      const allUsersMap = new Map();
+      
+      for (const employer of userEmployers) {
+        const users = await storage.getUsersByEmployer(employer.id);
+        users.forEach(user => {
+          const userId = user.user.id;
+          if (!allUsersMap.has(userId)) {
+            // Add company information to track which companies this user has access to
+            allUsersMap.set(userId, {
+              ...user,
+              companies: [{ id: employer.id, name: employer.name, role: user.role }]
+            });
+          } else {
+            // Add this company to the user's company list
+            const existingUser = allUsersMap.get(userId);
+            existingUser.companies.push({ id: employer.id, name: employer.name, role: user.role });
+          }
+        });
+      }
+
+      const globalUsers = Array.from(allUsersMap.values());
+      res.json(globalUsers);
+    } catch (error) {
+      console.error("Error fetching global team users:", error);
+      res.status(500).json({ message: "Failed to fetch team users" });
+    }
+  });
+
   // Invite user to multiple employers (Admin only)
   app.post('/api/invite-multi-company', isAuthenticated, async (req: any, res) => {
     try {
@@ -395,6 +436,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching invitations:", error);
       res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+
+  // Get all pending invitations across all companies the current user has admin access to
+  app.get('/api/team/invitations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get all employers where the current user is an admin
+      const userEmployers = await storage.getEmployersByUser(userId);
+      const adminEmployers = [];
+      
+      for (const employer of userEmployers) {
+        const userRole = await getUserRoleForEmployer(userId, employer.id);
+        if (userRole === 'Admin') {
+          adminEmployers.push(employer);
+        }
+      }
+      
+      if (adminEmployers.length === 0) {
+        return res.json([]);
+      }
+
+      // Get unique invitations across all companies (remove duplicates by email)
+      const allInvitationsMap = new Map();
+      
+      for (const employer of adminEmployers) {
+        const invitations = await storage.getPendingInvitationsByEmployer(employer.id);
+        invitations.forEach(invitation => {
+          const email = invitation.email;
+          if (!allInvitationsMap.has(email)) {
+            // Add company information to track which companies this invitation is for
+            allInvitationsMap.set(email, {
+              ...invitation,
+              companies: [{ id: employer.id, name: employer.name, role: invitation.role }]
+            });
+          } else {
+            // Add this company to the invitation's company list
+            const existingInvitation = allInvitationsMap.get(email);
+            existingInvitation.companies.push({ id: employer.id, name: employer.name, role: invitation.role });
+          }
+        });
+      }
+
+      const globalInvitations = Array.from(allInvitationsMap.values());
+      res.json(globalInvitations);
+    } catch (error) {
+      console.error("Error fetching global team invitations:", error);
+      res.status(500).json({ message: "Failed to fetch team invitations" });
     }
   });
 

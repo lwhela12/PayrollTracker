@@ -11,6 +11,14 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
+- **2025-07-29**: Implemented global team management view
+  - **ARCHITECTURAL CHANGE**: Team management now shows global view of users across all companies instead of company-specific view
+  - Added new backend endpoints `/api/team/users` and `/api/team/invitations` for global data retrieval
+  - Users are displayed with company access information and role badges for each company
+  - Invitations show global pending status across all companies
+  - Admin access determination now checks if user has admin role in any company
+  - Consistent with system design where invitations add to all companies and deletion removes from all companies
+
 - **2025-07-29**: Fixed critical security issue with user deletion system
   - **SECURITY FIX**: User deletion now removes users from ALL companies, not just one company
   - Previously deleted users could still access other companies they had been invited to

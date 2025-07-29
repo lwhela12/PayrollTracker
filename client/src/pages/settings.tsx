@@ -44,19 +44,19 @@ export default function Settings() {
   const employer = employers[0];
 
   // Fetch team members
-  const { data: teamMembers = [] } = useQuery({
+  const { data: teamMembers = [] } = useQuery<any[]>({
     queryKey: [`/api/employers/${employerId}/users`],
     enabled: !!employerId,
   });
 
   // Fetch pending invitations
-  const { data: invitations = [] } = useQuery({
+  const { data: invitations = [] } = useQuery<any[]>({
     queryKey: [`/api/employers/${employerId}/invitations`],
     enabled: !!employerId,
   });
 
   // Fetch audit log
-  const { data: auditLog = [] } = useQuery({
+  const { data: auditLog = [] } = useQuery<any[]>({
     queryKey: [`/api/employers/${employerId}/audit-log`],
     enabled: !!employerId,
   });
@@ -68,10 +68,14 @@ export default function Settings() {
   // Invite user mutation
   const inviteUserMutation = useMutation({
     mutationFn: async (data: { email: string; role: string }) => {
-      return apiRequest(`/api/employers/${employerId}/invite`, {
+      const response = await fetch(`/api/employers/${employerId}/invite`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}/users`] });
@@ -92,9 +96,12 @@ export default function Settings() {
   // Remove user mutation
   const removeUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return apiRequest(`/api/employers/${employerId}/users/${userId}`, {
+      const response = await fetch(`/api/employers/${employerId}/users/${userId}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}/users`] });

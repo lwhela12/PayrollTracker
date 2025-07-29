@@ -681,8 +681,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const payPeriodData = insertPayPeriodSchema.parse(req.body);
 
-      // Verify employer access
-      if (!(await hasAccessToEmployer(req.user.claims.sub, payPeriodData.employerId))) {
+      // Verify employer ownership
+      const employer = await storage.getEmployer(payPeriodData.employerId);
+      if (!employer || !(await hasAccessToEmployer(req.user.claims.sub, employerId || payPeriodData.employerId || payPeriod.employerId || employee.employerId))) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -701,8 +702,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const employerId = parseInt(req.params.employerId);
 
-      // Verify employer access
-      if (!(await hasAccessToEmployer(req.user.claims.sub, employerId))) {
+      // Verify employer ownership
+      const employer = await storage.getEmployer(employerId);
+      if (!employer || !(await hasAccessToEmployer(req.user.claims.sub, employerId || payPeriodData.employerId || payPeriod.employerId || employee.employerId))) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -719,8 +721,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employerId = parseInt(req.params.employerId);
       const date = req.query.date ? new Date(req.query.date as string) : new Date();
 
-      // Verify employer access
-      if (!(await hasAccessToEmployer(req.user.claims.sub, employerId))) {
+      // Verify employer ownership
+      const employer = await storage.getEmployer(employerId);
+      if (!employer || !(await hasAccessToEmployer(req.user.claims.sub, employerId || payPeriodData.employerId || payPeriod.employerId || employee.employerId))) {
         return res.status(403).json({ message: "Access denied" });
       }
 

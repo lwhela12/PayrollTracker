@@ -265,7 +265,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Invite user to employer (Admin only)
+  // Invite user to multiple employers (Admin only)
+  app.post('/api/invite-multi-company', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { email, companies } = req.body; // companies: [{ employerId, role }]
+
+      if (!companies || !Array.isArray(companies) || companies.length === 0) {
+        return res.status(400).json({ message: "At least one company must be selected" });
+      }
+
+      // Verify user has admin access to all selected companies
+      for (const company of companies) {
+        if (!(await hasAccessToEmployer(userId, company.employerId))) {
+          return res.status(404).json({ message: `Access denied to company ${company.employerId}` });
+        }
+        
+        const userRole = await getUserRoleForEmployer(userId, company.employerId);
+        if (userRole !== 'Admin') {
+          return res.status(403).json({ message: `Admin access required for company ${company.employerId}` });
+        }
+      }
+
+      // Create invitations for each company
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+      
+      const invitations = [];
+      const skipped = [];
+
+      for (const company of companies) {
+        // Check if user is already invited or has access
+        const existingInvite = await storage.getPendingInvitationByEmail(email, company.employerId);
+        // Note: We'll check for existing access when the user logs in
+        
+        if (existingInvite) {
+          skipped.push({ employerId: company.employerId, reason: 'Already invited' });
+          continue;
+        }
+
+        const invitation = await storage.createInvitation({
+          email,
+          employerId: company.employerId,
+          invitedBy: userId,
+          role: company.role || 'Employee',
+          expiresAt
+        });
+
+        invitations.push(invitation);
+        await logUserAction(userId, company.employerId, 'invited_user', 'invitation', invitation.id, { email, role: company.role });
+      }
+
+      res.json({ 
+        message: `Invitation sent successfully to ${invitations.length} companies`, 
+        invitations,
+        skipped 
+      });
+    } catch (error) {
+      console.error("Error creating multi-company invitation:", error);
+      res.status(500).json({ message: "Failed to send invitation" });
+    }
+  });
+
+  // Invite user to employer (Admin only) - Legacy single company endpoint
   app.post('/api/employers/:id/invite', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

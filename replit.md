@@ -11,6 +11,14 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
+- **2025-07-29**: Enhanced multi-company invitation system with flexible company selection
+  - Implemented multi-company invitation API allowing admins to invite users to multiple companies at once
+  - Added intelligent UI that shows company selection when user has access to multiple companies
+  - Each company invitation can have different roles (e.g., Admin at Company A, Employee at Company B)
+  - Maintains backward compatibility with single-company invitations
+  - Added company-specific role management and cross-company user administration
+  - Enhanced invitation system handles duplicate prevention and provides detailed feedback
+
 - **2025-07-23**: Implemented multi-user access with admin/employee roles, invitation system, and audit logging
   - Added junction table architecture for user-employer relationships allowing team collaboration
   - Implemented role-based permissions: Admin (full access) and Employee (standard operations)

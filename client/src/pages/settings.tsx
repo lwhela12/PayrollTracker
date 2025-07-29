@@ -33,6 +33,8 @@ export default function Settings() {
   const { employerId } = useCompany();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Employee");
+  const [selectedCompanies, setSelectedCompanies] = useState<any[]>([]);
+  const [useMultiCompany, setUseMultiCompany] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [userToRemove, setUserToRemove] = useState<any>(null);
 
@@ -62,7 +64,7 @@ export default function Settings() {
   });
 
   // Get current user's role
-  const currentUserRole = teamMembers.find((member: any) => 
+  const currentUserRole = (teamMembers as any[]).find((member: any) => 
     member.user?.id === user?.id || member.userId === user?.id
   )?.role;
   const isAdmin = currentUserRole === 'Admin';
@@ -73,7 +75,45 @@ export default function Settings() {
   // console.log('Current User Role:', currentUserRole);
   // console.log('Is Admin:', isAdmin);
 
-  // Invite user mutation
+  // Multi-company invite mutation
+  const inviteMultiCompanyMutation = useMutation({
+    mutationFn: async (data: { email: string; companies: any[] }) => {
+      const response = await fetch(`/api/invite-multi-company`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Invalidate queries for all companies
+      selectedCompanies.forEach(company => {
+        queryClient.invalidateQueries({ queryKey: [`/api/employers/${company.employerId}/users`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/employers/${company.employerId}/invitations`] });
+      });
+      setInviteEmail("");
+      setInviteRole("Employee");
+      setSelectedCompanies([]);
+      setUseMultiCompany(false);
+      
+      const message = data.skipped?.length > 0 
+        ? `Invitation sent to ${data.invitations?.length || 0} companies. ${data.skipped.length} skipped (already invited).`
+        : "Invitation sent successfully";
+      
+      toast({ title: "Success", description: message });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to send invitation",
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Single-company invite mutation (legacy)
   const inviteUserMutation = useMutation({
     mutationFn: async (data: { email: string; role: string }) => {
       const response = await fetch(`/api/employers/${employerId}/invite`, {
@@ -135,7 +175,27 @@ export default function Settings() {
   const handleInviteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
-    inviteUserMutation.mutate({ email: inviteEmail, role: inviteRole });
+    
+    if (useMultiCompany && selectedCompanies.length > 0) {
+      inviteMultiCompanyMutation.mutate({ 
+        email: inviteEmail, 
+        companies: selectedCompanies 
+      });
+    } else {
+      // Default to current company if no multi-company selection
+      inviteUserMutation.mutate({ email: inviteEmail, role: inviteRole });
+    }
+  };
+
+  const toggleCompanySelection = (company: any, role: string) => {
+    setSelectedCompanies(prev => {
+      const existing = prev.find(c => c.employerId === company.id);
+      if (existing) {
+        return prev.filter(c => c.employerId !== company.id);
+      } else {
+        return [...prev, { employerId: company.id, role, companyName: company.name }];
+      }
+    });
   };
 
   const handleRemoveUser = (user: any) => {
@@ -239,8 +299,8 @@ export default function Settings() {
                     </CardHeader>
                     <CardContent>
                       <form onSubmit={handleInviteSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="md:col-span-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
                             <Label htmlFor="email">Email Address</Label>
                             <Input
                               id="email"
@@ -251,21 +311,101 @@ export default function Settings() {
                               required
                             />
                           </div>
-                          <div>
-                            <Label htmlFor="role">Role</Label>
-                            <Select value={inviteRole} onValueChange={setInviteRole}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Employee">Employee</SelectItem>
-                                <SelectItem value="Admin">Admin</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          {!useMultiCompany && (
+                            <div>
+                              <Label htmlFor="role">Role</Label>
+                              <Select value={inviteRole} onValueChange={setInviteRole}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Employee">Employee</SelectItem>
+                                  <SelectItem value="Admin">Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
                         </div>
-                        <Button type="submit" disabled={inviteUserMutation.isPending}>
-                          {inviteUserMutation.isPending ? "Sending..." : "Send Invitation"}
+
+                        {/* Multi-company toggle */}
+                        {employers && employers.length > 1 && (
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="multiCompany"
+                              checked={useMultiCompany}
+                              onChange={(e) => {
+                                setUseMultiCompany(e.target.checked);
+                                if (!e.target.checked) setSelectedCompanies([]);
+                              }}
+                              className="rounded"
+                            />
+                            <Label htmlFor="multiCompany">
+                              Invite to multiple companies
+                            </Label>
+                          </div>
+                        )}
+
+                        {/* Company selection */}
+                        {useMultiCompany && (
+                          <div className="space-y-3">
+                            <Label>Select Companies & Roles</Label>
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                              {employers.map((company: any) => {
+                                const isSelected = selectedCompanies.some(c => c.employerId === company.id);
+                                const selectedCompany = selectedCompanies.find(c => c.employerId === company.id);
+                                
+                                return (
+                                  <div key={company.id} className="flex items-center justify-between p-2 border rounded">
+                                    <div className="flex items-center space-x-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            toggleCompanySelection(company, 'Employee');
+                                          } else {
+                                            setSelectedCompanies(prev => prev.filter(c => c.employerId !== company.id));
+                                          }
+                                        }}
+                                        className="rounded"
+                                      />
+                                      <span className="font-medium">{company.name}</span>
+                                    </div>
+                                    {isSelected && (
+                                      <Select 
+                                        value={selectedCompany?.role || 'Employee'}
+                                        onValueChange={(role) => toggleCompanySelection(company, role)}
+                                      >
+                                        <SelectTrigger className="w-32">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="Employee">Employee</SelectItem>
+                                          <SelectItem value="Admin">Admin</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        <Button 
+                          type="submit" 
+                          disabled={
+                            (useMultiCompany ? inviteMultiCompanyMutation.isPending : inviteUserMutation.isPending) ||
+                            (useMultiCompany && selectedCompanies.length === 0)
+                          }
+                        >
+                          {useMultiCompany ? inviteMultiCompanyMutation.isPending : inviteUserMutation.isPending 
+                            ? "Sending..." 
+                            : useMultiCompany 
+                              ? `Send Invitation to ${selectedCompanies.length} Companies`
+                              : "Send Invitation"
+                          }
                         </Button>
                       </form>
                     </CardContent>

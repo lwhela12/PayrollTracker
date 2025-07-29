@@ -62,8 +62,16 @@ export default function Settings() {
   });
 
   // Get current user's role
-  const currentUserRole = teamMembers.find((member: any) => member.userId === user?.id)?.role;
+  const currentUserRole = teamMembers.find((member: any) => 
+    member.user?.id === user?.id || member.userId === user?.id
+  )?.role;
   const isAdmin = currentUserRole === 'Admin';
+
+  // Debug logging (remove in production)
+  // console.log('User ID:', user?.id);
+  // console.log('Team Members:', teamMembers);
+  // console.log('Current User Role:', currentUserRole);
+  // console.log('Is Admin:', isAdmin);
 
   // Invite user mutation
   const inviteUserMutation = useMutation({
@@ -204,7 +212,7 @@ export default function Settings() {
                               <Shield className="h-3 w-3 mr-1" />
                               {member.role}
                             </Badge>
-                            {isAdmin && member.userId !== user?.id && (
+                            {isAdmin && member.user?.id !== user?.id && (
                               <Button
                                 variant="outline"
                                 size="sm"

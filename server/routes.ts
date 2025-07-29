@@ -1262,10 +1262,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Dashboard stats endpoint
 
-app.get("/api/dashboard/stats/:employerId", async (req, res) => {
+app.get("/api/dashboard/stats/:employerId", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const employerId = parseInt(req.params.employerId);
       const payPeriodId = req.query.payPeriodId ? parseInt(req.query.payPeriodId as string) : null;
+
+      // Verify user has access to this employer
+      if (!(await hasAccessToEmployer(userId, employerId))) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
 
       // Get the current or specified pay period
       let payPeriod;

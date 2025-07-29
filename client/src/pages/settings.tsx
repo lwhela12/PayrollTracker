@@ -234,7 +234,16 @@ export default function Settings() {
 
   const confirmRemoveUser = () => {
     if (userToRemove) {
-      removeUserMutation.mutate(userToRemove.userId);
+      const userId = userToRemove.userId || userToRemove.user?.id;
+      if (userId) {
+        removeUserMutation.mutate(userId);
+      } else {
+        toast({ 
+          title: "Error", 
+          description: "Unable to identify user ID",
+          variant: "destructive" 
+        });
+      }
     }
   };
 

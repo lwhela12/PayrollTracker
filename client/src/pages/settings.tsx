@@ -258,7 +258,7 @@ export default function Settings() {
                               </div>
                               <div className="flex items-center gap-2">
                                 {/* Show role badges for each company or fallback to single role */}
-                                {member.companies ? (
+                                {member.companies && member.companies.length > 0 ? (
                                   <div className="flex flex-wrap gap-1">
                                     {member.companies.map((company: any, idx: number) => (
                                       <Badge 
@@ -391,7 +391,7 @@ export default function Settings() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   {/* Show role badges for each company or fallback to single role */}
-                                  {invitation.companies ? (
+                                  {invitation.companies && invitation.companies.length > 0 ? (
                                     <div className="flex flex-wrap gap-1">
                                       {invitation.companies.map((company: any, idx: number) => (
                                         <Badge 

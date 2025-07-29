@@ -11,13 +11,13 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
-- **2025-07-29**: Simplified invitation system to provide full workspace access
-  - **BREAKING CHANGE**: All invited users now receive full Admin access (same as workspace owner)
-  - Removed role selection system - all team members have identical access except Activity Log viewing
-  - Cleaned up problematic user data and completely removed confused multi-role access
-  - Fixed dashboard authentication to properly verify user access to companies
-  - Streamlined team management UI by removing role editing (all users are Admin)
-  - Deleted problematic test users (lucas.whelan@gmail.com, infinitextpublishing@gmail.com) for clean testing
+- **2025-07-29**: Implemented true workspace duplication for invited users
+  - **BREAKING CHANGE**: Invited users now get access to ALL companies the inviting user has access to
+  - When someone accepts an invitation, they automatically receive Admin access to every company the inviter can access
+  - Enhanced auto-acceptance logic to grant multi-company access during login
+  - Removed role selection system - all team members have identical workspace access
+  - Updated invitation UI to clearly indicate full workspace sharing
+  - Fixed dashboard authentication and cleaned up problematic user data for testing
 
 - **2025-07-29**: Enhanced multi-company invitation system with flexible company selection
   - Implemented multi-company invitation API allowing admins to invite users to multiple companies at once

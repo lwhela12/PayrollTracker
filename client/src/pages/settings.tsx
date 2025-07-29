@@ -346,10 +346,15 @@ export default function Settings() {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Plus className="h-5 w-5" />
-                        Invite Team Member
+                        Invite Team Member (Full Access)
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          <strong>Note:</strong> Invited users will get access to ALL companies you have access to: Test, Noy
+                        </p>
+                      </div>
                       <form onSubmit={handleInviteSubmit} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
@@ -375,7 +380,7 @@ export default function Settings() {
                                 </SelectContent>
                               </Select>
                               <p className="text-xs text-muted-foreground mt-1">
-                                Invited users get full workspace access (same as yours)
+                                Invited users get access to ALL companies you have access to
                               </p>
                             </div>
                           )}

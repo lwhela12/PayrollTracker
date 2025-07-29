@@ -73,6 +73,22 @@ async function upsertUser(
       try {
         await storage.acceptInvitation(invitation.id, claims["sub"]);
         console.log(`Auto-accepted invitation ${invitation.id} for user ${claims["email"]} to company ${invitation.employerId}`);
+        
+        // Grant access to ALL companies that the inviting user has access to
+        const invitingUserCompanies = await storage.getUserEmployers(invitation.invitedBy);
+        for (const company of invitingUserCompanies) {
+          // Skip if already has access to this company
+          const existingAccess = await storage.getUserEmployer(claims["sub"], company.employerId);
+          if (!existingAccess) {
+            await storage.addUserToEmployer({
+              userId: claims["sub"],
+              employerId: company.employerId,
+              role: 'Admin',
+              invitedBy: invitation.invitedBy
+            });
+            console.log(`Granted access to company ${company.employerId} for user ${claims["email"]}`);
+          }
+        }
       } catch (error) {
         console.error(`Failed to auto-accept invitation ${invitation.id}:`, error);
       }

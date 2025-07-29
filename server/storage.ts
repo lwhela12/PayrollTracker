@@ -71,6 +71,7 @@ export interface IStorage {
   getUsersByEmployer(employerId: number): Promise<{ user: User; role: string; joinedAt: Date }[]>;
   removeUserFromEmployer(userId: string, employerId: number): Promise<void>;
   updateUserRole(userId: string, employerId: number, role: string): Promise<UserEmployer>;
+  getUserEmployers(userId: string): Promise<UserEmployer[]>;
 
   // Invitation operations
   createInvitation(invitation: InsertPendingInvitation): Promise<PendingInvitation>;
@@ -323,6 +324,13 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(userEmployers.userId, userId), eq(userEmployers.employerId, employerId)))
       .returning();
     return updated;
+  }
+
+  async getUserEmployers(userId: string): Promise<UserEmployer[]> {
+    return await db
+      .select()
+      .from(userEmployers)
+      .where(eq(userEmployers.userId, userId));
   }
 
   // Invitation operations

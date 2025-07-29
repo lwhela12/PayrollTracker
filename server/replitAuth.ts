@@ -64,6 +64,20 @@ async function upsertUser(
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
   });
+
+  // Check for pending invitations and auto-accept them
+  const pendingInvitations = await storage.getPendingInvitationsByEmail(claims["email"]);
+  for (const invitation of pendingInvitations) {
+    // Check if invitation hasn't expired
+    if (new Date(invitation.expiresAt) > new Date()) {
+      try {
+        await storage.acceptInvitation(invitation.id, claims["sub"]);
+        console.log(`Auto-accepted invitation ${invitation.id} for user ${claims["email"]} to company ${invitation.employerId}`);
+      } catch (error) {
+        console.error(`Failed to auto-accept invitation ${invitation.id}:`, error);
+      }
+    }
+  }
 }
 
 export async function setupAuth(app: Express) {

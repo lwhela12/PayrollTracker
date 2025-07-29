@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompany } from "@/context/company";
 import { useState } from "react";
-import { Plus, Trash2, Users, Mail, Shield, Clock } from "lucide-react";
+import { Plus, Trash2, Users, Mail, Shield, Clock, Edit } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import {
   AlertDialog,
@@ -37,6 +37,8 @@ export default function Settings() {
   const [useMultiCompany, setUseMultiCompany] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [userToRemove, setUserToRemove] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editingRole, setEditingRole] = useState<string>("");
 
   const { data: employers = [] } = useQuery<any[]>({
     queryKey: ["/api/employers"],
@@ -166,6 +168,33 @@ export default function Settings() {
     },
   });
 
+  // Update user role mutation
+  const updateUserRoleMutation = useMutation({
+    mutationFn: async (data: { userId: string; role: string }) => {
+      const response = await fetch(`/api/employers/${employerId}/users/${data.userId}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ role: data.role }),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}/users`] });
+      setEditingUser(null);
+      setEditingRole("");
+      toast({ title: "Success", description: "User role updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to update user role",
+        variant: "destructive" 
+      });
+    },
+  });
+
   const handleSuccess = (employer?: any) => {
     queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
     queryClient.invalidateQueries({ queryKey: [`/api/employers/${employer?.id}`] });
@@ -206,6 +235,20 @@ export default function Settings() {
   const confirmRemoveUser = () => {
     if (userToRemove) {
       removeUserMutation.mutate(userToRemove.userId);
+    }
+  };
+
+  const handleEditRole = (user: any) => {
+    setEditingUser(user);
+    setEditingRole(user.role);
+  };
+
+  const confirmRoleUpdate = () => {
+    if (editingUser && editingRole) {
+      updateUserRoleMutation.mutate({ 
+        userId: editingUser.userId || editingUser.user.id, 
+        role: editingRole 
+      });
     }
   };
 
@@ -257,11 +300,11 @@ export default function Settings() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {teamMembers.map((member: any) => (
-                        <div key={member.userId} className="flex items-center justify-between p-3 border rounded-lg">
+                      {(teamMembers as any[]).map((member: any, index: number) => (
+                        <div key={`${member.userId || member.user?.id}-${index}`} className="flex items-center justify-between p-3 border rounded-lg">
                           <div className="flex items-center gap-3">
                             <div>
-                              <p className="font-medium">{member.userEmail}</p>
+                              <p className="font-medium">{member.userEmail || member.user?.email}</p>
                               <p className="text-sm text-muted-foreground">
                                 Joined {new Date(member.joinedAt).toLocaleDateString()}
                               </p>
@@ -272,14 +315,23 @@ export default function Settings() {
                               <Shield className="h-3 w-3 mr-1" />
                               {member.role}
                             </Badge>
-                            {isAdmin && member.user?.id !== user?.id && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleRemoveUser(member)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                            {isAdmin && (member.user?.id !== user?.id && member.userId !== user?.id) && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditRole(member)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRemoveUser(member)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -497,7 +549,7 @@ export default function Settings() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove {userToRemove?.userEmail} from your team? 
+              Are you sure you want to remove {userToRemove?.userEmail || userToRemove?.user?.email} from your team? 
               This action cannot be undone and they will lose access to the company data.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -507,6 +559,39 @@ export default function Settings() {
             </AlertDialogCancel>
             <AlertDialogAction onClick={confirmRemoveUser}>
               Remove Member
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Role Dialog */}
+      <AlertDialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Edit User Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Change the role for {editingUser?.userEmail || editingUser?.user?.email}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="editRole">Role</Label>
+            <Select value={editingRole} onValueChange={setEditingRole}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Employee">Employee</SelectItem>
+                <SelectItem value="Admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmRoleUpdate}
+              disabled={updateUserRoleMutation.isPending || !editingRole}
+            >
+              {updateUserRoleMutation.isPending ? "Updating..." : "Update Role"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

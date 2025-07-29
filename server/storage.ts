@@ -52,6 +52,7 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getPendingInvitationsByEmail(email: string): Promise<PendingInvitation[]>;
   upsertUser(user: UpsertUser): Promise<User>;
   deleteUser(id: string): Promise<void>;
 
@@ -69,6 +70,7 @@ export interface IStorage {
   addUserToEmployer(userEmployer: InsertUserEmployer): Promise<UserEmployer>;
   getUsersByEmployer(employerId: number): Promise<{ user: User; role: string; joinedAt: Date }[]>;
   removeUserFromEmployer(userId: string, employerId: number): Promise<void>;
+  updateUserRole(userId: string, employerId: number, role: string): Promise<UserEmployer>;
 
   // Invitation operations
   createInvitation(invitation: InsertPendingInvitation): Promise<PendingInvitation>;
@@ -152,6 +154,14 @@ export class DatabaseStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
+  }
+
+  async getPendingInvitationsByEmail(email: string): Promise<PendingInvitation[]> {
+    return await db
+      .select()
+      .from(pendingInvitations)
+      .where(eq(pendingInvitations.email, email))
+      .orderBy(desc(pendingInvitations.createdAt));
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
@@ -304,6 +314,15 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(userEmployers)
       .where(and(eq(userEmployers.userId, userId), eq(userEmployers.employerId, employerId)));
+  }
+
+  async updateUserRole(userId: string, employerId: number, role: string): Promise<UserEmployer> {
+    const [updated] = await db
+      .update(userEmployers)
+      .set({ role })
+      .where(and(eq(userEmployers.userId, userId), eq(userEmployers.employerId, employerId)))
+      .returning();
+    return updated;
   }
 
   // Invitation operations

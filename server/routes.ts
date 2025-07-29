@@ -443,6 +443,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user role (Admin only)
+  app.patch('/api/employers/:id/users/:userId/role', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUserId = req.user.claims.sub;
+      const employerId = parseInt(req.params.id);
+      const targetUserId = req.params.userId;
+      const { role } = req.body;
+
+      if (!role || !['Admin', 'Employee'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      if (!(await hasAccessToEmployer(currentUserId, employerId))) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
+
+      const userRole = await getUserRoleForEmployer(currentUserId, employerId);
+      if (userRole !== 'Admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Can't demote yourself if you're the only admin
+      if (currentUserId === targetUserId && role !== 'Admin') {
+        const users = await storage.getUsersByEmployer(employerId);
+        const adminCount = users.filter(u => u.role === 'Admin').length;
+        if (adminCount <= 1) {
+          return res.status(400).json({ message: "Cannot demote the only admin" });
+        }
+      }
+
+      await storage.updateUserRole(targetUserId, employerId, role);
+      await logUserAction(currentUserId, employerId, 'updated_user_role', 'user_employer', undefined, { targetUserId, role });
+      
+      res.json({ message: "User role updated successfully" });
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
   // Get audit log for employer (Admin only)
   app.get('/api/employers/:id/audit-log', isAuthenticated, async (req: any, res) => {
     try {

@@ -865,8 +865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Pay period not found" });
       }
 
-      const employer = await storage.getEmployer(payPeriod.employerId);
-      if (!employer || !(await hasAccessToEmployer(req.user.claims.sub, employerId || payPeriodData.employerId || payPeriod.employerId || employee.employerId))) {
+      if (!(await hasAccessToEmployer(req.user.claims.sub, payPeriod.employerId))) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -961,8 +960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!employee) {
         return res.status(404).json({ message: 'Employee not found' });
       }
-      const employer = await storage.getEmployer(employee.employerId);
-      if (!employer || !(await hasAccessToEmployer(req.user.claims.sub, employerId || payPeriodData.employerId || payPeriod.employerId || employee.employerId))) {
+      if (!(await hasAccessToEmployer(req.user.claims.sub, employee.employerId))) {
         return res.status(403).json({ message: 'Access denied' });
       }
       const { start, end } = req.query as any;
@@ -1085,8 +1083,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employeeId = parseInt(req.params.employeeId);
       const employee = await storage.getEmployee(employeeId);
       if (!employee) return res.status(404).json({ message: 'Employee not found' });
-      const employer = await storage.getEmployer(employee.employerId);
-      if (!employer || !(await hasAccessToEmployer(req.user.claims.sub, employerId || payPeriodData.employerId || payPeriod.employerId || employee.employerId))) return res.status(403).json({ message: 'Access denied' });
+      if (!(await hasAccessToEmployer(req.user.claims.sub, employee.employerId))) return res.status(403).json({ message: 'Access denied' });
       const entries = await storage.getPtoEntriesByEmployee(employeeId);
       res.json(entries);
     } catch (error) {
@@ -1139,8 +1136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employeeId = parseInt(req.params.employeeId);
       const employee = await storage.getEmployee(employeeId);
       if (!employee) return res.status(404).json({ message: 'Employee not found' });
-      const employer = await storage.getEmployer(employee.employerId);
-      if (!employer || !(await hasAccessToEmployer(req.user.claims.sub, employerId || payPeriodData.employerId || payPeriod.employerId || employee.employerId))) return res.status(403).json({ message: 'Access denied' });
+      if (!(await hasAccessToEmployer(req.user.claims.sub, employee.employerId))) return res.status(403).json({ message: 'Access denied' });
       const entries = await storage.getReimbursementEntriesByEmployee(employeeId);
       res.json(entries);
     } catch (error) {
@@ -1193,8 +1189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employeeId = parseInt(req.params.employeeId);
       const employee = await storage.getEmployee(employeeId);
       if (!employee) return res.status(404).json({ message: 'Employee not found' });
-      const employer = await storage.getEmployer(employee.employerId);
-      if (!employer || !(await hasAccessToEmployer(req.user.claims.sub, employerId || payPeriodData.employerId || payPeriod.employerId || employee.employerId))) return res.status(403).json({ message: 'Access denied' });
+      if (!(await hasAccessToEmployer(req.user.claims.sub, employee.employerId))) return res.status(403).json({ message: 'Access denied' });
       const entries = await storage.getMiscHoursEntriesByEmployee(employeeId);
       res.json(entries);
     } catch (error) {

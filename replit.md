@@ -11,6 +11,14 @@ A comprehensive payroll tracking web application designed to streamline employee
 - Express.js backend with PostgreSQL database
 
 ## Recent Changes
+- **2025-07-29**: Fixed critical security issue with user deletion system
+  - **SECURITY FIX**: User deletion now removes users from ALL companies, not just one company
+  - Previously deleted users could still access other companies they had been invited to
+  - Updated deletion logic to mirror invitation behavior (invitation adds to all companies, deletion removes from all companies)
+  - Enhanced audit logging to show removal from all companies with count of affected companies
+  - Improved admin protection - prevents self-deletion if user is only admin in any company
+  - Updated frontend messaging to show how many companies user was removed from
+
 - **2025-07-29**: Implemented comprehensive role-based access control system
   - **NEW FEATURE**: Two-tier role system with Admin and Employee access levels
   - Admin users: Full access to team management, activity logs, user invitations, and all standard features

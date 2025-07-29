@@ -317,6 +317,23 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(userEmployers.userId, userId), eq(userEmployers.employerId, employerId)));
   }
 
+  async removeUserFromAllEmployers(userId: string): Promise<{ employerIds: number[]; count: number }> {
+    // First get all employer IDs the user has access to
+    const userEmployerRecords = await db
+      .select({ employerId: userEmployers.employerId })
+      .from(userEmployers)
+      .where(eq(userEmployers.userId, userId));
+    
+    const employerIds = userEmployerRecords.map(record => record.employerId);
+    
+    // Remove user from all employers
+    const result = await db
+      .delete(userEmployers)
+      .where(eq(userEmployers.userId, userId));
+    
+    return { employerIds, count: employerIds.length };
+  }
+
   async updateUserRole(userId: string, employerId: number, role: string): Promise<UserEmployer> {
     const [updated] = await db
       .update(userEmployers)

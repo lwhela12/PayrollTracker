@@ -107,11 +107,14 @@ export default function Settings() {
       if (!response.ok) throw new Error(await response.text());
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}/users`] });
       setShowRemoveDialog(false);
       setUserToRemove(null);
-      toast({ title: "Success", description: "User removed successfully" });
+      const message = data.companiesRemoved > 1 
+        ? `User removed from all ${data.companiesRemoved} companies successfully`
+        : "User removed from company successfully";
+      toast({ title: "Success", description: message });
     },
     onError: (error: any) => {
       toast({ 

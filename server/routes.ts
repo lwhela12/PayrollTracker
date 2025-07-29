@@ -430,19 +430,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Can't remove yourself if you're the only admin
+      // Can't remove yourself if you're the only admin in ANY company
       if (currentUserId === targetUserId) {
-        const users = await storage.getUsersByEmployer(employerId);
-        const adminCount = users.filter(u => u.role === 'Admin').length;
-        if (adminCount <= 1) {
-          return res.status(400).json({ message: "Cannot remove the only admin" });
+        const userEmployers = await storage.getUserEmployers(targetUserId);
+        let isOnlyAdminAnywhere = false;
+        
+        for (const userEmployer of userEmployers) {
+          if (userEmployer.role === 'Admin') {
+            const users = await storage.getUsersByEmployer(userEmployer.employerId);
+            const adminCount = users.filter(u => u.role === 'Admin').length;
+            if (adminCount <= 1) {
+              isOnlyAdminAnywhere = true;
+              break;
+            }
+          }
+        }
+        
+        if (isOnlyAdminAnywhere) {
+          return res.status(400).json({ message: "Cannot remove yourself as you are the only admin in one or more companies" });
         }
       }
 
-      await storage.removeUserFromEmployer(targetUserId, employerId);
-      await logUserAction(currentUserId, employerId, 'removed_user', 'user_employer', undefined, { removedUserId: targetUserId });
+      // Remove user from ALL companies (not just this one)
+      const removalResult = await storage.removeUserFromAllEmployers(targetUserId);
       
-      res.json({ message: "User removed successfully" });
+      // Log the removal action for each company
+      for (const companyId of removalResult.employerIds) {
+        await logUserAction(currentUserId, companyId, 'removed_user_from_all_companies', 'user_employer', undefined, { 
+          removedUserId: targetUserId, 
+          totalCompaniesRemoved: removalResult.count 
+        });
+      }
+      
+      res.json({ 
+        message: "User removed from all companies successfully", 
+        companiesRemoved: removalResult.count 
+      });
     } catch (error) {
       console.error("Error removing user:", error);
       res.status(500).json({ message: "Failed to remove user" });

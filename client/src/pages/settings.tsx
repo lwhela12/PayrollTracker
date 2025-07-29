@@ -67,7 +67,7 @@ export default function Settings() {
 
   // Get current user's role
   const currentUserRole = (teamMembers as any[]).find((member: any) => 
-    member.user?.id === user?.id || member.userId === user?.id
+    (member.user?.id === user?.id) || (member.userId === user?.id)
   )?.role;
   const isAdmin = currentUserRole === 'Admin';
 
@@ -96,7 +96,7 @@ export default function Settings() {
         queryClient.invalidateQueries({ queryKey: [`/api/employers/${company.employerId}/invitations`] });
       });
       setInviteEmail("");
-      setInviteRole("Employee");
+      setInviteRole("Admin");
       setSelectedCompanies([]);
       setUseMultiCompany(false);
       
@@ -131,7 +131,7 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}/users`] });
       queryClient.invalidateQueries({ queryKey: [`/api/employers/${employerId}/invitations`] });
       setInviteEmail("");
-      setInviteRole("Employee");
+      setInviteRole("Admin");
       toast({ title: "Success", description: "Invitation sent successfully" });
     },
     onError: (error: any) => {
@@ -276,10 +276,10 @@ export default function Settings() {
         />
         <main className="p-4 md:p-6">
           <Tabs defaultValue="company" className="max-w-4xl">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-1'}`}>
               <TabsTrigger value="company">Company Profile</TabsTrigger>
-              <TabsTrigger value="team">Team Management</TabsTrigger>
-              <TabsTrigger value="audit">Activity Log</TabsTrigger>
+              {isAdmin && <TabsTrigger value="team">Team Management</TabsTrigger>}
+              {isAdmin && <TabsTrigger value="audit">Activity Log</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="company">
@@ -297,8 +297,9 @@ export default function Settings() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="team">
-              <div className="space-y-6">
+            {isAdmin && (
+              <TabsContent value="team">
+                <div className="space-y-6">
                 {/* Team Members */}
                 <Card className="payroll-card">
                   <CardHeader>
@@ -320,9 +321,9 @@ export default function Settings() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant="default">
+                            <Badge variant={member.role === 'Admin' ? 'default' : 'secondary'}>
                               <Shield className="h-3 w-3 mr-1" />
-                              Full Access
+                              {member.role}
                             </Badge>
                             {isAdmin && (member.user?.id !== user?.id && member.userId !== user?.id) && (
                               <Button
@@ -346,7 +347,7 @@ export default function Settings() {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Plus className="h-5 w-5" />
-                        Invite Team Member (Full Access)
+                        Invite Team Member
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -371,16 +372,18 @@ export default function Settings() {
                           {!useMultiCompany && (
                             <div>
                               <Label htmlFor="role">Access Level</Label>
-                              <Select value={inviteRole} onValueChange={setInviteRole} disabled>
+                              <Select value={inviteRole} onValueChange={setInviteRole}>
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="Admin">Full Access</SelectItem>
+                                  <SelectItem value="Admin">Admin - Full Access</SelectItem>
+                                  <SelectItem value="Employee">Employee - Standard Access</SelectItem>
                                 </SelectContent>
                               </Select>
                               <p className="text-xs text-muted-foreground mt-1">
-                                Invited users get access to ALL companies you have access to
+                                Admin: Can manage team, view activity log, and invite users<br/>
+                                Employee: Can manage employees, timecards, and generate reports
                               </p>
                             </div>
                           )}
@@ -499,11 +502,12 @@ export default function Settings() {
                     </CardContent>
                   </Card>
                 )}
-              </div>
-            </TabsContent>
+                </div>
+              </TabsContent>
+            )}
 
-            <TabsContent value="audit">
-              {isAdmin ? (
+            {isAdmin && (
+              <TabsContent value="audit">
                 <Card className="payroll-card">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -537,14 +541,8 @@ export default function Settings() {
                     </div>
                   </CardContent>
                 </Card>
-              ) : (
-                <Card className="payroll-card">
-                  <CardContent className="text-center py-8">
-                    <p className="text-muted-foreground">Only administrators can view the activity log.</p>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
+              </TabsContent>
+            )}
           </Tabs>
         </main>
       </div>

@@ -46,6 +46,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return await storage.getUserRole(userId, employerId);
   };
 
+  // Helper function to check if user is admin for employer
+  const isAdminForEmployer = async (userId: string, employerId: number): Promise<boolean> => {
+    const role = await getUserRoleForEmployer(userId, employerId);
+    return role === 'Admin';
+  };
+
   // Helper function to log user actions
   const logUserAction = async (userId: string, employerId: number, action: string, resourceType?: string, resourceId?: number, details?: any) => {
     try {

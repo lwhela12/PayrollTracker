@@ -1016,8 +1016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const employee = await storage.getEmployee(employeeId);
       if (!employee) return res.status(404).json({ message: 'Employee not found' });
 
-      const employer = await storage.getEmployer(employee.employerId);
-      if (!employer || !(await hasAccessToEmployer(req.user.claims.sub, employerId || payPeriodData.employerId || payPeriod.employerId || employee.employerId))) {
+      if (!(await hasAccessToEmployer(req.user.claims.sub, employee.employerId))) {
         return res.status(403).json({ message: 'Access denied' });
       }
 
@@ -1026,11 +1025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endDate = new Date(payPeriod.end);
       let period = await storage.getPayPeriodByDates(employee.employerId, startDate, endDate);
       if (!period) {
-        period = await storage.createPayPeriod({
-          employerId: employee.employerId,
-          startDate: payPeriod.start,
-          endDate: payPeriod.end,
-        });
+        period = await storage.getOrCreatePayPeriod(employee.employerId, startDate, endDate);
       }
 
       // Use batch operations for better performance
@@ -1046,7 +1041,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         milesDriven,
         miscHours,
         reimbursement,
-        employer
+        notes
       });
 
       // Force garbage collection if available to clean up any residual cache

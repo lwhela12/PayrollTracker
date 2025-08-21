@@ -37,13 +37,16 @@ export default function Settings() {
   const [userToRemove, setUserToRemove] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editingRole, setEditingRole] = useState<string>("");
+  const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
 
   const { data: employers = [] } = useQuery<any[]>({
     queryKey: ["/api/employers"],
     enabled: !!user,
   });
 
-  const employer = employers[0];
+  // Use selected employer or fall back to first one
+  const currentEmployerId = selectedEmployerId || employerId || employers[0]?.id;
+  const employer = employers.find(e => e.id === currentEmployerId) || employers[0];
 
   // Fetch global team members across all companies
   const { data: teamMembers = [] } = useQuery<any[]>({
@@ -57,10 +60,10 @@ export default function Settings() {
     enabled: !!user,
   });
 
-  // Fetch audit log
+  // Fetch audit log for the currently selected employer
   const { data: auditLog = [] } = useQuery<any[]>({
-    queryKey: [`/api/employers/${employerId}/audit-log`],
-    enabled: !!employerId,
+    queryKey: [`/api/employers/${currentEmployerId}/audit-log`],
+    enabled: !!currentEmployerId,
   });
 
   // Get current user's role (check if admin in any company)
@@ -75,7 +78,7 @@ export default function Settings() {
   // Single-company invite mutation
   const inviteUserMutation = useMutation({
     mutationFn: async (data: { email: string; role: string }) => {
-      const response = await fetch(`/api/employers/${employerId}/invite`, {
+      const response = await fetch(`/api/employers/${currentEmployerId}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -103,7 +106,7 @@ export default function Settings() {
   // Remove user mutation
   const removeUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await fetch(`/api/employers/${employerId}/users/${userId}`, {
+      const response = await fetch(`/api/employers/${currentEmployerId}/users/${userId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -131,7 +134,7 @@ export default function Settings() {
   // Update user role mutation
   const updateUserRoleMutation = useMutation({
     mutationFn: async (data: { userId: string; role: string }) => {
-      const response = await fetch(`/api/employers/${employerId}/users/${data.userId}/role`, {
+      const response = await fetch(`/api/employers/${currentEmployerId}/users/${data.userId}/role`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -203,6 +206,36 @@ export default function Settings() {
             user={user}
           />
           <main className="p-4 md:p-6">
+            {/* Company Selector */}
+            {employers.length > 1 && (
+              <div className="max-w-4xl mb-6">
+                <Card className="payroll-card">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <Label htmlFor="company-select" className="font-medium whitespace-nowrap">
+                        Select Company:
+                      </Label>
+                      <Select 
+                        value={currentEmployerId?.toString() || ""} 
+                        onValueChange={(value) => setSelectedEmployerId(parseInt(value))}
+                      >
+                        <SelectTrigger className="w-full max-w-sm">
+                          <SelectValue placeholder="Select a company" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {employers.map((emp: any) => (
+                            <SelectItem key={emp.id} value={emp.id.toString()}>
+                              {emp.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             <Tabs defaultValue="company" className="max-w-4xl">
               <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-1'}`}>
                 <TabsTrigger value="company">Company Profile</TabsTrigger>

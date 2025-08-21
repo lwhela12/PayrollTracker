@@ -12,6 +12,7 @@ import {
   insertPtoEntrySchema,
   insertReimbursementEntrySchema,
   insertMiscHoursEntrySchema,
+  insertMileageTrackingSchema,
   insertReimbursementSchema,
   payPeriods,
   timeEntries,
@@ -1331,6 +1332,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting misc hours entry:', error);
       res.status(500).json({ message: 'Failed to delete misc hours entry' });
+    }
+  });
+
+  // Mileage tracking routes
+  app.post('/api/mileage-tracking', isAuthenticated, async (req: any, res) => {
+    try {
+      const data = insertMileageTrackingSchema.parse(req.body);
+      const employee = await storage.getEmployee(data.employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+      if (!(await hasAccessToEmployer(req.user.claims.sub, employee.employerId))) return res.status(403).json({ message: 'Access denied' });
+      const entry = await storage.createMileageTracking(data);
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
+      console.error('Error creating mileage tracking:', error);
+      res.status(500).json({ message: 'Failed to create mileage tracking' });
+    }
+  });
+
+  app.get('/api/mileage-tracking/employee/:employeeId/pay-period/:payPeriodId', isAuthenticated, async (req: any, res) => {
+    try {
+      const employeeId = parseInt(req.params.employeeId);
+      const payPeriodId = parseInt(req.params.payPeriodId);
+      const employee = await storage.getEmployee(employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+      if (!(await hasAccessToEmployer(req.user.claims.sub, employee.employerId))) return res.status(403).json({ message: 'Access denied' });
+      const tracking = await storage.getMileageTrackingByEmployee(employeeId, payPeriodId);
+      res.json(tracking || null);
+    } catch (error) {
+      console.error('Error fetching mileage tracking:', error);
+      res.status(500).json({ message: 'Failed to fetch mileage tracking' });
+    }
+  });
+
+  app.put('/api/mileage-tracking/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const entry = await storage.updateMileageTracking(id, insertMileageTrackingSchema.partial().parse(req.body));
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
+      console.error('Error updating mileage tracking:', error);
+      res.status(500).json({ message: 'Failed to update mileage tracking' });
+    }
+  });
+
+  app.delete('/api/mileage-tracking/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteMileageTracking(parseInt(req.params.id));
+      res.json({ message: 'Deleted' });
+    } catch (error) {
+      console.error('Error deleting mileage tracking:', error);
+      res.status(500).json({ message: 'Failed to delete mileage tracking' });
     }
   });
 

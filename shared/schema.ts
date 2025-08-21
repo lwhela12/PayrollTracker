@@ -182,6 +182,24 @@ export const miscHoursEntries = pgTable('misc_hours_entries', {
   description: text('description'),
 });
 
+// Mileage tracking table for pay period-based odometer readings
+export const mileageTracking = pgTable('mileage_tracking', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').references(() => employees.id).notNull(),
+  payPeriodId: integer('pay_period_id').references(() => payPeriods.id).notNull(),
+  startOdometer: integer('start_odometer'),
+  endOdometer: integer('end_odometer'),
+  totalMiles: integer('total_miles').default(0),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  employeePayPeriodIdx: uniqueIndex("IDX_mileage_employee_payperiod").on(
+    table.employeeId,
+    table.payPeriodId,
+  ),
+}));
+
 // Reimbursements table
 export const reimbursements = pgTable("reimbursements", {
   id: serial("id").primaryKey(),
@@ -265,6 +283,16 @@ export const insertMiscHoursEntrySchema = createInsertSchema(miscHoursEntries).o
   id: true,
 });
 
+export const insertMileageTrackingSchema = createInsertSchema(mileageTracking).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  totalMiles: true,
+}).extend({
+  startOdometer: z.coerce.number().optional(),
+  endOdometer: z.coerce.number().optional(),
+});
+
 export const insertReimbursementSchema = createInsertSchema(reimbursements).omit({
   id: true,
   createdAt: true,
@@ -311,6 +339,8 @@ export type InsertReimbursementEntry = z.infer<typeof insertReimbursementEntrySc
 export type ReimbursementEntry = typeof reimbursementEntries.$inferSelect;
 export type InsertMiscHoursEntry = z.infer<typeof insertMiscHoursEntrySchema>;
 export type MiscHoursEntry = typeof miscHoursEntries.$inferSelect;
+export type InsertMileageTracking = z.infer<typeof insertMileageTrackingSchema>;
+export type MileageTracking = typeof mileageTracking.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Report = typeof reports.$inferSelect;
 export type InsertUserEmployer = z.infer<typeof insertUserEmployerSchema>;

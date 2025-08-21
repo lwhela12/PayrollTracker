@@ -8,6 +8,7 @@ import {
   ptoEntries,
   reimbursementEntries,
   miscHoursEntries,
+  mileageTracking,
   reimbursements,
   reports,
   userEmployers,
@@ -31,6 +32,8 @@ import {
   type ReimbursementEntry,
   type InsertMiscHoursEntry,
   type MiscHoursEntry,
+  type InsertMileageTracking,
+  type MileageTracking,
   type Reimbursement,
   type InsertReimbursement,
   type Report,
@@ -129,6 +132,12 @@ export interface IStorage {
   getMiscHoursEntriesByEmployee(employeeId: number): Promise<MiscHoursEntry[]>;
   updateMiscHoursEntry(id: number, entry: Partial<InsertMiscHoursEntry>): Promise<MiscHoursEntry>;
   deleteMiscHoursEntry(id: number): Promise<void>;
+
+  // Mileage tracking operations
+  createMileageTracking(entry: InsertMileageTracking): Promise<MileageTracking>;
+  getMileageTrackingByEmployee(employeeId: number, payPeriodId: number): Promise<MileageTracking | undefined>;
+  updateMileageTracking(id: number, entry: Partial<InsertMileageTracking>): Promise<MileageTracking>;
+  deleteMileageTracking(id: number): Promise<void>;
 
   // Reimbursement operations
   createReimbursement(reimbursement: InsertReimbursement): Promise<Reimbursement>;
@@ -777,6 +786,58 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMiscHoursEntry(id: number): Promise<void> {
     await db.delete(miscHoursEntries).where(eq(miscHoursEntries.id, id));
+  }
+
+  // Mileage tracking operations
+  async createMileageTracking(entry: InsertMileageTracking): Promise<MileageTracking> {
+    // Calculate total miles if both odometer readings are provided
+    const totalMiles = entry.startOdometer && entry.endOdometer 
+      ? Math.max(0, entry.endOdometer - entry.startOdometer) 
+      : 0;
+    
+    const [newEntry] = await db.insert(mileageTracking).values({
+      ...entry,
+      totalMiles,
+    }).returning();
+    return newEntry;
+  }
+
+  async getMileageTrackingByEmployee(employeeId: number, payPeriodId: number): Promise<MileageTracking | undefined> {
+    const [tracking] = await db
+      .select()
+      .from(mileageTracking)
+      .where(and(
+        eq(mileageTracking.employeeId, employeeId),
+        eq(mileageTracking.payPeriodId, payPeriodId)
+      ));
+    return tracking;
+  }
+
+  async updateMileageTracking(id: number, entry: Partial<InsertMileageTracking>): Promise<MileageTracking> {
+    // Recalculate total miles if odometer readings are being updated
+    let updateData = { ...entry };
+    if (entry.startOdometer !== undefined || entry.endOdometer !== undefined) {
+      // Get current record to fill in missing values
+      const [current] = await db.select().from(mileageTracking).where(eq(mileageTracking.id, id));
+      if (current) {
+        const startOdometer = entry.startOdometer ?? current.startOdometer;
+        const endOdometer = entry.endOdometer ?? current.endOdometer;
+        if (startOdometer && endOdometer) {
+          updateData.totalMiles = Math.max(0, endOdometer - startOdometer);
+        }
+      }
+    }
+    
+    const [updated] = await db
+      .update(mileageTracking)
+      .set(updateData)
+      .where(eq(mileageTracking.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMileageTracking(id: number): Promise<void> {
+    await db.delete(mileageTracking).where(eq(mileageTracking.id, id));
   }
 
   // Reimbursement operations

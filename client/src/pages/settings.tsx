@@ -30,7 +30,7 @@ export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { employerId, setEmployerId } = useCompany();
+  const { employerId } = useCompany();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Admin");
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
@@ -46,12 +46,6 @@ export default function Settings() {
   // Use the current company context
   const currentEmployerId = employerId || employers[0]?.id;
   const employer = employers.find(e => e.id === currentEmployerId) || employers[0];
-
-  // Handle company switching
-  const handleCompanyChange = (newEmployerId: string) => {
-    const newId = parseInt(newEmployerId);
-    setEmployerId(newId);
-  };
 
   // Fetch global team members across all companies
   const { data: teamMembers = [] } = useQuery<any[]>({
@@ -219,37 +213,7 @@ export default function Settings() {
             user={user}
           />
           <main className="p-4 md:p-6">
-            {/* Company Selector */}
-            {employers.length > 1 && (
-              <div className="max-w-4xl mb-6">
-                <Card className="payroll-card">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-4">
-                      <Label htmlFor="company-select" className="font-medium whitespace-nowrap">
-                        Select Company:
-                      </Label>
-                      <Select 
-                        value={currentEmployerId?.toString() || ""} 
-                        onValueChange={handleCompanyChange}
-                      >
-                        <SelectTrigger className="w-full max-w-sm">
-                          <SelectValue placeholder="Select a company" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {employers.map((emp: any) => (
-                            <SelectItem key={emp.id} value={emp.id.toString()}>
-                              {emp.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            <Tabs defaultValue="company" className="max-w-4xl">
+            <Tabs key={currentEmployerId} defaultValue="company" className="max-w-4xl">
               <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-1'}`}>
                 <TabsTrigger value="company">Company Profile</TabsTrigger>
                 {isAdmin && <TabsTrigger value="team">Team Management</TabsTrigger>}

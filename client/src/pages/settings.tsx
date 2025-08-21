@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompany } from "@/context/company";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2, Users, Mail, Shield, Clock, Edit } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -30,23 +30,28 @@ export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { employerId } = useCompany();
+  const { employerId, setEmployerId } = useCompany();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Admin");
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [userToRemove, setUserToRemove] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editingRole, setEditingRole] = useState<string>("");
-  const [selectedEmployerId, setSelectedEmployerId] = useState<number | null>(null);
 
   const { data: employers = [] } = useQuery<any[]>({
     queryKey: ["/api/employers"],
     enabled: !!user,
   });
 
-  // Use selected employer or fall back to first one
-  const currentEmployerId = selectedEmployerId || employerId || employers[0]?.id;
+  // Use the current company context
+  const currentEmployerId = employerId || employers[0]?.id;
   const employer = employers.find(e => e.id === currentEmployerId) || employers[0];
+
+  // Handle company switching
+  const handleCompanyChange = (newEmployerId: string) => {
+    const newId = parseInt(newEmployerId);
+    setEmployerId(newId);
+  };
 
   // Fetch global team members across all companies
   const { data: teamMembers = [] } = useQuery<any[]>({
@@ -74,6 +79,14 @@ export default function Settings() {
   // User is admin if they have admin role in any company
   const isAdmin = currentUser?.companies?.some((company: any) => company.role === 'Admin') || 
                  currentUser?.role === 'Admin';
+
+  // Invalidate queries when company changes
+  useEffect(() => {
+    if (currentEmployerId) {
+      queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/employers/${currentEmployerId}/audit-log`] });
+    }
+  }, [currentEmployerId, queryClient]);
 
   // Single-company invite mutation
   const inviteUserMutation = useMutation({
@@ -217,7 +230,7 @@ export default function Settings() {
                       </Label>
                       <Select 
                         value={currentEmployerId?.toString() || ""} 
-                        onValueChange={(value) => setSelectedEmployerId(parseInt(value))}
+                        onValueChange={handleCompanyChange}
                       >
                         <SelectTrigger className="w-full max-w-sm">
                           <SelectValue placeholder="Select a company" />

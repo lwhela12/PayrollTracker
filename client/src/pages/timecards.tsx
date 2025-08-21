@@ -295,7 +295,9 @@ export default function Timecards() {
                                 >
                                   <td className="p-2">
                                     <div className="font-medium">{employee.firstName} {employee.lastName}</div>
-                                    <div className="text-xs text-muted-foreground">{employee.position}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {employee.hireDate ? `Hired ${formatDate(employee.hireDate)}` : 'No hire date'}
+                                    </div>
                                   </td>
                                   <td className="p-2 text-right">{regularHours.toFixed(2)}</td>
                                   <td className="p-2 text-right text-orange-600 font-medium">{displayStats.totalOvertimeHours?.toFixed?.(2) ?? '0.00'}</td>
@@ -378,7 +380,9 @@ export default function Timecards() {
                                 <div className="flex justify-between items-start mb-3">
                                   <div>
                                     <div className="font-medium">{employee.firstName} {employee.lastName}</div>
-                                    <div className="text-xs text-muted-foreground">{employee.position}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {employee.hireDate ? `Hired ${formatDate(employee.hireDate)}` : 'No hire date'}
+                                    </div>
                                   </div>
                                   <div className="text-right">
                                     <div className="text-sm font-medium">{displayStats.totalHours?.toFixed?.(2) ?? '0.00'}h</div>

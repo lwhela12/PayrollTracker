@@ -84,6 +84,28 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     staleTime: 60000, // Cache for 1 minute
   });
 
+  // Find current pay period for mileage tracking
+  const { data: payPeriods = [] } = useQuery<any[]>({
+    queryKey: ["/api/pay-periods", employee?.employerId],
+    queryFn: () =>
+      employee?.employerId ? apiRequest("GET", `/api/pay-periods/${employee.employerId}`).then((res) => res.json()) : Promise.resolve([]),
+    enabled: !!employee?.employerId,
+  });
+
+  // Find the pay period that matches our date range
+  const currentPayPeriod = payPeriods.find((period: any) => 
+    period.startDate === start || 
+    (new Date(period.startDate) <= new Date(start) && new Date(period.endDate) >= new Date(end))
+  );
+
+  // Fetch existing mileage tracking data
+  const { data: mileageData } = useQuery({
+    queryKey: ["/api/mileage-tracking", employeeId, currentPayPeriod?.id],
+    queryFn: () => 
+      currentPayPeriod ? apiRequest("GET", `/api/mileage-tracking/employee/${employeeId}/pay-period/${currentPayPeriod.id}`).then((res) => res.json()) : Promise.resolve(null),
+    enabled: !!employeeId && !!currentPayPeriod?.id,
+  });
+
   const generateDays = useCallback(() => {
     const startDate = new Date(start);
     const days: DayEntry[] = [];
@@ -110,7 +132,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   const [ptoHours, setPtoHours] = useState(0);
   const [holidayNonWorked, setHolidayNonWorked] = useState(0);
   const [holidayWorked, setHolidayWorked] = useState(0);
-  const [milesDriven, setMilesDriven] = useState(0);
+  const [startOdometer, setStartOdometer] = useState<string>("");
+  const [endOdometer, setEndOdometer] = useState<string>("");
+  const [mileageNotes, setMileageNotes] = useState<string>("");
   const [miscHours, setMiscHours] = useState(0);
   const [reimbAmt, setReimbAmt] = useState(0);
   const [reimbDesc, setReimbDesc] = useState("");
@@ -121,10 +145,34 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   const { toast } = useToast();
   const { updateEmployee, clearEmployee } = useTimecardUpdates();
 
+  // Mileage tracking mutations
+  const createMileageMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("/api/mileage-tracking", "POST", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/mileage-tracking", employeeId, currentPayPeriod?.id] });
+    },
+  });
+
+  const updateMileageMutation = useMutation({
+    mutationFn: (data: any) => apiRequest(`/api/mileage-tracking/${mileageData?.id}`, "PUT", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/mileage-tracking", employeeId, currentPayPeriod?.id] });
+    },
+  });
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // Populate mileage data when available
+  useEffect(() => {
+    if (mileageData) {
+      setStartOdometer(mileageData.startOdometer?.toString() || "");
+      setEndOdometer(mileageData.endOdometer?.toString() || "");
+      setMileageNotes(mileageData.notes || "");
+    }
+  }, [mileageData]);
 
   useEffect(() => {
     // Always regenerate days structure when existingEntries changes
@@ -237,7 +285,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
           // Extract mileage info if present
           const mileageMatch = description.match(/Mileage: (\d+(?:\.\d+)?) miles \(\$(\d+(?:\.\d+)?)\)/);
           if (mileageMatch) {
-            setMilesDriven(parseFloat(mileageMatch[1]) || 0);
+            // Legacy mileage data - now handled by odometer tracking
             mileageAmount = parseFloat(mileageMatch[2]) || 0;
             otherAmount = totalAmount - mileageAmount;
 
@@ -259,12 +307,12 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         }
       } catch (error) {
         console.warn('Failed to process reimbursement entries:', error);
-        setMilesDriven(0);
+        // Legacy mileage reset - now handled by odometer tracking
         setReimbAmt(0);
         setReimbDesc("");
       }
     } else {
-      setMilesDriven(0);
+      // Legacy mileage reset - now handled by odometer tracking
       setReimbAmt(0);
       setReimbDesc("");
     }
@@ -276,6 +324,16 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       const hrs = calculateHoursFromTimecard(s.timeIn, s.timeOut, s.lunch).totalHours;
       return sum + hrs;
     }, 0);
+  };
+
+  // Calculate mileage from odometer readings
+  const calculateMileage = () => {
+    const start = parseInt(startOdometer);
+    const end = parseInt(endOdometer);
+    if (!isNaN(start) && !isNaN(end) && end >= start) {
+      return end - start;
+    }
+    return 0;
   };
 
   // Split days into two 7-day weeks and calculate overtime separately for each week
@@ -302,6 +360,8 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     overtime: totalOvertimeHours,
     totalHours: totalWorkedHours + miscHours
   };
+
+  const milesDriven = calculateMileage();
 
   // Real-time updates to pay period summary when any values change
   useEffect(() => {
@@ -460,6 +520,27 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       };
 
       console.log("Submitting payload:", payload);
+      
+      // Save mileage tracking data if any odometer readings are provided
+      if (currentPayPeriod && (startOdometer || endOdometer)) {
+        const mileagePayload = {
+          employerId: employee?.employerId,
+          payPeriodId: currentPayPeriod.id,
+          startOdometer: parseInt(startOdometer) || 0,
+          endOdometer: parseInt(endOdometer) || 0,
+          totalMiles: milesDriven,
+          notes: mileageNotes || ""
+        };
+
+        if (mileageData?.id) {
+          // Update existing mileage record
+          updateMileageMutation.mutate(mileagePayload);
+        } else {
+          // Create new mileage record
+          createMileageMutation.mutate(mileagePayload);
+        }
+      }
+      
       saveTimeEntries.mutate(payload);
     } catch (error) {
       console.error("Submit validation error:", error);
@@ -555,19 +636,56 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                 min="0"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Miles Driven</label>
-              <Input
-                type="number"
-                value={milesDriven}
-                onChange={(e) => setMilesDriven(parseFloat(e.target.value) || 0)}
-                placeholder="0"
-                step="1"
-                min="0"
-              />
-              {employer && milesDriven > 0 && (
-                <div className="text-xs text-gray-500 mt-1">
-                  ${(milesDriven * parseFloat(employer.mileageRate || '0.655')).toFixed(2)} at ${parseFloat(employer.mileageRate || '0.655').toFixed(3)}/mile
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Mileage Tracking</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Start Odometer</label>
+                  <Input
+                    type="number"
+                    value={startOdometer}
+                    onChange={(e) => setStartOdometer(e.target.value)}
+                    placeholder="Beginning miles"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">End Odometer</label>
+                  <Input
+                    type="number"
+                    value={endOdometer}
+                    onChange={(e) => setEndOdometer(e.target.value)}
+                    placeholder="Ending miles"
+                    min="0"
+                  />
+                </div>
+              </div>
+              {milesDriven > 0 && (
+                <div className="bg-gray-50 p-2 rounded mt-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span>Miles Driven: <strong>{milesDriven}</strong></span>
+                    {employer && (
+                      <span className="text-green-600 font-medium">
+                        ${(milesDriven * parseFloat(employer.mileageRate || '0.655')).toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                  {employer && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Rate: ${parseFloat(employer.mileageRate || '0.655').toFixed(3)}/mile
+                    </div>
+                  )}
+                </div>
+              )}
+              {mileageNotes && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1 mt-2">Notes</label>
+                  <Input
+                    type="text"
+                    value={mileageNotes}
+                    onChange={(e) => setMileageNotes(e.target.value)}
+                    placeholder="Mileage notes..."
+                  />
                 </div>
               )}
             </div>

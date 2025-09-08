@@ -799,15 +799,7 @@ export class DatabaseStorage implements IStorage {
 
   // Daily mileage entry operations
   async createDailyMileageEntry(entry: InsertDailyMileageEntry): Promise<DailyMileageEntry> {
-    // Calculate daily miles if both values provided and valid
-    const dailyMiles = entry.mileageIn && entry.mileageOut && entry.mileageOut >= entry.mileageIn
-      ? entry.mileageOut - entry.mileageIn
-      : 0;
-    
-    const [newEntry] = await db.insert(dailyMileageEntries).values({
-      ...entry,
-      dailyMiles,
-    }).returning();
+    const [newEntry] = await db.insert(dailyMileageEntries).values(entry).returning();
     return newEntry;
   }
 
@@ -820,25 +812,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDailyMileageEntry(id: number, entry: Partial<InsertDailyMileageEntry>): Promise<DailyMileageEntry> {
-    // Recalculate daily miles if odometer readings are being updated
-    let updateData = { ...entry };
-    if (entry.mileageIn !== undefined || entry.mileageOut !== undefined) {
-      // Get current record to fill in missing values
-      const [current] = await db.select().from(dailyMileageEntries).where(eq(dailyMileageEntries.id, id));
-      if (current) {
-        const mileageIn = entry.mileageIn ?? current.mileageIn;
-        const mileageOut = entry.mileageOut ?? current.mileageOut;
-        if (mileageIn && mileageOut && mileageOut >= mileageIn) {
-          updateData.dailyMiles = mileageOut - mileageIn;
-        } else {
-          updateData.dailyMiles = 0;
-        }
-      }
-    }
-    
     const [updated] = await db
       .update(dailyMileageEntries)
-      .set(updateData)
+      .set(entry)
       .where(eq(dailyMileageEntries.id, id))
       .returning();
     return updated;
@@ -850,15 +826,7 @@ export class DatabaseStorage implements IStorage {
 
   // Mileage tracking operations
   async createMileageTracking(entry: InsertMileageTracking): Promise<MileageTracking> {
-    // Calculate total miles if both odometer readings are provided
-    const totalMiles = entry.startOdometer && entry.endOdometer 
-      ? Math.max(0, entry.endOdometer - entry.startOdometer) 
-      : 0;
-    
-    const [newEntry] = await db.insert(mileageTracking).values({
-      ...entry,
-      totalMiles,
-    }).returning();
+    const [newEntry] = await db.insert(mileageTracking).values(entry).returning();
     return newEntry;
   }
 
@@ -874,23 +842,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateMileageTracking(id: number, entry: Partial<InsertMileageTracking>): Promise<MileageTracking> {
-    // Recalculate total miles if odometer readings are being updated
-    let updateData = { ...entry };
-    if (entry.startOdometer !== undefined || entry.endOdometer !== undefined) {
-      // Get current record to fill in missing values
-      const [current] = await db.select().from(mileageTracking).where(eq(mileageTracking.id, id));
-      if (current) {
-        const startOdometer = entry.startOdometer ?? current.startOdometer;
-        const endOdometer = entry.endOdometer ?? current.endOdometer;
-        if (startOdometer && endOdometer) {
-          updateData.totalMiles = Math.max(0, endOdometer - startOdometer);
-        }
-      }
-    }
-    
     const [updated] = await db
       .update(mileageTracking)
-      .set(updateData)
+      .set(entry)
       .where(eq(mileageTracking.id, id))
       .returning();
     return updated;

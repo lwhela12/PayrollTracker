@@ -20,6 +20,8 @@ interface ShiftEntry {
   timeIn: string;
   timeOut: string;
   lunch: number;
+  mileageIn: number;
+  mileageOut: number;
 }
 
 interface DayEntry {
@@ -84,6 +86,14 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     staleTime: 60000, // Cache for 1 minute
   });
 
+  const { data: existingMileageEntries = [] } = useQuery<any[]>({
+    queryKey: ["/api/daily-mileage-entries/employee", employeeId],
+    queryFn: () =>
+      apiRequest("GET", `/api/daily-mileage-entries/employee/${employeeId}`).then((res) => res.json()),
+    enabled: !!employeeId,
+    staleTime: 60000, // Cache for 1 minute
+  });
+
   // Find current pay period for mileage tracking
   const { data: payPeriods = [] } = useQuery<any[]>({
     queryKey: ["/api/pay-periods", employee?.employerId],
@@ -113,7 +123,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
       const dateStr = d.toISOString().split("T")[0];
-      days.push({ date: dateStr, shifts: [{ timeIn: "", timeOut: "", lunch: 0 }] });
+      days.push({ date: dateStr, shifts: [{ timeIn: "", timeOut: "", lunch: 0, mileageIn: 0, mileageOut: 0 }] });
     }
     return days;
   }, [start]);
@@ -125,7 +135,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
       const dateStr = d.toISOString().split("T")[0];
-      days.push({ date: dateStr, shifts: [{ timeIn: "", timeOut: "", lunch: 0 }] });
+      days.push({ date: dateStr, shifts: [{ timeIn: "", timeOut: "", lunch: 0, mileageIn: 0, mileageOut: 0 }] });
     }
     return days;
   });
@@ -194,6 +204,8 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                 timeIn: e.timeIn.split("T")[1]?.slice(0, 5) || "",
                 timeOut: e.timeOut?.split("T")[1]?.slice(0, 5) || "",
                 lunch: e.lunchMinutes || 0,
+                mileageIn: 0,
+                mileageOut: 0,
               };
             } else {
               // Add as additional shift
@@ -201,6 +213,8 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                 timeIn: e.timeIn.split("T")[1]?.slice(0, 5) || "",
                 timeOut: e.timeOut?.split("T")[1]?.slice(0, 5) || "",
                 lunch: e.lunchMinutes || 0,
+                mileageIn: 0,
+                mileageOut: 0,
               });
             }
           }
@@ -373,7 +387,6 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       // Debounce updates to avoid excessive calls
       const timeoutId = setTimeout(() => {
         updateEmployee(employeeId, {
-          totalHours: totals.totalHours + ptoHours + holidayNonWorked + holidayWorked,
           totalOvertimeHours: totals.overtime,
           mileage: milesDriven,
           reimbursement: totalReimbursement,
@@ -391,7 +404,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
   const addShift = (date: string) => {
     setDays((prev) =>
       prev.map((d) =>
-        d.date === date ? { ...d, shifts: [...d.shifts, { timeIn: "", timeOut: "", lunch: 0 }] } : d
+        d.date === date ? { ...d, shifts: [...d.shifts, { timeIn: "", timeOut: "", lunch: 0, mileageIn: 0, mileageOut: 0 }] } : d
       )
     );
   };
@@ -413,12 +426,34 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         const shifts = d.shifts.filter((_, i) => i !== index);
         return {
           ...d,
-          shifts: shifts.length > 0 ? shifts : [{ timeIn: "", timeOut: "", lunch: 0 }],
+          shifts: shifts.length > 0 ? shifts : [{ timeIn: "", timeOut: "", lunch: 0, mileageIn: 0, mileageOut: 0 }],
         };
       })
     );
-
   };
+
+  // Calculate daily mileage for a shift
+  const calculateDailyMileage = (mileageIn: number, mileageOut: number): number => {
+    if (!mileageIn || !mileageOut || mileageOut < mileageIn) return 0;
+    return mileageOut - mileageIn;
+  };
+
+  // Calculate total daily mileage for a day
+  const calculateDayTotalMileage = (day: DayEntry): number => {
+    return day.shifts.reduce((total, shift) => {
+      return total + calculateDailyMileage(shift.mileageIn, shift.mileageOut);
+    }, 0);
+  };
+
+  // Daily mileage entry mutations
+  const createDailyMileageMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("POST", "/api/daily-mileage-entries", data).then((res) => res.json()),
+  });
+
+  const updateDailyMileageMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => 
+      apiRequest("PUT", `/api/daily-mileage-entries/${id}`, data).then((res) => res.json()),
+  });
 
   const saveTimeEntries = useMutation({
     mutationFn: async (payload: any) => {
@@ -464,6 +499,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         await queryClient.invalidateQueries({ queryKey: ["/api/pto-entries/employee", employeeId] });
         await queryClient.invalidateQueries({ queryKey: ["/api/misc-hours-entries/employee", employeeId] });
         await queryClient.invalidateQueries({ queryKey: ["/api/reimbursement-entries/employee", employeeId] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/daily-mileage-entries/employee", employeeId] });
       }
 
       // Navigate immediately
@@ -520,24 +556,50 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       };
 
       console.log("Submitting payload:", payload);
-      
-      // Save mileage tracking data if any odometer readings are provided
-      if (currentPayPeriod && (startOdometer || endOdometer)) {
-        const mileagePayload = {
-          employerId: employee?.employerId,
-          payPeriodId: currentPayPeriod.id,
-          startOdometer: parseInt(startOdometer) || 0,
-          endOdometer: parseInt(endOdometer) || 0,
-          totalMiles: milesDriven,
-          notes: mileageNotes || ""
-        };
 
-        if (mileageData?.id) {
-          // Update existing mileage record
-          updateMileageMutation.mutate(mileagePayload);
-        } else {
-          // Create new mileage record
-          createMileageMutation.mutate(mileagePayload);
+      // Save daily mileage entries
+      const mileagePromises: Promise<any>[] = [];
+      days.forEach((day) => {
+        day.shifts.forEach((shift) => {
+          if (shift.mileageIn || shift.mileageOut) {
+            const mileageData = {
+              employeeId,
+              entryDate: day.date,
+              mileageIn: shift.mileageIn || 0,
+              mileageOut: shift.mileageOut || 0,
+              description: `Daily mileage for ${day.date}`,
+            };
+            
+            // Check if we have existing mileage entry for this date
+            const existingEntry = existingMileageEntries.find(
+              (entry: any) => entry.entryDate === day.date
+            );
+            
+            if (existingEntry) {
+              mileagePromises.push(
+                updateDailyMileageMutation.mutateAsync({ id: existingEntry.id, data: mileageData })
+              );
+            } else {
+              mileagePromises.push(
+                createDailyMileageMutation.mutateAsync(mileageData)
+              );
+            }
+          }
+        });
+      });
+
+      // Wait for all mileage entries to be saved
+      if (mileagePromises.length > 0) {
+        try {
+          await Promise.all(mileagePromises);
+          console.log("Daily mileage entries saved successfully");
+        } catch (error) {
+          console.error("Failed to save mileage entries:", error);
+          toast({
+            title: "Warning",
+            description: "Time entries saved, but some mileage data failed to save",
+            variant: "destructive",
+          });
         }
       }
       
@@ -565,15 +627,17 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                 + Add Shift
               </Button>
             </div>
-            <div className="grid grid-cols-5 gap-2 text-xs font-medium text-muted-foreground mb-1">
+            <div className="grid grid-cols-7 gap-2 text-xs font-medium text-muted-foreground mb-1">
               <span>Time In</span>
               <span>Time Out</span>
               <span>Lunch</span>
-              <span>Total</span>
+              <span>Mileage In</span>
+              <span>Mileage Out</span>
+              <span>Daily Miles</span>
               <span></span>
             </div>
             {day.shifts.map((shift, idx) => (
-              <div key={idx} className="grid grid-cols-5 gap-2 mb-2">
+              <div key={idx} className="grid grid-cols-7 gap-2 mb-2">
                 <Input
                   type="time"
                   value={shift.timeIn}
@@ -588,17 +652,39 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                   type="number"
                   value={shift.lunch}
                   onChange={(e) => updateShift(day.date, idx, "lunch", parseInt(e.target.value) || 0)}
-                  placeholder="Lunch"
+                  placeholder="Min"
                 />
-                <div className="flex items-center justify-between text-sm">
-                  <span>{calculateHoursFromTimecard(shift.timeIn, shift.timeOut, shift.lunch).totalHours.toFixed(2)}h</span>
+                <Input
+                  type="number"
+                  value={shift.mileageIn || ''}
+                  onChange={(e) => updateShift(day.date, idx, "mileageIn", parseInt(e.target.value) || 0)}
+                  placeholder="In"
+                />
+                <Input
+                  type="number"
+                  value={shift.mileageOut || ''}
+                  onChange={(e) => updateShift(day.date, idx, "mileageOut", parseInt(e.target.value) || 0)}
+                  placeholder="Out"
+                />
+                <div className="flex flex-col items-center justify-center text-sm">
+                  <span className="text-xs text-muted-foreground">
+                    {calculateHoursFromTimecard(shift.timeIn, shift.timeOut, shift.lunch).totalHours.toFixed(2)}h
+                  </span>
+                  <span className="text-xs font-medium">
+                    {calculateDailyMileage(shift.mileageIn, shift.mileageOut)}mi
+                  </span>
+                </div>
+                <div className="flex items-center justify-center">
                   <Button size="sm" variant="ghost" onClick={() => removeShift(day.date, idx)} className="text-destructive">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             ))}
-            <div className="text-right text-sm font-medium">Daily Total: {calculateDayTotal(day).toFixed(2)}h</div>
+            <div className="text-right text-sm font-medium space-x-4">
+              <span>Daily Total: {calculateDayTotal(day).toFixed(2)}h</span>
+              <span className="text-blue-600">{calculateDayTotalMileage(day)} miles</span>
+            </div>
           </div>
         ))}
         <div className="border p-3 rounded-md space-y-2">
@@ -637,57 +723,34 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Mileage Tracking</label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Start Odometer</label>
-                  <Input
-                    type="number"
-                    value={startOdometer}
-                    onChange={(e) => setStartOdometer(e.target.value)}
-                    placeholder="Beginning miles"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">End Odometer</label>
-                  <Input
-                    type="number"
-                    value={endOdometer}
-                    onChange={(e) => setEndOdometer(e.target.value)}
-                    placeholder="Ending miles"
-                    min="0"
-                  />
-                </div>
-              </div>
-              {milesDriven > 0 && (
-                <div className="bg-gray-50 p-2 rounded mt-2 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span>Miles Driven: <strong>{milesDriven}</strong></span>
-                    {employer && (
-                      <span className="text-green-600 font-medium">
-                        ${(milesDriven * parseFloat(employer.mileageRate || '0.655')).toFixed(2)}
-                      </span>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Total Mileage Summary</label>
+              {(() => {
+                const totalMileage = days.reduce((total, day) => total + calculateDayTotalMileage(day), 0);
+                return (
+                  <div className="bg-blue-50 p-3 rounded border">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-medium">Total Miles This Period:</span>
+                      <span className="font-bold text-lg text-blue-700">{totalMileage}</span>
+                    </div>
+                    {employer && totalMileage > 0 && (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Reimbursement Amount:</span>
+                          <span className="text-green-600 font-medium text-lg">
+                            ${(totalMileage * parseFloat(employer.mileageRate || '0.655')).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Rate: ${parseFloat(employer.mileageRate || '0.655').toFixed(3)}/mile
+                        </div>
+                      </>
+                    )}
+                    {totalMileage === 0 && (
+                      <div className="text-sm text-gray-500">No mileage entries for this period</div>
                     )}
                   </div>
-                  {employer && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      Rate: ${parseFloat(employer.mileageRate || '0.655').toFixed(3)}/mile
-                    </div>
-                  )}
-                </div>
-              )}
-              {mileageNotes && (
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1 mt-2">Notes</label>
-                  <Input
-                    type="text"
-                    value={mileageNotes}
-                    onChange={(e) => setMileageNotes(e.target.value)}
-                    placeholder="Mileage notes..."
-                  />
-                </div>
-              )}
+                );
+              })()}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Misc. Hours</label>

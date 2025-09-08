@@ -182,6 +182,17 @@ export const miscHoursEntries = pgTable('misc_hours_entries', {
   description: text('description'),
 });
 
+// Daily mileage entries for odometer readings
+export const dailyMileageEntries = pgTable('daily_mileage_entries', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').references(() => employees.id).notNull(),
+  entryDate: date('entry_date').notNull(),
+  mileageIn: integer('mileage_in'),
+  mileageOut: integer('mileage_out'),
+  dailyMiles: integer('daily_miles').default(0),
+  description: text('description'),
+});
+
 // Mileage tracking table for pay period-based odometer readings
 export const mileageTracking = pgTable('mileage_tracking', {
   id: serial('id').primaryKey(),
@@ -283,6 +294,14 @@ export const insertMiscHoursEntrySchema = createInsertSchema(miscHoursEntries).o
   id: true,
 });
 
+export const insertDailyMileageEntrySchema = createInsertSchema(dailyMileageEntries).omit({
+  id: true,
+  dailyMiles: true,
+}).extend({
+  mileageIn: z.coerce.number().optional(),
+  mileageOut: z.coerce.number().optional(),
+});
+
 export const insertMileageTrackingSchema = createInsertSchema(mileageTracking).omit({
   id: true,
   createdAt: true,
@@ -339,6 +358,8 @@ export type InsertReimbursementEntry = z.infer<typeof insertReimbursementEntrySc
 export type ReimbursementEntry = typeof reimbursementEntries.$inferSelect;
 export type InsertMiscHoursEntry = z.infer<typeof insertMiscHoursEntrySchema>;
 export type MiscHoursEntry = typeof miscHoursEntries.$inferSelect;
+export type InsertDailyMileageEntry = z.infer<typeof insertDailyMileageEntrySchema>;
+export type DailyMileageEntry = typeof dailyMileageEntries.$inferSelect;
 export type InsertMileageTracking = z.infer<typeof insertMileageTrackingSchema>;
 export type MileageTracking = typeof mileageTracking.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;

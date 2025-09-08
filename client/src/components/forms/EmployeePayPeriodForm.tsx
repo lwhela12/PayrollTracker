@@ -621,7 +621,6 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         notes: notes || "",
       };
 
-      console.log("Submitting payload:", payload);
 
       // Save daily mileage entries
       const mileagePromises: Promise<any>[] = [];
@@ -658,8 +657,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       if (mileagePromises.length > 0) {
         try {
           await Promise.all(mileagePromises);
-          console.log("Daily mileage entries saved successfully");
-        } catch (error) {
+          } catch (error) {
           console.error("Failed to save mileage entries:", error);
           toast({
             title: "Warning",

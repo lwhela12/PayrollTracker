@@ -2,11 +2,14 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 
 interface TimecardUpdate {
   employeeId: number;
+  totalHours?: number;
+  totalOvertimeHours?: number;
   mileage?: number;
   reimbursement?: number;
   ptoHours?: number;
   holidayHours?: number;
   holidayWorkedHours?: number;
+  miscHours?: number;
 }
 
 interface TimecardUpdatesContextType {

@@ -438,29 +438,6 @@ export default function Timecards() {
                 </CardContent>
               </Card>
 
-              {/* Mileage Tracking Section */}
-              {selectedPayPeriodId && employees.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Car className="h-5 w-5" />
-                      Mileage Tracking
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {employees.map((employee: any) => (
-                        <MileageTracking
-                          key={`mileage-${employee.id}-${selectedPayPeriodId}`}
-                          employeeId={employee.id}
-                          payPeriodId={parseInt(selectedPayPeriodId)}
-                          employeeName={`${employee.firstName} ${employee.lastName}`}
-                        />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </div>
         </main>

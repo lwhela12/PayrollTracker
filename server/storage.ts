@@ -966,37 +966,67 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-      // Insert new time entries from days array
+      // Insert new time entries from days array - create entries for all shifts to preserve form state
       const timeEntriesToInsert = [];
       if (days && Array.isArray(days)) {
         for (const day of days) {
           if (day && day.shifts && Array.isArray(day.shifts)) {
             for (const shift of day.shifts) {
-              if (shift.timeIn && shift.timeOut && shift.timeIn.trim() !== '' && shift.timeOut.trim() !== '') {
+              // Check if shift has any data (time OR mileage OR lunch)
+              const hasTimeData = (shift.timeIn && shift.timeIn.trim() !== '') || (shift.timeOut && shift.timeOut.trim() !== '');
+              const hasMileageData = shift.mileageIn || shift.mileageOut;
+              const hasLunchData = shift.lunch && shift.lunch > 0;
+              
+              if (hasTimeData || hasMileageData || hasLunchData) {
                 try {
-                  // Ensure time format is HH:MM
-                  const timeInFormatted = shift.timeIn.includes(':') ? shift.timeIn : `${shift.timeIn}:00`;
-                  const timeOutFormatted = shift.timeOut.includes(':') ? shift.timeOut : `${shift.timeOut}:00`;
+                  let timeInDate = null;
+                  let timeOutDate = null;
+                  
+                  // Only process time fields if they have values
+                  if (shift.timeIn && shift.timeIn.trim() !== '' && shift.timeOut && shift.timeOut.trim() !== '') {
+                    // Ensure time format is HH:MM
+                    const timeInFormatted = shift.timeIn.includes(':') ? shift.timeIn : `${shift.timeIn}:00`;
+                    const timeOutFormatted = shift.timeOut.includes(':') ? shift.timeOut : `${shift.timeOut}:00`;
 
-                  const timeInDate = new Date(`${day.date}T${timeInFormatted}:00`);
-                  let timeOutDate = new Date(`${day.date}T${timeOutFormatted}:00`);
+                    timeInDate = new Date(`${day.date}T${timeInFormatted}:00`);
+                    timeOutDate = new Date(`${day.date}T${timeOutFormatted}:00`);
 
-                  // Handle overnight shifts - if timeOut < timeIn, add a day
-                  if (timeOutDate <= timeInDate) {
-                    timeOutDate = new Date(timeOutDate.getTime() + 24 * 60 * 60 * 1000);
+                    // Handle overnight shifts - if timeOut < timeIn, add a day
+                    if (timeOutDate <= timeInDate) {
+                      timeOutDate = new Date(timeOutDate.getTime() + 24 * 60 * 60 * 1000);
+                    }
+
+                    // Validate dates
+                    if (isNaN(timeInDate.getTime()) || isNaN(timeOutDate.getTime())) {
+                      timeInDate = null;
+                      timeOutDate = null;
+                    }
+                  } else if (shift.timeIn && shift.timeIn.trim() !== '') {
+                    // Only timeIn provided - create partial entry
+                    const timeInFormatted = shift.timeIn.includes(':') ? shift.timeIn : `${shift.timeIn}:00`;
+                    timeInDate = new Date(`${day.date}T${timeInFormatted}:00`);
+                    if (isNaN(timeInDate.getTime())) {
+                      timeInDate = null;
+                    }
                   }
-
-                  // Validate dates before inserting
-                  if (!isNaN(timeInDate.getTime()) && !isNaN(timeOutDate.getTime())) {
-                    timeEntriesToInsert.push({
-                      employeeId,
-                      timeIn: timeInDate,
-                      timeOut: timeOutDate,
-                      lunchMinutes: shift.lunch || 0,
-                    });
-                  }
+                  
+                  // Create time entry (with null times if no time data provided)
+                  timeEntriesToInsert.push({
+                    employeeId,
+                    timeIn: timeInDate,
+                    timeOut: timeOutDate,
+                    lunchMinutes: shift.lunch || 0,
+                  });
+                  
                 } catch (error) {
                   console.warn(`Invalid time entry for ${day.date}:`, shift, error);
+                  // Still create entry with null times to preserve shift data
+                  timeEntriesToInsert.push({
+                    employeeId,
+                    timeIn: null,
+                    timeOut: null,
+                    lunchMinutes: shift.lunch || 0,
+                  });
                 }
               }
             }

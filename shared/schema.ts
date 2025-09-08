@@ -148,7 +148,7 @@ export const timecards = pgTable("timecards", {
 export const timeEntries = pgTable('time_entries', {
   id: serial('id').primaryKey(),
   employeeId: integer('employee_id').references(() => employees.id).notNull(),
-  timeIn: timestamp('time_in', { withTimezone: false }).notNull(),
+  timeIn: timestamp('time_in', { withTimezone: false }),
   timeOut: timestamp('time_out', { withTimezone: false }),
   lunchMinutes: integer('lunch_minutes').default(0),
   notes: text('notes'),

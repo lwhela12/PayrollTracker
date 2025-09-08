@@ -517,21 +517,35 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         return;
       }
 
-      // Validate time entries
+      // Validate time entries - process all shifts to preserve form state
       let hasValidTimeEntries = false;
       for (const day of days) {
         for (const shift of day.shifts) {
-          if (shift.timeIn && shift.timeOut) {
+          // Consider a shift valid if it has any data (time OR mileage)
+          const hasTimeData = shift.timeIn || shift.timeOut;
+          const hasMileageData = shift.mileageIn || shift.mileageOut;
+          
+          if (hasTimeData || hasMileageData) {
             hasValidTimeEntries = true;
-            // Validate time format
-            if (!/^\d{2}:\d{2}$/.test(shift.timeIn) || !/^\d{2}:\d{2}$/.test(shift.timeOut)) {
-              toast({ 
-                title: "Error", 
-                description: `Invalid time format for ${day.date}. Please use HH:MM format.`, 
-                variant: "destructive" 
-              });
-              return;
-            }
+          }
+          
+          // Validate time format only when time fields have values
+          if (shift.timeIn && !/^\d{2}:\d{2}$/.test(shift.timeIn)) {
+            toast({ 
+              title: "Error", 
+              description: `Invalid time format for Time In on ${day.date}. Please use HH:MM format.`, 
+              variant: "destructive" 
+            });
+            return;
+          }
+          
+          if (shift.timeOut && !/^\d{2}:\d{2}$/.test(shift.timeOut)) {
+            toast({ 
+              title: "Error", 
+              description: `Invalid time format for Time Out on ${day.date}. Please use HH:MM format.`, 
+              variant: "destructive" 
+            });
+            return;
           }
         }
       }

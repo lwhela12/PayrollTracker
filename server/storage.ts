@@ -8,6 +8,7 @@ import {
   ptoEntries,
   reimbursementEntries,
   miscHoursEntries,
+  dailyMileageEntries,
   mileageTracking,
   reimbursements,
   reports,
@@ -32,6 +33,8 @@ import {
   type ReimbursementEntry,
   type InsertMiscHoursEntry,
   type MiscHoursEntry,
+  type InsertDailyMileageEntry,
+  type DailyMileageEntry,
   type InsertMileageTracking,
   type MileageTracking,
   type Reimbursement,
@@ -132,6 +135,12 @@ export interface IStorage {
   getMiscHoursEntriesByEmployee(employeeId: number): Promise<MiscHoursEntry[]>;
   updateMiscHoursEntry(id: number, entry: Partial<InsertMiscHoursEntry>): Promise<MiscHoursEntry>;
   deleteMiscHoursEntry(id: number): Promise<void>;
+
+  // Daily mileage entry operations
+  createDailyMileageEntry(entry: InsertDailyMileageEntry): Promise<DailyMileageEntry>;
+  getDailyMileageEntriesByEmployee(employeeId: number): Promise<DailyMileageEntry[]>;
+  updateDailyMileageEntry(id: number, entry: Partial<InsertDailyMileageEntry>): Promise<DailyMileageEntry>;
+  deleteDailyMileageEntry(id: number): Promise<void>;
 
   // Mileage tracking operations
   createMileageTracking(entry: InsertMileageTracking): Promise<MileageTracking>;
@@ -786,6 +795,57 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMiscHoursEntry(id: number): Promise<void> {
     await db.delete(miscHoursEntries).where(eq(miscHoursEntries.id, id));
+  }
+
+  // Daily mileage entry operations
+  async createDailyMileageEntry(entry: InsertDailyMileageEntry): Promise<DailyMileageEntry> {
+    // Calculate daily miles if both values provided and valid
+    const dailyMiles = entry.mileageIn && entry.mileageOut && entry.mileageOut >= entry.mileageIn
+      ? entry.mileageOut - entry.mileageIn
+      : 0;
+    
+    const [newEntry] = await db.insert(dailyMileageEntries).values({
+      ...entry,
+      dailyMiles,
+    }).returning();
+    return newEntry;
+  }
+
+  async getDailyMileageEntriesByEmployee(employeeId: number): Promise<DailyMileageEntry[]> {
+    return await db
+      .select()
+      .from(dailyMileageEntries)
+      .where(eq(dailyMileageEntries.employeeId, employeeId))
+      .orderBy(asc(dailyMileageEntries.entryDate));
+  }
+
+  async updateDailyMileageEntry(id: number, entry: Partial<InsertDailyMileageEntry>): Promise<DailyMileageEntry> {
+    // Recalculate daily miles if odometer readings are being updated
+    let updateData = { ...entry };
+    if (entry.mileageIn !== undefined || entry.mileageOut !== undefined) {
+      // Get current record to fill in missing values
+      const [current] = await db.select().from(dailyMileageEntries).where(eq(dailyMileageEntries.id, id));
+      if (current) {
+        const mileageIn = entry.mileageIn ?? current.mileageIn;
+        const mileageOut = entry.mileageOut ?? current.mileageOut;
+        if (mileageIn && mileageOut && mileageOut >= mileageIn) {
+          updateData.dailyMiles = mileageOut - mileageIn;
+        } else {
+          updateData.dailyMiles = 0;
+        }
+      }
+    }
+    
+    const [updated] = await db
+      .update(dailyMileageEntries)
+      .set(updateData)
+      .where(eq(dailyMileageEntries.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDailyMileageEntry(id: number): Promise<void> {
+    await db.delete(dailyMileageEntries).where(eq(dailyMileageEntries.id, id));
   }
 
   // Mileage tracking operations

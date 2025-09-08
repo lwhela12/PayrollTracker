@@ -228,6 +228,33 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingEntries?.length, start, end, generateDays]); // Use length instead of full array
 
+  // Populate mileage data from existing entries
+  useEffect(() => {
+    if (existingMileageEntries && existingMileageEntries.length > 0) {
+      setDays(prevDays => {
+        const updatedDays = [...prevDays];
+        
+        existingMileageEntries.forEach((mileageEntry: any) => {
+          if (mileageEntry && mileageEntry.entryDate) {
+            const dayIndex = updatedDays.findIndex(d => d.date === mileageEntry.entryDate);
+            
+            if (dayIndex >= 0 && updatedDays[dayIndex].shifts.length > 0) {
+              // Update the first shift with mileage data (assuming one shift per day for mileage)
+              updatedDays[dayIndex].shifts[0] = {
+                ...updatedDays[dayIndex].shifts[0],
+                mileageIn: mileageEntry.mileageIn || 0,
+                mileageOut: mileageEntry.mileageOut || 0,
+              };
+            }
+          }
+        });
+        
+        return updatedDays;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingMileageEntries?.length, days.length]); // Run when mileage entries change
+
   // Populate PTO hours from existing entries
   useEffect(() => {
     if (existingPtoEntries && existingPtoEntries.length > 0) {

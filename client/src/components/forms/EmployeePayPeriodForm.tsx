@@ -340,11 +340,6 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     }, 0);
   };
 
-  // Calculate total mileage from all daily entries
-  const calculateTotalMileage = (): number => {
-    return days.reduce((total, day) => total + calculateDayTotalMileage(day), 0);
-  };
-
   // Split days into two 7-day weeks and calculate overtime separately for each week
   const week1Days = days.slice(0, 7);
   const week2Days = days.slice(7, 14);
@@ -368,6 +363,24 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     regular: totalRegularHours + miscHours, // Add misc hours to regular hours
     overtime: totalOvertimeHours,
     totalHours: totalWorkedHours + miscHours
+  };
+
+  // Calculate daily mileage for a shift
+  const calculateDailyMileage = (mileageIn: number, mileageOut: number): number => {
+    if (!mileageIn || !mileageOut || mileageOut < mileageIn) return 0;
+    return mileageOut - mileageIn;
+  };
+
+  // Calculate total daily mileage for a day
+  const calculateDayTotalMileage = (day: DayEntry): number => {
+    return day.shifts.reduce((total, shift) => {
+      return total + calculateDailyMileage(shift.mileageIn, shift.mileageOut);
+    }, 0);
+  };
+
+  // Calculate total mileage from all daily entries
+  const calculateTotalMileage = (): number => {
+    return days.reduce((total, day) => total + calculateDayTotalMileage(day), 0);
   };
 
   const totalMilesDriven = calculateTotalMileage();
@@ -427,18 +440,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     );
   };
 
-  // Calculate daily mileage for a shift
-  const calculateDailyMileage = (mileageIn: number, mileageOut: number): number => {
-    if (!mileageIn || !mileageOut || mileageOut < mileageIn) return 0;
-    return mileageOut - mileageIn;
-  };
 
-  // Calculate total daily mileage for a day
-  const calculateDayTotalMileage = (day: DayEntry): number => {
-    return day.shifts.reduce((total, shift) => {
-      return total + calculateDailyMileage(shift.mileageIn, shift.mileageOut);
-    }, 0);
-  };
 
   // Daily mileage entry mutations
   const createDailyMileageMutation = useMutation({

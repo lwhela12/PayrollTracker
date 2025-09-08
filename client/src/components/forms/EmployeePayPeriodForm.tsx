@@ -530,10 +530,16 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         sessionStorage.setItem('selected-pay-period-start', payPeriod.start);
       }
 
-      // Only invalidate dashboard stats since we navigate away immediately
-      // This eliminates 5 unnecessary API calls and runs in parallel
+      // Invalidate both dashboard and employee-specific data
+      // Dashboard for immediate feedback, employee data for when user returns to form
       if (employee?.employerId) {
+        // Don't await these - let them run in parallel
         queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
+        queryClient.invalidateQueries({ queryKey: ["/api/time-entries/employee", employeeId] });
+        queryClient.invalidateQueries({ queryKey: ["/api/daily-mileage-entries/employee", employeeId] });
+        queryClient.invalidateQueries({ queryKey: ["/api/pto-entries/employee", employeeId] });
+        queryClient.invalidateQueries({ queryKey: ["/api/misc-hours-entries/employee", employeeId] });
+        queryClient.invalidateQueries({ queryKey: ["/api/reimbursement-entries/employee", employeeId] });
       }
 
       // Navigate immediately

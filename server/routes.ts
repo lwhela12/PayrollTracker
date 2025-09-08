@@ -1142,6 +1142,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Access denied' });
       }
 
+      // Get employer data for mileage rate
+      const employer = await storage.getEmployer(employee.employerId);
+      if (!employer) return res.status(404).json({ message: 'Employer not found' });
+
       // Get or create pay period
       const startDate = new Date(payPeriod.start);
       const endDate = new Date(payPeriod.end);
@@ -1163,7 +1167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         milesDriven,
         miscHours,
         reimbursement,
-        notes
+        employer
       });
 
       // Force garbage collection if available to clean up any residual cache

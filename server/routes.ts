@@ -12,13 +12,15 @@ import {
   insertPtoEntrySchema,
   insertReimbursementEntrySchema,
   insertMiscHoursEntrySchema,
+  insertDailyMileageEntrySchema,
   insertMileageTrackingSchema,
   insertReimbursementSchema,
   payPeriods,
   timeEntries,
   ptoEntries,
   miscHoursEntries,
-  reimbursementEntries
+  reimbursementEntries,
+  dailyMileageEntries
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -1385,6 +1387,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting mileage tracking:', error);
       res.status(500).json({ message: 'Failed to delete mileage tracking' });
+    }
+  });
+
+  // Daily mileage entry routes
+  app.post('/api/daily-mileage-entries', isAuthenticated, async (req: any, res) => {
+    try {
+      const data = insertDailyMileageEntrySchema.parse(req.body);
+      const employee = await storage.getEmployee(data.employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+      if (!(await hasAccessToEmployer(req.user.claims.sub, employee.employerId))) return res.status(403).json({ message: 'Access denied' });
+      
+      // Calculate daily miles if both values provided and valid
+      let calculatedData = { ...data };
+      if (data.mileageIn && data.mileageOut && data.mileageOut >= data.mileageIn) {
+        calculatedData.dailyMiles = data.mileageOut - data.mileageIn;
+      }
+      
+      const entry = await storage.createDailyMileageEntry(calculatedData);
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
+      console.error('Error creating daily mileage entry:', error);
+      res.status(500).json({ message: 'Failed to create daily mileage entry' });
+    }
+  });
+
+  app.get('/api/daily-mileage-entries/employee/:employeeId', isAuthenticated, async (req: any, res) => {
+    try {
+      const employeeId = parseInt(req.params.employeeId);
+      const employee = await storage.getEmployee(employeeId);
+      if (!employee) return res.status(404).json({ message: 'Employee not found' });
+      if (!(await hasAccessToEmployer(req.user.claims.sub, employee.employerId))) return res.status(403).json({ message: 'Access denied' });
+      const entries = await storage.getDailyMileageEntriesByEmployee(employeeId);
+      res.json(entries);
+    } catch (error) {
+      console.error('Error fetching daily mileage entries:', error);
+      res.status(500).json({ message: 'Failed to fetch daily mileage entries' });
+    }
+  });
+
+  app.put('/api/daily-mileage-entries/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = insertDailyMileageEntrySchema.partial().parse(req.body);
+      
+      // Calculate daily miles if both values provided and valid
+      let calculatedData = { ...data };
+      if (data.mileageIn && data.mileageOut && data.mileageOut >= data.mileageIn) {
+        calculatedData.dailyMiles = data.mileageOut - data.mileageIn;
+      }
+      
+      const entry = await storage.updateDailyMileageEntry(id, calculatedData);
+      res.json(entry);
+    } catch (error: any) {
+      if (error.name === 'ZodError') return res.status(400).json({ message: fromZodError(error).toString() });
+      console.error('Error updating daily mileage entry:', error);
+      res.status(500).json({ message: 'Failed to update daily mileage entry' });
+    }
+  });
+
+  app.delete('/api/daily-mileage-entries/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteDailyMileageEntry(parseInt(req.params.id));
+      res.json({ message: 'Deleted' });
+    } catch (error) {
+      console.error('Error deleting daily mileage entry:', error);
+      res.status(500).json({ message: 'Failed to delete daily mileage entry' });
     }
   });
 

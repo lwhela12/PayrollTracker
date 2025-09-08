@@ -1195,12 +1195,13 @@ export class DatabaseStorage implements IStorage {
         GROUP BY employee_id
       ),
       daily_mileage_totals AS (
-        SELECT employee_id,
-               SUM(daily_miles) AS daily_mileage
-        FROM daily_mileage_entries
-        WHERE entry_date >= $2::date AND entry_date <= $3::date
-          AND employee_id IN (SELECT id FROM employees WHERE employer_id=$1 AND is_active=true)
-        GROUP BY employee_id
+        SELECT dme.employee_id,
+               SUM(dme.daily_miles) AS daily_mileage
+        FROM daily_mileage_entries dme
+        INNER JOIN employees e ON dme.employee_id = e.id
+        WHERE dme.entry_date >= $2::date AND dme.entry_date <= $3::date
+          AND e.employer_id = $1 AND e.is_active = true
+        GROUP BY dme.employee_id
       )
       SELECT
         e.id as "employeeId",

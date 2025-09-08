@@ -392,7 +392,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       const mileageAmount = totalMilesDriven > 0 ? totalMilesDriven * mileageRate : 0;
       const totalReimbursement = reimbAmt + mileageAmount;
 
-      // Debounce updates to avoid excessive calls
+      // Debounce updates to avoid excessive calls - reduced delay for snappier feel
       const timeoutId = setTimeout(() => {
         updateEmployee(employeeId, {
           totalOvertimeHours: totals.overtime,
@@ -402,7 +402,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
           holidayHours: holidayNonWorked,
           holidayWorkedHours: holidayWorked
         });
-      }, 100);
+      }, 25);
 
       return () => clearTimeout(timeoutId);
     }
@@ -466,13 +466,30 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         throw error;
       }
     },
-    onError: (err: any) => {
-      console.error("Save timecard error:", err);
-      const errorMessage = err?.message || "Failed to save timecard data";
-      toast({ 
-        title: "Error", 
-        description: `Failed to save. ${errorMessage}. Please try again.`, 
-        variant: "destructive" 
+    onMutate: async () => {
+      // Optimistic update - show changes immediately
+      if (employee && totals) {
+        const mileageRate = parseFloat(employer?.mileageRate || '0.655');
+        const mileageAmount = totalMilesDriven > 0 ? totalMilesDriven * mileageRate : 0;
+        const totalReimbursement = reimbAmt + mileageAmount;
+
+        // Update context immediately for instant dashboard feedback
+        updateEmployee(employeeId, {
+          totalHours: totals.regular + totals.overtime + miscHours,
+          totalOvertimeHours: totals.overtime,
+          mileage: totalMilesDriven,
+          reimbursement: totalReimbursement,
+          ptoHours,
+          holidayHours: holidayNonWorked,
+          holidayWorkedHours: holidayWorked,
+          miscHours
+        });
+      }
+      
+      // Show immediate feedback
+      toast({
+        title: "Saving...",
+        description: "Timecard data is being saved",
       });
     },
     onSuccess: async () => {
@@ -486,21 +503,26 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         sessionStorage.setItem('selected-pay-period-start', payPeriod.start);
       }
 
-      // Clear real-time updates to avoid stale data
-      clearEmployee(employeeId);
-
-      // Invalidate specific caches that need refreshing
+      // Only invalidate dashboard stats since we navigate away immediately
+      // This eliminates 5 unnecessary API calls and runs in parallel
       if (employee?.employerId) {
-        await queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/time-entries/employee", employeeId] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/pto-entries/employee", employeeId] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/misc-hours-entries/employee", employeeId] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/reimbursement-entries/employee", employeeId] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/daily-mileage-entries/employee", employeeId] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats", employee.employerId] });
       }
 
       // Navigate immediately
       navigate("/");
+    },
+    onError: (err: any) => {
+      // Revert optimistic update on error
+      clearEmployee(employeeId);
+      
+      console.error("Save timecard error:", err);
+      const errorMessage = err?.message || "Failed to save timecard data";
+      toast({ 
+        title: "Error", 
+        description: `Failed to save. ${errorMessage}. Please try again.`, 
+        variant: "destructive" 
+      });
     },
   });
 

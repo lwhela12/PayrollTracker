@@ -340,14 +340,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     }, 0);
   };
 
-  // Calculate mileage from odometer readings
-  const calculateMileage = () => {
-    const start = parseInt(startOdometer);
-    const end = parseInt(endOdometer);
-    if (!isNaN(start) && !isNaN(end) && end >= start) {
-      return end - start;
-    }
-    return 0;
+  // Calculate total mileage from all daily entries
+  const calculateTotalMileage = (): number => {
+    return days.reduce((total, day) => total + calculateDayTotalMileage(day), 0);
   };
 
   // Split days into two 7-day weeks and calculate overtime separately for each week
@@ -375,20 +370,20 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
     totalHours: totalWorkedHours + miscHours
   };
 
-  const milesDriven = calculateMileage();
+  const totalMilesDriven = calculateTotalMileage();
 
   // Real-time updates to pay period summary when any values change
   useEffect(() => {
     if (employee && employer && totals) {
       const mileageRate = parseFloat(employer.mileageRate || '0.655');
-      const mileageAmount = milesDriven > 0 ? milesDriven * mileageRate : 0;
+      const mileageAmount = totalMilesDriven > 0 ? totalMilesDriven * mileageRate : 0;
       const totalReimbursement = reimbAmt + mileageAmount;
 
       // Debounce updates to avoid excessive calls
       const timeoutId = setTimeout(() => {
         updateEmployee(employeeId, {
           totalOvertimeHours: totals.overtime,
-          mileage: milesDriven,
+          mileage: totalMilesDriven,
           reimbursement: totalReimbursement,
           ptoHours,
           holidayHours: holidayNonWorked,
@@ -399,7 +394,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
       return () => clearTimeout(timeoutId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totals.totalHours, totals.overtime, milesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, miscHours, employee?.id, employer?.id]);
+  }, [totals.totalHours, totals.overtime, totalMilesDriven, reimbAmt, ptoHours, holidayNonWorked, holidayWorked, miscHours, employee?.id, employer?.id, days]);
 
   const addShift = (date: string) => {
     setDays((prev) =>
@@ -546,7 +541,7 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
         ptoHours: Number(ptoHours) || 0,
         holidayNonWorked: Number(holidayNonWorked) || 0,
         holidayWorked: Number(holidayWorked) || 0,
-        milesDriven: Number(milesDriven) || 0,
+        milesDriven: totalMilesDriven || 0, // Use the new daily mileage total
         miscHours: Number(miscHours) || 0,
         reimbursement: { 
           amount: Number(reimbAmt) || 0, 

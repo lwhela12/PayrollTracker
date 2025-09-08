@@ -719,35 +719,18 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                 min="0"
               />
             </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Total Mileage Summary</label>
-              {(() => {
-                const totalMileage = days.reduce((total, day) => total + calculateDayTotalMileage(day), 0);
-                return (
-                  <div className="bg-blue-50 p-3 rounded border">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-medium">Total Miles This Period:</span>
-                      <span className="font-bold text-lg text-blue-700">{totalMileage}</span>
-                    </div>
-                    {employer && totalMileage > 0 && (
-                      <>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Reimbursement Amount:</span>
-                          <span className="text-green-600 font-medium text-lg">
-                            ${(totalMileage * parseFloat(employer.mileageRate || '0.655')).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Rate: ${parseFloat(employer.mileageRate || '0.655').toFixed(3)}/mile
-                        </div>
-                      </>
-                    )}
-                    {totalMileage === 0 && (
-                      <div className="text-sm text-gray-500">No mileage entries for this period</div>
-                    )}
-                  </div>
-                );
-              })()}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Total Miles This Period</label>
+              <Input
+                type="number"
+                value={(() => {
+                  const totalMileage = days.reduce((total, day) => total + calculateDayTotalMileage(day), 0);
+                  return totalMileage;
+                })()}
+                readOnly
+                className="bg-gray-50"
+                placeholder="0"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Misc. Hours</label>

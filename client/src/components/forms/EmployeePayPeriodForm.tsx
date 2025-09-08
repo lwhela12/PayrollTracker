@@ -770,9 +770,9 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
                 step="0.01"
                 min="0"
               />
-              {employer && milesDriven > 0 && (
+              {employer && totalMilesDriven > 0 && (
                 <div className="text-xs text-gray-500 mt-1">
-                  + ${(milesDriven * parseFloat(employer.mileageRate || '0.655')).toFixed(2)} mileage (auto-added)
+                  + ${(totalMilesDriven * parseFloat(employer.mileageRate || '0.655')).toFixed(2)} mileage (auto-added)
                 </div>
               )}
             </div>
@@ -817,13 +817,13 @@ export function EmployeePayPeriodForm({ employeeId, payPeriod, employee: propEmp
           <div className="flex justify-between"><span>PTO:</span><span>{ptoHours.toFixed(2)}h</span></div>
           <div className="flex justify-between"><span>Holiday:</span><span>{holidayNonWorked.toFixed(2)}h</span></div>
           <div className="flex justify-between"><span>Holiday Worked:</span><span>{holidayWorked.toFixed(2)}h</span></div>
-          {milesDriven > 0 && employee && (
-            <div className="flex justify-between"><span>Mileage:</span><span>{milesDriven} mi</span></div>
+          {totalMilesDriven > 0 && employee && (
+            <div className="flex justify-between"><span>Mileage:</span><span>{totalMilesDriven} mi</span></div>
           )}
           <div className="flex justify-between">
             <span>Reimb:</span>
             <span>
-              ${(reimbAmt + (employer && milesDriven > 0 ? milesDriven * parseFloat(employer.mileageRate || '0.655') : 0)).toFixed(2)}
+              ${(reimbAmt + (employer && totalMilesDriven > 0 ? totalMilesDriven * parseFloat(employer.mileageRate || '0.655') : 0)).toFixed(2)}
             </span>
           </div>
           <div className="flex justify-between font-semibold"><span>Total Hours:</span><span>{(totals.totalHours + ptoHours + holidayNonWorked + holidayWorked).toFixed(2)}h</span></div>

@@ -15,6 +15,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { formatDate } from "@/lib/dateUtils";
 
 export default function Employees() {
   const { user } = useAuth();
@@ -208,7 +209,7 @@ export default function Employees() {
                               </div>
                             </div>
                           </td>
-                          <td>{employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : "N/A"}</td>
+                          <td>{employee.hireDate ? formatDate(employee.hireDate) : "N/A"}</td>
                           <td>{employee.position || "N/A"}</td>
                           <td>
                             <Badge 

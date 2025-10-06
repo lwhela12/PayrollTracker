@@ -1999,7 +1999,14 @@ async function generateIndividualTimecardPDFReport(employer: any, payPeriod: any
     // Header
     doc.fontSize(20).text('Individual Timecard Report', 50, 50);
     doc.fontSize(14).text(`Company: ${employer.name}`, 50, 80);
-    doc.fontSize(14).text(`Employee: ${emp.firstName} ${emp.lastName} (Hire Date: ${emp.hireDate})`, 50, 100);
+    // Format hire date properly to avoid timezone issues
+    const formatHireDate = (dateStr: string) => {
+      if (!dateStr) return 'N/A';
+      const [year, month, day] = dateStr.split('-');
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${monthNames[parseInt(month) - 1]} ${parseInt(day)}, ${year}`;
+    };
+    doc.fontSize(14).text(`Employee: ${emp.firstName} ${emp.lastName} (Hire Date: ${formatHireDate(emp.hireDate)})`, 50, 100);
     doc.text(`Pay Period: ${payPeriod.startDate} to ${payPeriod.endDate}`, 50, 120);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 50, 140);
 
